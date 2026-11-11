@@ -5,9 +5,9 @@ extensions:
   - proj_flow.ext.github
 
 entry:
-  config: [ Conan, CMake ]
-  build: [ Build ]
-  test: [ Build, Test ]
+  config: [Conan, CMake]
+  build: [Build]
+  test: [Build, Test]
   verify:
     - Build
     - Test
@@ -20,8 +20,8 @@ entry:
 
 compiler:
   names:
-    clang: [ clang, clang++ ]
-    gcc: [ gcc, g++ ]
+    clang: [clang, clang++]
+    gcc: [gcc, g++]
   os-default: { ubuntu: gcc, windows: msvc }
 
 postproc:
@@ -32,10 +32,12 @@ cmake:
   vars:
     DOLLHOUSE_COVERAGE: "?config:coverage"
     DOLLHOUSE_SANITIZE: "?config:sanitizer"
-    DOLLHOUSE_CUTDOWN_OS: "?runtime:cutdown_os"
+    # DOLLHOUSE_CUTDOWN_OS: "?runtime:cutdown_os"
 
 shortcuts:
   dbg: { build_type: Debug, sanitizer: false }
   rel: { build_type: Release, sanitizer: false }
-  both: { build_type: [ Debug, Release ], sanitizer: false }
+  nfo: { build_type: RelWithDebInfo, sanitizer: false }
+  both: { build_type: [Debug, Release], sanitizer: false }
+  all: { build_type: [Debug, Release, RelWithDebInfo], sanitizer: false }
   sane: { build_type: Debug, sanitizer: true }

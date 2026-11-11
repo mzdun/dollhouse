@@ -33,7 +33,6 @@ include(output_dirs_setup)
 set(CONAN_CMAKE_SILENT_OUTPUT ON)
 find_package(Python3 COMPONENTS Interpreter REQUIRED)
 find_package(fmt REQUIRED)
-find_package(GTest REQUIRED)
 find_package(mbits-args REQUIRED)
 
 if (DOLLHOUSE_TESTING)
@@ -136,54 +135,4 @@ endif()
 include(${PROJECT_SOURCE_DIR}/.flow/packages/config.cmake)
 include(CPack)
 
-configure_file(src/version.hpp.in include/dollhouse/version.hpp @ONLY)
-
-set(SRCS
-  src/main.cpp
-  "${CMAKE_CURRENT_BINARY_DIR}/include/dollhouse/version.hpp"
-)
-
-add_executable(${PROJECT_NAME} ${SRCS})
-
-add_win32_icon(${PROJECT_NAME} "appicon.ico")
-target_compile_options(${PROJECT_NAME} PRIVATE ${DOLLHOUSE_ADDITIONAL_COMPILE_FLAGS})
-target_link_options(${PROJECT_NAME} PUBLIC ${DOLLHOUSE_ADDITIONAL_LINK_FLAGS})
-target_include_directories(${PROJECT_NAME}
-  PUBLIC
-    ${CMAKE_CURRENT_SOURCE_DIR}/include
-    ${CMAKE_CURRENT_BINARY_DIR}/include
-  PRIVATE
-    ${CMAKE_CURRENT_SOURCE_DIR}/src
-    ${CMAKE_CURRENT_BINARY_DIR}/src
-)
-target_link_libraries(${PROJECT_NAME} fmt::fmt mbits::args)
-set_target_properties(${PROJECT_NAME} PROPERTIES
-  VERSION ${PROJECT_VERSION_MAJOR}.${PROJECT_VERSION_MINOR}
-)
-
-##################################################################
-##  INSTALL
-##################################################################
-
-if (DOLLHOUSE_INSTALL)
-  install(TARGETS ${PROJECT_NAME})
-endif()
-
-##################################################################
-##  TESTING
-##################################################################
-
-if (DOLLHOUSE_TESTING)
-  file(GLOB EXCLUDES_TEST_SRCS_CC tests/*.cc)
-  file(GLOB EXCLUDES_TEST_SRCS_CPP tests/*.cpp)
-  file(GLOB EXCLUDES_TEST_SRCS_CXX tests/*.cxx)
-  source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR}/tests FILES
-    ${EXCLUDES_TEST_SRCS_CC}
-    ${EXCLUDES_TEST_SRCS_CPP}
-    ${EXCLUDES_TEST_SRCS_CXX})
-
-  add_project_test(${PROJECT_NAME} ${EXCLUDES_TEST_SRCS_CC} ${EXCLUDES_TEST_SRCS_CPP} ${EXCLUDES_TEST_SRCS_CXX})
-  target_link_libraries(${PROJECT_NAME}-test PUBLIC GTest::gmock_main fmt::fmt)
-
-  add_test(NAME ${PROJECT_NAME} COMMAND ${PROJECT_NAME}-test "--gtest_output=xml:${TEST_REPORT_DIR}/${PROJECT_NAME}/${TEST_REPORT_FILE}")
-endif()
+add_subdirectory(libs)

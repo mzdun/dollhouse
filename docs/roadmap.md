@@ -1,0 +1,26 @@
+# Roadmap
+
+- [x] Setup Dollhouse structure
+- [ ] Shapes and models
+  - [ ] Setup `pybind11` module for `shapes` exposing `pyxel-models`
+  - [ ] Implement `pyxel-models` up to and including groups
+  - [ ] Simple cube
+  - [ ] Add proper diffusion materials (paints and glass/metal)
+  - [ ] Solid operations
+  - [ ] Export models with diffusion matrials
+  - [ ] Add random number generator with seeding
+  - [ ] Solid face identification (for textures)
+  - [ ] UV mapping/unwrapping
+    - [ ] By hand
+    - [ ] Automatic for "component boards foils"
+    - [ ] Automatic for "floor/wall tiling"
+  - [ ] Export texture materials w/out bumps and normals
+  - [ ] Export texture materials with bumps and normals
+- [ ] Dollhouse
+  - [ ] Application framework
+  - [ ] UI outside of window
+  - [ ] (Re)load project
+  - [ ] Build walls with openings
+  - [ ] Apply diffusion materials
+  - [ ] Apply tiling materials
+  - [ ] UV unwrapping of tiles to neighboring walls

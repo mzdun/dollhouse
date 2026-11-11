@@ -1,0 +1,40 @@
+// DO NOT MODIFY, THIS FILE IS GENERATED FROM version.hpp.in
+//
+// @PROJECT_NAME@/@PROJECT_VERSION@@PROJECT_VERSION_STABILITY@
+//
+// Copyright (c) 2026 Marcin Zdun
+// This code is licensed under MIT license (see LICENSE for details)
+// clang-format off
+
+#pragma once
+
+#define PYXEL_VERSION_STR "@PROJECT_VERSION_MAJOR@.@PROJECT_VERSION_MINOR@.@PROJECT_VERSION_PATCH@"
+#define PYXEL_VERSION_STR_SHORT "@PROJECT_VERSION_MAJOR@.@PROJECT_VERSION_MINOR@"
+#define PYXEL_VERSION_STABILITY "@PROJECT_VERSION_STABILITY@"
+#define PYXEL_VERSION_BUILD_META "@PROJECT_VERSION_BUILD_META@"
+#define PYXEL_PROJECT_NAME "@PROJECT_NAME@"
+
+#define PYXEL_VERSION_MAJOR @PROJECT_VERSION_MAJOR@
+#define PYXEL_VERSION_MINOR @PROJECT_VERSION_MINOR@
+#define PYXEL_VERSION_PATCH @PROJECT_VERSION_PATCH@
+
+#ifndef RC_INVOKED
+#include <string_view>
+
+using namespace std::literals;
+
+namespace pyxel {
+	struct version {
+		static constexpr auto string = "@PROJECT_VERSION_MAJOR@.@PROJECT_VERSION_MINOR@.@PROJECT_VERSION_PATCH@"sv;  // NOLINT build/include_what_you_use and whitespace/line_length
+		static constexpr auto string_short = "@PROJECT_VERSION_MAJOR@.@PROJECT_VERSION_MINOR@"sv;
+		static constexpr auto stability = "@PROJECT_VERSION_STABILITY@"sv;  // or "-alpha.5", "-beta", "-rc.3", "", ...
+		static constexpr auto build_meta = "@PROJECT_VERSION_BUILD_META@"sv;
+		static constexpr auto ui = "@PROJECT_VERSION@@PROJECT_VERSION_STABILITY@@PROJECT_VERSION_BUILD_META@"sv;
+
+		static constexpr unsigned major = @PROJECT_VERSION_MAJOR@;
+		static constexpr unsigned minor = @PROJECT_VERSION_MINOR@;
+		static constexpr unsigned patch = @PROJECT_VERSION_PATCH@;
+	};
+}  // namespace pyxel
+#endif
+// clang-format on
