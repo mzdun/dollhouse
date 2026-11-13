@@ -3,11 +3,14 @@ extensions:
   - proj_flow.ext.sign
   - proj_flow.ext.store
   - proj_flow.ext.github
+  - dollhouse.icons
+  - dollhouse.dyn-modules-install
 
 entry:
   config: [Conan, CMake]
-  build: [Build]
-  test: [Build, Test]
+  build: [Build, GenStubs]
+  dyn-install: [Build, GenStubs, DynModulesInstall]
+  test: [Build, GenStubs, Test]
   verify:
     - Build
     - Test
@@ -17,6 +20,9 @@ entry:
     - Store
     - BinInst
     - DevInst
+
+python-dynamic-modules:
+  - shapes
 
 compiler:
   names:

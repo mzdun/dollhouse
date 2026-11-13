@@ -31,10 +31,11 @@ include(common)
 include(output_dirs_setup)
 
 set(CONAN_CMAKE_SILENT_OUTPUT ON)
-find_package(Python3 COMPONENTS Interpreter REQUIRED)
+find_package(Python3 COMPONENTS Interpreter Development REQUIRED)
 find_package(fmt REQUIRED)
 find_package(mbits-args REQUIRED)
 find_package(glm REQUIRED)
+find_package(pybind11 CONFIG REQUIRED)
 
 if (DOLLHOUSE_TESTING)
   enable_testing()

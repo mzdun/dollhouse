@@ -28,6 +28,7 @@ PROJ_FLOW_VERSION = "0.33.0"
 REQUIREMENTS: dict[str, tuple[str, bool]] = {
     "proj-flow": exe(PROJ_FLOW_VERSION),
     # place additional packages here: mod("0.1.1"),
+    "pybind11-stubgen": mod("3.0.0"),
 }
 PROJECT_ROOT = Path(__file__).parent.parent
 VER_REGEX = re.compile(r"((?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*))")
