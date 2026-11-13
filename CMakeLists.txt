@@ -34,6 +34,7 @@ set(CONAN_CMAKE_SILENT_OUTPUT ON)
 find_package(Python3 COMPONENTS Interpreter REQUIRED)
 find_package(fmt REQUIRED)
 find_package(mbits-args REQUIRED)
+find_package(glm REQUIRED)
 
 if (DOLLHOUSE_TESTING)
   enable_testing()

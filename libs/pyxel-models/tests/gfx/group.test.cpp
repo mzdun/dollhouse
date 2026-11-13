@@ -1,0 +1,209 @@
+// Copyright (c) 2026 Marcin Zdun
+// This code is licensed under MIT license (see LICENSE for details)
+
+#include <gtest/gtest.h>
+#include <numbers>
+#include <pyxel/gfx.hpp>
+#include <pyxel/gfx/group.hpp>
+#include <pyxel/gfx/solid_object.hpp>
+#include <stdexcept>
+
+namespace pyxel::gfx::testing {
+	using namespace math::literals;
+	using points_t = std::vector<glm::dvec3>;
+	using strings = sink::strings;
+
+	namespace {
+		// single vertex at the local origin, so the sink shows where the
+		// matrix moved it
+		struct marker : object {
+			void output(sink& out, glm::dmat4 const& parent) const override {
+				solid obj{};
+				auto const a = obj.add_vert(offset{});
+				obj.add_face(a, a, a);
+				out.add_solid(obj, parent);
+			}
+		};
+
+		struct thrower : object {
+			void output(sink&, glm::dmat4 const&) const override { throw std::runtime_error{"child failed"}; }
+		};
+
+		glm::dmat4 const identity{1};
+
+		glm::dvec3 apply(glm::dmat4 const& matrix, glm::dvec3 const& point) {
+			return glm::dvec3{matrix * glm::dvec4{point, 1.0}};
+		}
+
+		void expect_near(glm::dvec3 const& actual, glm::dvec3 const& expected) {
+			EXPECT_NEAR(actual.x, expected.x, 1e-12);
+			EXPECT_NEAR(actual.y, expected.y, 1e-12);
+			EXPECT_NEAR(actual.z, expected.z, 1e-12);
+		}
+
+		points_t vertices(sink const& out, std::string const& material, strings const& names) {
+			return out.solids().at(material).at(names).vertices();
+		}
+	}  // namespace
+
+	// ---- matrix ----------------------------------------------------------
+
+	TEST(gfx_group, default_matrix_is_identity) {
+		group const grp{};
+		EXPECT_EQ(grp.current_matrix(), glm::dmat4{1});
+	}
+
+	TEST(gfx_group, position_translates) {
+		group const grp{1.0_m, 2.0_m, 3.0_m};
+		expect_near(apply(grp.current_matrix(), {0, 0, 0}), {1, 2, 3});
+		expect_near(apply(grp.current_matrix(), {1, 0, 0}), {2, 2, 3});
+	}
+
+	TEST(gfx_group, parent_matrix_applies_last) {
+		group parent{};
+		parent.transform(rotate_z(identity_matrix, deg(90))).transform(translate(identity_matrix, 10.0_m));
+		group child{offset::at_x(1.0_m)};
+		// child moves the point to x=1, the parent rotates it to y=1 and
+		// then moves it by 10 along x
+		expect_near(apply(child.current_matrix(parent.current_matrix()), {0, 0, 0}), {10, 1, 0});
+	}
+
+	// ---- output ----------------------------------------------------------
+
+	TEST(gfx_group, output_passes_matrix_to_children) {
+		group grp{1.0_m, 2.0_m, 3.0_m};
+		grp.add<marker>();
+		sink out{};
+		grp.output(out, identity);
+		EXPECT_EQ(vertices(out, "", {}), (points_t{{1, 2, 3}}));
+	}
+
+	TEST(gfx_group, output_uses_parent_matrix) {
+		group grp{offset::at_x(1.0_m)};
+		grp.add<marker>();
+		glm::dmat4 parent{1};
+		parent[3] = glm::dvec4{0, 5, 0, 1};
+		sink out{};
+		grp.output(out, parent);
+		EXPECT_EQ(vertices(out, "", {}), (points_t{{1, 5, 0}}));
+	}
+
+	TEST(gfx_group, output_without_children_adds_nothing) {
+		group grp{};
+		grp.set_name("empty").set_material("wood");
+		sink out{};
+		grp.output(out, identity);
+		EXPECT_TRUE(out.solids().empty());
+	}
+
+	TEST(gfx_group, output_groups_by_name_and_material) {
+		group grp{};
+		grp.set_name("door").set_material("wood");
+		grp.add<marker>();
+		sink out{};
+		grp.output(out, identity);
+		EXPECT_EQ(vertices(out, "wood", {"door"}), (points_t{{0, 0, 0}}));
+	}
+
+	TEST(gfx_group, unnamed_and_unpainted_groups_add_no_context) {
+		group outer{};
+		outer.set_name("house").set_material("brick");
+		auto& inner = outer.add<group>(offset::at_x(1.0_m));
+		inner.add<marker>();
+		sink out{};
+		outer.output(out, identity);
+		EXPECT_EQ(vertices(out, "brick", {"house"}), (points_t{{1, 0, 0}}));
+	}
+
+	TEST(gfx_group, nested_groups_stack_names_and_override_material) {
+		group house{offset::at_x(10.0_m)};
+		house.set_name("house").set_material("brick");
+		house.add<marker>();
+
+		auto& door = house.add<group>(offset::at_x(1.0_m));
+		door.set_name("door").set_material("wood");
+		door.add<marker>();
+
+		auto& handle = door.add<group>(offset::at_y(1.0_m));
+		handle.set_name("handle");
+		handle.add<marker>();
+
+		house.add<marker>();  // after the door, back to the house context
+
+		sink out{};
+		house.output(out, identity);
+		EXPECT_EQ(vertices(out, "brick", {"house"}), (points_t{{10, 0, 0}}));
+		EXPECT_EQ(vertices(out, "wood", (strings{"house", "door"})), (points_t{{11, 0, 0}}));
+		EXPECT_EQ(vertices(out, "wood", (strings{"house", "door", "handle"})), (points_t{{11, 1, 0}}));
+	}
+
+	TEST(gfx_group, output_restores_context_after_exception) {
+		group grp{};
+		grp.set_name("broken").set_material("glass");
+		grp.add<thrower>();
+		sink out{};
+		EXPECT_THROW(grp.output(out, identity), std::runtime_error);
+
+		group after{};
+		after.add<marker>();
+		after.output(out, identity);
+		EXPECT_EQ(vertices(out, "", {}), (points_t{{0, 0, 0}}));
+	}
+
+	// ---- children and properties ------------------------------------------
+
+	TEST(gfx_group, add_returns_the_new_child) {
+		group grp{};
+		auto& child = grp.add<group>(1.0_m, 2.0_m, 3.0_m);
+		ASSERT_EQ(grp.children().size(), 1u);
+		EXPECT_EQ(grp.children()[0].get(), &child);
+		EXPECT_EQ(child.current_matrix(), translate(identity_matrix, 1.0_m, 2.0_m, 3.0_m));
+	}
+
+	TEST(gfx_group, setters_chain) {
+		group grp{};
+		grp.set_name("box").set_material("wood").set_transform(scale(identity_matrix, 2));
+		EXPECT_EQ(grp.name(), "box");
+		EXPECT_EQ(grp.material(), "wood");
+		EXPECT_EQ(grp.current_matrix(), scale(identity_matrix, 2));
+	}
+
+	// ---- transform -------------------------------------------------------
+
+	TEST(gfx_group, transform_starts_with_the_initial_offset) {
+		group const grp{offset{1.0_m, 2.0_m, 3.0_m}};
+		EXPECT_EQ(grp.current_matrix(), translate(identity_matrix, 1.0_m, 2.0_m, 3.0_m));
+	}
+
+	TEST(gfx_group, transform_applies_after_the_existing_one) {
+		// moved to x = 1 by the constructor, then rotated onto y
+		group grp{offset::at_x(1.0_m)};
+		grp.transform(rotate_z(identity_matrix, deg(90))).transform(translate(identity_matrix, offset::at_z(2.0_m)));
+		expect_near(apply(grp.current_matrix(), {0, 0, 0}), {0, 1, 2});
+		expect_near(apply(grp.current_matrix(), {1, 0, 0}), {0, 2, 2});
+	}
+
+	TEST(gfx_group, set_transform_replaces_the_initial_offset) {
+		group grp{offset::at_x(1.0_m)};
+		grp.set_transform(scale(identity_matrix, 2));
+		expect_near(apply(grp.current_matrix(), {1, 1, 1}), {2, 2, 2});
+	}
+
+	TEST(gfx_group, transform_mirroring_keeps_faces_outwards) {
+		group root{};
+		root.transform(scale(identity_matrix, -1, 1, 1));
+		root.add<solid_object>(solid::cube(1_m, 1_m, 1_m));
+		sink out{};
+		root.output(out, identity);
+		auto const& added = out.solids().begin()->second.begin()->second;
+		auto const& verts = added.vertices();
+		for (auto const& face : added.faces()) {
+			auto const normal = glm::cross(verts[face[1]] - verts[face[0]], verts[face[2]] - verts[face[0]]);
+			auto center = glm::dvec3{};
+			for (auto index : face)
+				center += verts[index];
+			center /= static_cast<double>(face.size());
+			EXPECT_GT(glm::dot(normal, center - glm::dvec3{-0.5, 0.5, 0.5}), 0.0);
+		}
+	}
+}  // namespace pyxel::gfx::testing
