@@ -72,8 +72,37 @@ namespace shapes::glue {
 		py::class_<library>(m, "library",
 		                    "Models of the script, reached only through the static members of this class; models are "
 		                    "added with the `@library.model` decorator.")
+		    .def_property_readonly_static(
+		        "exporters", [](py::object const&) { return library::exporters(); },
+		        "Ids of the available export formats, e.g. \"glb2\" or \"obj\".")
+		    .def_property_static(
+		        "exporter_id",
+		        py::cpp_function([](py::object const&) { return library::python_instance().exporter_id(); }),
+		        py::cpp_function([](py::object const&, std::string id) {
+			        library::python_instance().set_exporter_id(std::move(id));
+		        }),
+		        "Export format for the models returning None; one of `exporters`, glTF 2 binary (\"glb2\") by "
+		        "default.")
+		    .def_property_static("output_directory", py::cpp_function([](py::object const&) {
+			                         return library::python_instance().output_directory();
+		                         }),
+		                         py::cpp_function([](py::object const&, std::filesystem::path dir) {
+			                         library::python_instance().set_output_directory(std::move(dir));
+		                         }),
+		                         "Where `build_models` writes the files; the current directory by default.")
 		    .def_static(
-		        "clear_models", [] { library::python_instance().clear_models(); },
+		        "build_models", [] { return library::python_instance().build_models(); },
+		        "Builds every model and writes it to `output_directory`, named after the model, with the "
+		        "extension of its export format; returns the paths written. Stops at the first failure.")
+		    .def_static(
+		        "clear_models",
+		        [] {
+			        auto& lib = library::python_instance();
+			        if (lib.is_building()) {
+				        throw std::logic_error("library.clear_models: cannot clear the models while building them");
+			        }
+			        lib.clear_models();
+		        },
 		        "Forgets every registered model, built or not, so the names can be registered again. Cannot be "
 		        "called while the models are being built.")
 		    .def_static(

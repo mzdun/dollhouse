@@ -36,6 +36,7 @@ find_package(fmt REQUIRED)
 find_package(mbits-args REQUIRED)
 find_package(glm REQUIRED)
 find_package(pybind11 CONFIG REQUIRED)
+find_package(assimp REQUIRED)
 
 if (DOLLHOUSE_TESTING)
   enable_testing()
