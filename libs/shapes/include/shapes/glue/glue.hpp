@@ -19,6 +19,7 @@ namespace shapes::glue {
 	void bind_dmat4_ops(py::module_& m);
 	void bind_group(py::module_& m);
 	void bind_length(py::module_& m);
+	void bind_main(py::module_& m);
 	void bind_library(py::module_& m);
 	void bind_object(py::module_& m);
 	void bind_offset(py::module_& m);

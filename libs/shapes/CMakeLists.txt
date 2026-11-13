@@ -4,9 +4,15 @@
 set(SHAPES_PACKAGE_DIR ${PROJECT_BINARY_DIR}/bin/shapes)
 
 set(SRCS
+    include/shapes/__main__/main.hpp
     include/shapes/glue/glue.hpp
     include/shapes/library.hpp
     src/__init__.cpp
+    src/__main__/config.cpp
+    src/__main__/config.hpp
+    src/__main__/main.cpp
+    src/export.cpp
+    src/export.hpp
     src/glue/bind_angle.cpp
     src/glue/bind_area.cpp
     src/glue/bind_axis.cpp
@@ -15,6 +21,7 @@ set(SRCS
     src/glue/bind_group.cpp
     src/glue/bind_length.cpp
     src/glue/bind_library.cpp
+    src/glue/bind_main.cpp
     src/glue/bind_object.cpp
     src/glue/bind_offset.cpp
     src/glue/bind_rng.cpp

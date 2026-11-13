@@ -30,4 +30,5 @@ PYBIND11_MODULE(shapes, m, py::mod_gil_not_used()) {
 	shapes::glue::bind_object(m);
 	shapes::glue::bind_group(m);
 	shapes::glue::bind_library(m);
+	shapes::glue::bind_main(m);
 }
