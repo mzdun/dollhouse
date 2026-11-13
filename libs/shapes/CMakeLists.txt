@@ -76,3 +76,28 @@ set_target_properties(shapes PROPERTIES FOLDER apps)
 if(PLANNER_INSTALL)
     install(TARGETS shapes DESTINATION shapes)
 endif()
+
+# #################################################################
+# #  TESTING
+# #################################################################
+if(DOLLHOUSE_TESTING)
+    # pytest suite for the bindings, run against the module in this build
+    # tree (not the copy `flow dyn-install` puts into site-packages)
+    set(SHAPES_PYTEST_DIR ${CMAKE_CURRENT_SOURCE_DIR}/tests/python)
+
+    add_test(
+        NAME shapes-python
+        COMMAND ${Python3_EXECUTABLE} -m pytest
+            -c ${SHAPES_PYTEST_DIR}/pytest.ini
+            --rootdir ${SHAPES_PYTEST_DIR}
+            -o cache_dir=${CMAKE_CURRENT_BINARY_DIR}/.pytest_cache
+            "--junitxml=${TEST_REPORT_DIR}/shapes-python/${TEST_REPORT_FILE}"
+            ${SHAPES_PYTEST_DIR}
+        WORKING_DIRECTORY ${SHAPES_PYTEST_DIR}
+    )
+    set_tests_properties(shapes-python PROPERTIES
+        LABELS python
+        TIMEOUT 300
+        ENVIRONMENT "SHAPES_MODULE_DIR=${PROJECT_BINARY_DIR}/bin;PYTHONPYCACHEPREFIX=${CMAKE_CURRENT_BINARY_DIR}/pycache"
+    )
+endif()
