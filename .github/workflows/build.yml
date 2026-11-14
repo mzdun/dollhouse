@@ -83,51 +83,37 @@ jobs:
         run: |
           sudo apt-get install ninja-build -y
 
-      - name: Install GCC 13
-        if: ${{ matrix.ubuntu && matrix.needs_gcc_ppa }}
+      - name: Add toolchain PPA for GCC 14
+        if: ${{ matrix.ubuntu && matrix.github_os == 'ubuntu-22.04' }}
         run: |
-          sudo apt install software-properties-common -y
+          sudo apt-get install software-properties-common -y
           sudo add-apt-repository ppa:ubuntu-toolchain-r/test -y
-          sudo apt install gcc-13 g++-13 -y
 
-      - name: Set up GCC 13
+      - name: Install GCC 14
         if: ${{ matrix.ubuntu }}
         run: |
-          sudo update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-13 130
-          sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-13 130
-          sudo update-alternatives --install /usr/bin/gcov gcov /usr/bin/gcov-13 130
+          sudo apt-get update
+          sudo apt-get install gcc-14 g++-14 -y
 
-          sudo update-alternatives --set g++ /usr/bin/g++-13
-          sudo update-alternatives --set gcc /usr/bin/gcc-13
-          sudo update-alternatives --set gcov /usr/bin/gcov-13
+      - name: Set up GCC 14
+        if: ${{ matrix.ubuntu }}
+        run: |
+          sudo update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-14 140
+          sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-14 140
+          sudo update-alternatives --install /usr/bin/gcov gcov /usr/bin/gcov-14 140
 
-      - name: Set up GCC 13 as c++/cc
+          sudo update-alternatives --set g++ /usr/bin/g++-14
+          sudo update-alternatives --set gcc /usr/bin/gcc-14
+          sudo update-alternatives --set gcov /usr/bin/gcov-14
+
+      - name: Set up GCC 14 as c++/cc
         if: ${{ matrix.ubuntu && matrix.gcc }}
         run: |
-          sudo update-alternatives --install /usr/bin/c++ c++ /usr/bin/g++-13 130
-          sudo update-alternatives --install /usr/bin/cc cc /usr/bin/gcc-13 130
+          sudo update-alternatives --install /usr/bin/c++ c++ /usr/bin/g++-14 140
+          sudo update-alternatives --install /usr/bin/cc cc /usr/bin/gcc-14 140
 
-          sudo update-alternatives --set c++ /usr/bin/g++-13
-          sudo update-alternatives --set cc /usr/bin/gcc-13
-
-      - name: Install Clang 18
-        if: ${{ matrix.ubuntu && matrix.clang }}
-        run: |
-          wget https://apt.llvm.org/llvm.sh
-          chmod +x llvm.sh
-          sudo ./llvm.sh 18
-
-          sudo update-alternatives --install /usr/bin/clang++ clang++ /usr/bin/clang++-18 180
-          sudo update-alternatives --install /usr/bin/clang clang /usr/bin/clang-18 180
-
-          sudo update-alternatives --install /usr/bin/c++ c++ /usr/bin/clang++-18 180
-          sudo update-alternatives --install /usr/bin/cc cc /usr/bin/clang-18 180
-
-          sudo update-alternatives --set clang++ /usr/bin/clang++-18
-          sudo update-alternatives --set clang /usr/bin/clang-18
-
-          sudo update-alternatives --set c++ /usr/bin/clang++-18
-          sudo update-alternatives --set cc /usr/bin/clang-18
+          sudo update-alternatives --set c++ /usr/bin/g++-14
+          sudo update-alternatives --set cc /usr/bin/gcc-14
 
       - name: Check C++ binary
         if: ${{ matrix.ubuntu }}
