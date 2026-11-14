@@ -24,7 +24,7 @@ def mod(ver: str):
     return (ver, False)
 
 
-PROJ_FLOW_VERSION = "0.33.0"
+PROJ_FLOW_VERSION = "0.34.0"
 REQUIREMENTS: dict[str, tuple[str, bool]] = {
     "proj-flow": exe(PROJ_FLOW_VERSION),
     # place additional packages here: mod("0.1.1"),

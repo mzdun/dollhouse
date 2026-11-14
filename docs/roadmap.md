@@ -2,13 +2,14 @@
 
 - [x] Setup Dollhouse structure
 - [ ] Shapes and models
-  - [ ] Setup `pybind11` module for `shapes` exposing `pyxel-models`
-  - [ ] Implement `pyxel-models` up to and including groups
-  - [ ] Simple cube
-  - [ ] Add proper diffusion materials (paints and glass/metal)
-  - [ ] Solid operations
-  - [ ] Export models with diffusion matrials
-  - [ ] Add random number generator with seeding
+  - [x] Setup `pybind11` module for `shapes` exposing `pyxel-models`
+  - [x] Implement `pyxel-models` up to and including groups
+  - [x] Simple cube
+  - [x] Add proper diffusion materials (paints and glass/metal)
+  - [x] Solid operations
+  - [x] Export models with diffusion matrials
+  - [x] Add random number generator with seeding
+  - [ ] Export light sources
   - [ ] Solid face identification (for textures)
   - [ ] UV mapping/unwrapping
     - [ ] By hand
