@@ -44,11 +44,16 @@ set(SRCS
     src/gfx/transform.cpp
     src/rng/engine.cpp
     src/rng/noise.cpp
+)
 
+set(GEN_SRCS
     "${CMAKE_CURRENT_BINARY_DIR}/include/pyxel/version.hpp"
 )
 
-add_library(pyxel-models ${SRCS})
+source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR} FILES ${SRCS})
+source_group(TREE ${CMAKE_CURRENT_BINARY_DIR} PREFIX gen FILES ${GEN_SRCS})
+
+add_library(pyxel-models ${SRCS} ${GEN_SRCS})
 
 target_compile_options(pyxel-models PRIVATE ${DOLLHOUSE_ADDITIONAL_COMPILE_FLAGS})
 target_link_options(pyxel-models PUBLIC ${DOLLHOUSE_ADDITIONAL_LINK_FLAGS})

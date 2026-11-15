@@ -1,6 +1,6 @@
 [requires]
 mbits-args/0.12.3
-gtest/1.14.0
+gtest/1.18.0
 fmt/10.2.1
 glm/1.0.1
 pybind11/3.0.1

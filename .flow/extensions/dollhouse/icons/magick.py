@@ -12,39 +12,37 @@ tool = "magick" if sys.platform == "win32" else "convert"
 
 
 class MkDirs(Rule):
-    def command(self, _: Statement):
+
+    def command(self, statement: Statement):
         return []
 
-    def run(self, st: Statement, rt: Runtime):
-        for output in st.outputs:
-            result = rt.mkdirs(output)
-            if result:
-                return result
-        return 0
+    def run(self, statement: Statement, rt: Runtime):
+        for output in statement.outputs:
+            rt.mkdirs(output)
 
 
 class Copy(Rule):
-    def command(self, _: Statement):
+    def command(self, statement: Statement):
         return []
 
-    def run(self, st: Statement, rt: Runtime):
-        return rt.cp(st.inputs[0], st.outputs[0])
+    def run(self, statement: Statement, rt: Runtime):
+        rt.cp(statement.inputs[0], statement.outputs[0])
 
 
 class Magick:
     class SvgToPng(Rule):
-        def command(self, st: Statement):
+        def command(self, statement: Statement):
             return [
                 tool,
                 "-background",
                 "none",
-                *st.inputs,
+                *statement.inputs,
                 "-alpha",
                 "Off",
                 "-compose",
                 "CopyOpacity",
                 "-composite",
-                st.outputs[0],
+                statement.outputs[0],
             ]
 
     class Resize(Rule):
@@ -53,25 +51,25 @@ class Magick:
         def __init__(self, size: str):
             self.size = size
 
-        def command(self, st: Statement):
+        def command(self, statement: Statement):
             return [
                 tool,
                 "-background",
                 "none",
-                st.inputs[0],
+                statement.inputs[0],
                 "-resize",
                 f"{self.size}x{self.size}",
                 "-depth",
                 "32",
-                st.outputs[0],
+                statement.outputs[0],
             ]
 
     class Merge(Rule):
-        def command(self, st: Statement):
+        def command(self, statement: Statement):
             return [
                 tool,
-                *st.inputs,
-                st.outputs[0],
+                *statement.inputs,
+                statement.outputs[0],
             ]
 
 
