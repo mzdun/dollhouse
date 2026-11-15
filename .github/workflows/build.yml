@@ -57,6 +57,14 @@ jobs:
       #     ##       ##  ####  ##   ##   ##  ##   ##   ##     ## ##  #### ##     ## ##       ##  ####    ##
       #     ##       ##   ###   ## ##    ##  ##    ##  ##     ## ##   ### ##     ## ##       ##   ###    ##
       #     ######## ##    ##    ###    #### ##     ##  #######  ##    ## ##     ## ######## ##    ##    ##
+
+      # Must run before "Bootstrap Flow": the bootstrap pins PATH through
+      # GITHUB_ENV, which overrides any later GITHUB_PATH additions.
+      - name: Setup CMake
+        uses: lukka/get-cmake@latest
+        with:
+          cmakeVersion: "^4.2.0"
+
       - name: Bootstrap Flow
         uses: proj-flow-actions/bootstrap@v1
         with:
@@ -82,11 +90,6 @@ jobs:
         with:
           user-directory: ${{ matrix.home }}
           cache-prefix: ${{ env.CONAN_CACHE }}
-
-      - name: Setup CMake
-        uses: lukka/get-cmake@latest
-        with:
-          cmakeVersion: "^4.0.0"
 
       #     ########  ########   #######        ## ########  ######  ########
       #     ##     ## ##     ## ##     ##       ## ##       ##    ##    ##

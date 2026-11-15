@@ -1,7 +1,7 @@
 # Copyright (c) 2026 Marcin Zdun
 # This file is licensed under MIT license (see LICENSE for details)
 
-cmake_minimum_required (VERSION 4.0)
+cmake_minimum_required (VERSION 4.2)
 project (dollhouse
   VERSION 0.0.0
   DESCRIPTION "Your house, your furniture, in one place"

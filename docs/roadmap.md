@@ -17,6 +17,13 @@
     - [ ] Automatic for "floor/wall tiling"
   - [ ] Export texture materials w/out bumps and normals
   - [ ] Export texture materials with bumps and normals
+- [ ] Plans
+  - [ ] Propose YAML schema
+  - [ ] Support "transform" on nodes
+  - [ ] Build the floor plan
+  - [ ] Build the walls and doorways
+  - [ ] Build plinths
+  - [ ] Tiling materials
 - [ ] Dollhouse
   - [ ] Application framework
   - [ ] UI outside of window
