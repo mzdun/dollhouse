@@ -1,9 +1,9 @@
 # Copyright (c) 2026 Marcin Zdun
 # This file is licensed under MIT license (see LICENSE for details)
 
-cmake_minimum_required (VERSION 3.28)
+cmake_minimum_required (VERSION 4.0)
 project (dollhouse
-  VERSION 0.1.0
+  VERSION 0.0.0
   DESCRIPTION "Your house, your furniture, in one place"
   LANGUAGES CXX)
 
@@ -12,12 +12,13 @@ set(PROJECT_VERSION_STABILITY "" # or "-alpha", or "-beta", or "-rc.1", or "-rc.
     CACHE STRING "" FORCE)
 
 if (${CMAKE_CURRENT_SOURCE_DIR} STREQUAL ${CMAKE_CURRENT_BINARY_DIR})
-  message(FATAL_ERROR "Building in source firectory is not supported")
+  message(FATAL_ERROR "Building in source directory is not supported")
 endif()
 
 set(DOLLHOUSE_TESTING ON CACHE BOOL "Compile and/or run self-tests")
 set(DOLLHOUSE_INSTALL ON CACHE BOOL "Install the application")
 set(DOLLHOUSE_SANITIZE OFF CACHE BOOL "Compile with sanitizers enabled")
+set(DOLLHOUSE_W_ERROR OFF CACHE BOOL "Compile with warnings turned to errors")
 
 set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_EXTENSIONS OFF)
@@ -28,7 +29,6 @@ list(APPEND CMAKE_MODULE_PATH "${PROJECT_BINARY_DIR}/conan" "${PROJECT_SOURCE_DI
 list(APPEND CMAKE_PREFIX_PATH "${PROJECT_BINARY_DIR}/conan")
 
 include(common)
-include(output_dirs_setup)
 
 set(CONAN_CMAKE_SILENT_OUTPUT ON)
 find_package(Python3 COMPONENTS Interpreter Development REQUIRED)
@@ -53,87 +53,6 @@ endif()
 
 include(output_dirs_setup)
 old_conan_output_dirs_setup()
-
-# See <https://github.com/lefticus/cppbestpractices/blob/v1.0.0/02-Use_the_Tools_Available.md#compilers>
-
-if (MSVC)
-  set(DOLLHOUSE_ADDITIONAL_COMPILE_FLAGS
-    /D_CRT_SECURE_NO_WARNINGS
-    /D_CRT_NONSTDC_NO_WARNINGS
-    /utf-8
-    /permissive-
-    /Zc:__cplusplus
-    /W4
-    /w14242
-    /w14254
-    /w14263
-    /w14265
-    /w14287
-    /we4289
-    /w14296
-    /w14311
-    /w14545
-    /w14546
-    /w14547
-    /w14549
-    /w14555
-    /w14619
-    /w14640
-    /w14826
-    /w14905
-    /w14906
-    /w14928
-    /w14946)
-  if (DOLLHOUSE_SANITIZE)
-    list(APPEND DOLLHOUSE_ADDITIONAL_COMPILE_FLAGS
-      /fsanitize=address
-      /D_DISABLE_VECTOR_ANNOTATION
-      /D_DISABLE_STRING_ANNOTATION
-    )
-  endif()
-else()
-  set(DOLLHOUSE_ADDITIONAL_COMPILE_FLAGS
-      -Wall -Wextra
-      -Wnon-virtual-dtor
-      -Wold-style-cast
-      -Wcast-align
-      -Wunused
-      -Woverloaded-virtual
-      -Wpedantic
-      -Wconversion
-      -Wsign-conversion
-      -Wnull-dereference
-      -Wdouble-promotion
-      -Wformat=2
-  )
-  if ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang")
-    list(APPEND DOLLHOUSE_ADDITIONAL_COMPILE_FLAGS
-      -fcolor-diagnostics
-      -Wno-braced-scalar-init
-    # -Wlifetime
-    )
-  else()
-    list(APPEND DOLLHOUSE_ADDITIONAL_COMPILE_FLAGS
-      -fdiagnostics-color
-      -Wmisleading-indentation
-      -Wduplicated-cond
-      -Wduplicated-branches
-      -Wlogical-op
-      -Wuseless-cast
-      )
-  endif()
-  if (DOLLHOUSE_SANITIZE)
-    list(APPEND DOLLHOUSE_ADDITIONAL_COMPILE_FLAGS
-      -fsanitize=address
-      -fsanitize=undefined
-
-    )
-    list(APPEND DOLLHOUSE_ADDITIONAL_LINK_FLAGS
-      -fsanitize=address
-      -fsanitize=undefined
-    )
-  endif()
-endif()
 
 include(${PROJECT_SOURCE_DIR}/.flow/packages/config.cmake)
 include(CPack)

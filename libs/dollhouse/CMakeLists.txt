@@ -5,6 +5,8 @@ set(SRCS
   src/main.cpp
 )
 
+source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR} FILES ${SRCS})
+
 add_executable(dollhouse ${SRCS})
 
 add_win32_icon(dollhouse "appicon.ico")
