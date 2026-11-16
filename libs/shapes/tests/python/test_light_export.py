@@ -28,8 +28,26 @@ def export_dae(tmp_path: Path, fill) -> ET.Element:
     return ET.parse(path).getroot()
 
 
+def find(element: ET.Element, path: str) -> ET.Element:
+    """The element at `path`; fails the test, if there is none."""
+    found = element.find(path, NS)
+    assert found is not None, f"no {path} in <{element.tag}>"
+    return found
+
+
+def text(element: ET.Element, path: str) -> str:
+    """Text of the element at `path`; fails the test, if there is none."""
+    value = find(element, path).text
+    assert value is not None, f"no text in {path}"
+    return value
+
+
+def floats(element: ET.Element, path: str) -> list[float]:
+    return [float(value) for value in text(element, path).split()]
+
+
 def scene_root(dae: ET.Element) -> ET.Element:
-    return dae.find("c:library_visual_scenes/c:visual_scene", NS)
+    return find(dae, "c:library_visual_scenes/c:visual_scene")
 
 
 def children(node: ET.Element) -> list[ET.Element]:
@@ -42,11 +60,18 @@ def named(node: ET.Element, name: str) -> list[ET.Element]:
 
 def all_named(dae: ET.Element, name: str) -> list[ET.Element]:
     """Nodes of the name, at any depth."""
-    return [node for node in scene_root(dae).iter(f"{{{NS['c']}}}node") if node.get("name") == name]
+    return [
+        node
+        for node in scene_root(dae).iter(f"{{{NS['c']}}}node")
+        if node.get("name") == name
+    ]
 
 
 def lights(dae: ET.Element) -> dict[str, ET.Element]:
-    return {light.get("name"): light for light in dae.iterfind("c:library_lights/c:light", NS)}
+    return {
+        light.get("name", ""): light
+        for light in dae.iterfind("c:library_lights/c:light", NS)
+    }
 
 
 def has_light(node: ET.Element) -> bool:
@@ -54,12 +79,12 @@ def has_light(node: ET.Element) -> bool:
 
 
 def translation(node: ET.Element) -> list[float]:
-    m = [float(value) for value in node.find("c:matrix", NS).text.split()]
+    m = floats(node, "c:matrix")
     return [m[3], m[7], m[11]]
 
 
 def minus_z(node: ET.Element) -> list[float]:
-    m = [float(value) for value in node.find("c:matrix", NS).text.split()]
+    m = floats(node, "c:matrix")
     return [-m[2], -m[6], -m[10]]
 
 
@@ -98,7 +123,9 @@ class TestNodes:
         assert has_light(named(lamp, "Light")[0])
 
     def test_light_only_group_is_kept(self, tmp_path):
-        dae = export_dae(tmp_path, lambda root: root.add_group(name="lamp").add(point()))
+        dae = export_dae(
+            tmp_path, lambda root: root.add_group(name="lamp").add(point())
+        )
         (lamp,) = named(scene_root(dae), "lamp")
         assert has_light(lamp)
 
@@ -161,7 +188,9 @@ class TestNodes:
         def fill(root):
             grp = root.add_group(name="ceiling")
             # rotate -z (forward) to -y (down)
-            grp.add_group().transform(I.rotate_x(deg(-90))).add(shapes.light(type=shapes.light_type.spot))
+            grp.add_group().transform(I.rotate_x(deg(-90))).add(
+                shapes.light(type=shapes.light_type.spot)
+            )
 
         (ceiling,) = named(scene_root(export_dae(tmp_path, fill)), "ceiling")
         (leaf,) = named(ceiling, "Light")
@@ -173,7 +202,9 @@ class TestLights:
         def fill(root):
             root.add_group(name="point").add(point())
             root.add_group(name="spot").add(shapes.light(type=shapes.light_type.spot))
-            root.add_group(name="sun").add(shapes.light(type=shapes.light_type.directional))
+            root.add_group(name="sun").add(
+                shapes.light(type=shapes.light_type.directional)
+            )
 
         found = lights(export_dae(tmp_path, fill))
         assert found["point"].find(".//c:point", NS) is not None
@@ -183,19 +214,24 @@ class TestLights:
     def test_intensity_is_folded_into_the_color(self, tmp_path):
         def fill(root):
             root.add_group(name="bulb").add(
-                shapes.light(type=shapes.light_type.point, color=shapes.rgb(255, 0, 0), intensity=2)
+                shapes.light(
+                    type=shapes.light_type.point,
+                    color=shapes.rgb(255, 0, 0),
+                    intensity=2,
+                )
             )
 
-        point_el = lights(export_dae(tmp_path, fill))["bulb"].find(".//c:point", NS)
-        assert [float(v) for v in point_el.find("c:color", NS).text.split()] == pytest.approx([2, 0, 0])
+        point_el = find(lights(export_dae(tmp_path, fill))["bulb"], ".//c:point")
+        assert floats(point_el, "c:color") == pytest.approx([2, 0, 0])
 
     def test_inverse_square_falloff(self, tmp_path):
-        point_el = lights(export_dae(tmp_path, lambda root: root.add_group(name="bulb").add(point())))["bulb"].find(
-            ".//c:point", NS
+        dae = export_dae(
+            tmp_path, lambda root: root.add_group(name="bulb").add(point())
         )
-        assert float(point_el.find("c:constant_attenuation", NS).text) == 0
-        assert float(point_el.find("c:linear_attenuation", NS).text) == 0
-        assert float(point_el.find("c:quadratic_attenuation", NS).text) == 1
+        point_el = find(lights(dae)["bulb"], ".//c:point")
+        assert floats(point_el, "c:constant_attenuation") == [0]
+        assert floats(point_el, "c:linear_attenuation") == [0]
+        assert floats(point_el, "c:quadratic_attenuation") == [1]
 
     def test_spot_cone(self, tmp_path):
         def fill(root):
@@ -206,9 +242,9 @@ class TestLights:
                 )
             )
 
-        spot = lights(export_dae(tmp_path, fill))["spot"].find(".//c:spot", NS)
+        spot = find(lights(export_dae(tmp_path, fill))["spot"], ".//c:spot")
         # Collada's exporter writes the inner angle as the falloff angle
-        assert float(spot.find("c:falloff_angle", NS).text) == pytest.approx(10, abs=1e-4)
+        assert floats(spot, "c:falloff_angle") == pytest.approx([10], abs=1e-4)
 
     def test_area_light_does_not_break_the_export(self, tmp_path):
         def fill(root):

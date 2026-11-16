@@ -13,6 +13,8 @@ from shapes import I, cm, solid
 
 NS = {"c": "http://www.collada.org/2005/11/COLLADASchema"}
 
+Vec = tuple[float, float, float]
+
 
 def export_dae(tmp_path: Path, fill) -> ET.Element:
     def nodes_model(root: shapes.group):
@@ -28,8 +30,26 @@ def export_dae(tmp_path: Path, fill) -> ET.Element:
     return ET.parse(path).getroot()
 
 
+def find(element: ET.Element, path: str) -> ET.Element:
+    """The element at `path`; fails the test, if there is none."""
+    found = element.find(path, NS)
+    assert found is not None, f"no {path} in <{element.tag}>"
+    return found
+
+
+def text(element: ET.Element, path: str) -> str:
+    """Text of the element at `path`; fails the test, if there is none."""
+    value = find(element, path).text
+    assert value is not None, f"no text in {path}"
+    return value
+
+
+def floats(element: ET.Element, path: str) -> list[float]:
+    return [float(value) for value in text(element, path).split()]
+
+
 def scene_root(dae: ET.Element) -> ET.Element:
-    return dae.find("c:library_visual_scenes/c:visual_scene", NS)
+    return find(dae, "c:library_visual_scenes/c:visual_scene")
 
 
 def children(node: ET.Element) -> list[ET.Element]:
@@ -42,16 +62,19 @@ def named(node: ET.Element, name: str) -> list[ET.Element]:
 
 def translation(node: ET.Element) -> list[float]:
     """Translation column of the node's row-major matrix, in metres."""
-    m = [float(value) for value in node.find("c:matrix", NS).text.split()]
+    m = floats(node, "c:matrix")
     return [m[3], m[7], m[11]]
 
 
-def geometry_positions(dae: ET.Element, node: ET.Element) -> list[tuple[float, float, float]]:
+def geometry_positions(dae: ET.Element, node: ET.Element) -> list[Vec]:
     """Positions of the first mesh instanced by the node, in the node's space."""
-    url = node.find("c:instance_geometry", NS).get("url").lstrip("#")
-    geometry = dae.find(f"c:library_geometries/c:geometry[@id='{url}']", NS)
-    values = [float(value) for value in geometry.find(".//c:float_array", NS).text.split()]
-    return [tuple(values[index : index + 3]) for index in range(0, len(values), 3)]
+    url = find(node, "c:instance_geometry").get("url", "").lstrip("#")
+    geometry = find(dae, f"c:library_geometries/c:geometry[@id='{url}']")
+    values = floats(geometry, ".//c:float_array")
+    return [
+        (values[index], values[index + 1], values[index + 2])
+        for index in range(0, len(values), 3)
+    ]
 
 
 def cube() -> solid:
@@ -89,7 +112,9 @@ class TestScope:
         assert "needs an object_name" in errors[0]
 
     def test_named_scope_opens_a_node(self, tmp_path):
-        dae = export_dae(tmp_path, lambda root: root.add(box("hinge", I.translate(cm(50)))))
+        dae = export_dae(
+            tmp_path, lambda root: root.add(box("hinge", I.translate(cm(50))))
+        )
         (hinge,) = named(scene_root(dae), "hinge")
         assert translation(hinge) == pytest.approx([0.5, 0, 0])
         # the vertices stay in the space of the node
@@ -143,7 +168,10 @@ class TestGroups:
             root.add_group(name="empty").add_group(name="nested")
             root.add_group(name="full").add(cube())
 
-        names = [node.get("name") for node in children(scene_root(export_dae(tmp_path, fill)))]
+        names = [
+            node.get("name")
+            for node in children(scene_root(export_dae(tmp_path, fill)))
+        ]
         assert "empty" not in names
         assert "full" in names
 
