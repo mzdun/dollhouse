@@ -26,7 +26,8 @@ namespace shapes::glb_lights {
 	namespace {
 		static_assert(std::endian::native == std::endian::little, "GLB is little-endian");
 
-		constexpr auto extension = "KHR_lights_punctual";
+		constexpr auto punctual_extension = "KHR_lights_punctual";
+		constexpr auto area_extension = "PYXEL_lights_area";
 
 		// https://registry.khronos.org/glTF/specs/2.0/glTF-2.0.html#binary-gltf-layout
 		constexpr std::uint32_t glb_magic = 0x46546C67;  // "glTF"
@@ -96,10 +97,62 @@ namespace shapes::glb_lights {
 
 		// The reverse of Assimp's glTF 2 importer: the intensity was folded
 		// into the colors, so it is split again, with the brightest channel
-		// at 1. Area (and undefined) lights have no counterpart
-		std::optional<rapidjson::Value> make_light(aiLight const& source,
-		                                           std::optional<double> range,
-		                                           allocator& alloc) {
+		// at 1
+		void add_color(rapidjson::Value& light, aiColor3D const& color, allocator& alloc) {
+			auto const intensity = std::max({color.r, color.g, color.b, 0.0f});
+			if (intensity > 0.0f) {
+				light.AddMember("color",
+				                number_array({color.r / intensity, color.g / intensity, color.b / intensity}, alloc),
+				                alloc);
+			} else {
+				light.AddMember("color", number_array({1.0, 1.0, 1.0}, alloc), alloc);
+			}
+			light.AddMember("intensity", static_cast<double>(intensity), alloc);
+		}
+
+		// what the export put into the extras of a node
+		struct light_tags {
+			int index{-1};
+			std::optional<double> range{};
+			std::optional<int> area_shape{};
+			std::optional<double> area_spread{};
+		};
+
+		std::optional<double> number(rapidjson::Value const& extras, char const* key) {
+			auto const it = extras.FindMember(key);
+			if (it == extras.MemberEnd() || !it->value.IsNumber()) return std::nullopt;
+			return it->value.GetDouble();
+		}
+
+		// reads the tags and removes them; the tags are ours, not of the model
+		std::optional<light_tags> take_tags(rapidjson::Value& node) {
+			auto const extras_it = node.FindMember("extras");
+			if (extras_it == node.MemberEnd() || !extras_it->value.IsObject()) return std::nullopt;
+			auto& extras = extras_it->value;
+
+			auto const tag_it = extras.FindMember(light_key);
+			if (tag_it == extras.MemberEnd()) return std::nullopt;
+
+			light_tags result{};
+			if (tag_it->value.IsInt()) result.index = tag_it->value.GetInt();
+			result.range = number(extras, range_key);
+			if (auto const it = extras.FindMember(area_shape_key); it != extras.MemberEnd() && it->value.IsInt()) {
+				result.area_shape = it->value.GetInt();
+			}
+			result.area_spread = number(extras, area_spread_key);
+
+			for (auto const key : {light_key, range_key, area_shape_key, area_spread_key})
+				extras.RemoveMember(key);
+			if (extras.ObjectEmpty()) node.RemoveMember("extras");
+			return result;
+		}
+
+		void add_range(rapidjson::Value& light, std::optional<double> range, allocator& alloc) {
+			if (range && *range > 0.0) light.AddMember("range", *range, alloc);
+		}
+
+		// KHR_lights_punctual; directional, point and spot lights only
+		std::optional<rapidjson::Value> make_punctual(aiLight const& source, light_tags const& tags, allocator& alloc) {
 			char const* type = nullptr;
 			switch (source.mType) {
 				case aiLightSource_DIRECTIONAL:
@@ -118,17 +171,7 @@ namespace shapes::glb_lights {
 			rapidjson::Value light{rapidjson::kObjectType};
 			light.AddMember("name", rapidjson::Value{source.mName.C_Str(), alloc}, alloc);
 			light.AddMember("type", rapidjson::StringRef(type), alloc);
-
-			auto const& color = source.mColorDiffuse;
-			auto const intensity = std::max({color.r, color.g, color.b, 0.0f});
-			if (intensity > 0.0f) {
-				light.AddMember("color",
-				                number_array({color.r / intensity, color.g / intensity, color.b / intensity}, alloc),
-				                alloc);
-			} else {
-				light.AddMember("color", number_array({1.0, 1.0, 1.0}, alloc), alloc);
-			}
-			light.AddMember("intensity", static_cast<double>(intensity), alloc);
+			add_color(light, source.mColorDiffuse, alloc);
 
 			if (source.mType == aiLightSource_SPOT) {
 				// KHR_lights_punctual: 0 <= inner < outer <= pi / 2
@@ -145,56 +188,28 @@ namespace shapes::glb_lights {
 				light.AddMember("spot", spot, alloc);
 			}
 
-			if (range && *range > 0.0 && source.mType != aiLightSource_DIRECTIONAL) {
-				light.AddMember("range", *range, alloc);
-			}
+			if (source.mType != aiLightSource_DIRECTIONAL) add_range(light, tags.range, alloc);
 			return light;
 		}
 
-		void add_lights(rapidjson::Document& doc, aiScene const& scene) {
+		// PYXEL_lights_area (see glb_lights.hpp)
+		rapidjson::Value make_area(aiLight const& source, light_tags const& tags, allocator& alloc) {
+			rapidjson::Value light{rapidjson::kObjectType};
+			light.AddMember("name", rapidjson::Value{source.mName.C_Str(), alloc}, alloc);
+
+			auto const* shape = tags.area_shape.value_or(area_rectangle) == area_ellipse ? "ellipse" : "rectangle";
+			light.AddMember("shape", rapidjson::StringRef(shape), alloc);
+			light.AddMember("width", static_cast<double>(source.mSize.x), alloc);
+			light.AddMember("height", static_cast<double>(source.mSize.y), alloc);
+			add_color(light, source.mColorDiffuse, alloc);
+			light.AddMember("spread", std::clamp(tags.area_spread.value_or(std::numbers::pi), 0.0, std::numbers::pi),
+			                alloc);
+			add_range(light, tags.range, alloc);
+			return light;
+		}
+
+		void use_extension(rapidjson::Document& doc, char const* name) {
 			auto& alloc = doc.GetAllocator();
-			rapidjson::Value lights{rapidjson::kArrayType};
-
-			auto const nodes_it = doc.FindMember("nodes");
-			if (nodes_it != doc.MemberEnd() && nodes_it->value.IsArray()) {
-				for (auto& node : nodes_it->value.GetArray()) {
-					if (!node.IsObject()) continue;
-					auto const extras_it = node.FindMember("extras");
-					if (extras_it == node.MemberEnd() || !extras_it->value.IsObject()) continue;
-					auto& extras = extras_it->value;
-
-					auto const tag_it = extras.FindMember(light_key);
-					if (tag_it == extras.MemberEnd()) continue;
-					auto const index = tag_it->value.IsInt() ? tag_it->value.GetInt() : -1;
-
-					std::optional<double> range{};
-					if (auto const it = extras.FindMember(range_key);
-					    it != extras.MemberEnd() && it->value.IsNumber()) {
-						range = it->value.GetDouble();
-					}
-
-					// the tags are ours, not of the model
-					extras.RemoveMember(light_key);
-					extras.RemoveMember(range_key);
-					if (extras.ObjectEmpty()) node.RemoveMember("extras");
-
-					if (index < 0 || static_cast<unsigned>(index) >= scene.mNumLights) continue;
-					auto light = make_light(*scene.mLights[index], range, alloc);
-					if (!light) continue;
-
-					rapidjson::Value ref{rapidjson::kObjectType};
-					ref.AddMember("light", lights.Size(), alloc);
-					member_object(node, "extensions", alloc).AddMember(rapidjson::StringRef(extension), ref, alloc);
-					lights.PushBack(*light, alloc);
-				}
-			}
-
-			if (lights.Empty()) return;
-
-			rapidjson::Value ext{rapidjson::kObjectType};
-			ext.AddMember("lights", lights, alloc);
-			member_object(doc, "extensions", alloc).AddMember(rapidjson::StringRef(extension), ext, alloc);
-
 			auto used_it = doc.FindMember("extensionsUsed");
 			if (used_it == doc.MemberEnd() || !used_it->value.IsArray()) {
 				if (used_it != doc.MemberEnd()) doc.RemoveMember(used_it);
@@ -202,10 +217,57 @@ namespace shapes::glb_lights {
 				used_it = doc.FindMember("extensionsUsed");
 			}
 			auto& used = used_it->value;
-			auto const listed = std::ranges::any_of(used.GetArray(), [](rapidjson::Value const& item) {
-				return item.IsString() && std::string_view{item.GetString()} == extension;
+			auto const listed = std::ranges::any_of(used.GetArray(), [name](rapidjson::Value const& item) {
+				return item.IsString() && std::string_view{item.GetString()} == name;
 			});
-			if (!listed) used.PushBack(rapidjson::StringRef(extension), alloc);
+			if (!listed) used.PushBack(rapidjson::StringRef(name), alloc);
+		}
+
+		// lights of one extension, gathered from the nodes
+		struct light_list {
+			char const* extension;
+			rapidjson::Value lights{rapidjson::kArrayType};
+
+			void add(rapidjson::Value& node, rapidjson::Value light, allocator& alloc) {
+				rapidjson::Value ref{rapidjson::kObjectType};
+				ref.AddMember("light", lights.Size(), alloc);
+				member_object(node, "extensions", alloc).AddMember(rapidjson::StringRef(extension), ref, alloc);
+				lights.PushBack(light, alloc);
+			}
+
+			void finish(rapidjson::Document& doc) {
+				if (lights.Empty()) return;
+				auto& alloc = doc.GetAllocator();
+				rapidjson::Value ext{rapidjson::kObjectType};
+				ext.AddMember("lights", lights, alloc);
+				member_object(doc, "extensions", alloc).AddMember(rapidjson::StringRef(extension), ext, alloc);
+				use_extension(doc, extension);
+			}
+		};
+
+		void add_lights(rapidjson::Document& doc, aiScene const& scene) {
+			auto& alloc = doc.GetAllocator();
+			light_list punctual{punctual_extension};
+			light_list area{area_extension};
+
+			auto const nodes_it = doc.FindMember("nodes");
+			if (nodes_it != doc.MemberEnd() && nodes_it->value.IsArray()) {
+				for (auto& node : nodes_it->value.GetArray()) {
+					if (!node.IsObject()) continue;
+					auto const tags = take_tags(node);
+					if (!tags || tags->index < 0 || static_cast<unsigned>(tags->index) >= scene.mNumLights) continue;
+
+					auto const& source = *scene.mLights[tags->index];
+					if (source.mType == aiLightSource_AREA) {
+						area.add(node, make_area(source, *tags, alloc), alloc);
+					} else if (auto light = make_punctual(source, *tags, alloc)) {
+						punctual.add(node, std::move(*light), alloc);
+					}
+				}
+			}
+
+			punctual.finish(doc);
+			area.finish(doc);
 		}
 
 		std::vector<std::byte> rebuild(std::span<std::byte const> blob, aiScene const& scene) {
@@ -270,7 +332,7 @@ namespace shapes::glb_lights {
 	}  // namespace
 
 	void register_exporter(Assimp::Exporter& exporter) {
-		exporter.RegisterExporter(
-		    {format_id, "glTF 2.0 (binary), with KHR_lights_punctual", "glb", &export_glb_lights});
+		exporter.RegisterExporter({format_id, "glTF 2.0 (binary), with KHR_lights_punctual and PYXEL_lights_area",
+		                           "glb", &export_glb_lights});
 	}
 }  // namespace shapes::glb_lights
