@@ -4,12 +4,12 @@
 #include <gtest/gtest.h>
 #include <pyxel/gfx.hpp>
 #include <pyxel/gfx/sink.hpp>
+#include <stdexcept>
 
 namespace pyxel::gfx::testing {
 	using namespace math::literals;
 	using faces_t = sink::glm_solid::faces_t;
 	using points_t = std::vector<glm::dvec3>;
-	using strings = sink::strings;
 
 	namespace {
 		glm::dmat4 const identity{1.0};
@@ -173,18 +173,23 @@ namespace pyxel::gfx::testing {
 
 	// ---- sink ------------------------------------------------------------
 
-	TEST(gfx_sink, default_is_empty) {
+	TEST(gfx_sink, starts_with_unnamed_root) {
 		sink const out{};
-		EXPECT_TRUE(out.solids().empty());
+		ASSERT_EQ(out.nodes().size(), 1u);
+		EXPECT_EQ(out.current(), sink::root);
+		auto const& root = out.at(sink::root);
+		EXPECT_FALSE(root.parent);
+		EXPECT_TRUE(root.name.empty());
+		EXPECT_EQ(root.local, identity);
+		EXPECT_TRUE(root.meshes.empty());
 	}
 
-	TEST(gfx_sink, solids_without_context_go_to_empty_keys) {
+	TEST(gfx_sink, solids_without_context_go_to_root) {
 		sink out{};
 		out.add_solid(square(), identity);
-		ASSERT_EQ(out.solids().size(), 1u);
-		auto const& by_name = out.solids().at("");
-		ASSERT_EQ(by_name.size(), 1u);
-		EXPECT_EQ(by_name.at(strings{}).faces().size(), 1u);
+		auto const& meshes = out.at(sink::root).meshes;
+		ASSERT_EQ(meshes.size(), 1u);
+		EXPECT_EQ(meshes.at("").faces().size(), 1u);
 	}
 
 	TEST(gfx_sink, solids_are_grouped_by_current_material) {
@@ -198,67 +203,130 @@ namespace pyxel::gfx::testing {
 		out.pop_material();
 		out.add_solid(square(), translation(0, 0, 3));
 
-		auto const& solids = out.solids();
-		ASSERT_EQ(solids.size(), 3u);
-		EXPECT_EQ(solids.at("wood").at(strings{}).faces().size(), 2u);
-		EXPECT_EQ(solids.at("glass").at(strings{}).faces().size(), 1u);
-		EXPECT_EQ(solids.at("").at(strings{}).faces().size(), 1u);
+		auto const& meshes = out.at(sink::root).meshes;
+		ASSERT_EQ(meshes.size(), 3u);
+		EXPECT_EQ(meshes.at("wood").faces().size(), 2u);
+		EXPECT_EQ(meshes.at("glass").faces().size(), 1u);
+		EXPECT_EQ(meshes.at("").faces().size(), 1u);
 	}
 
-	TEST(gfx_sink, solids_are_grouped_by_full_name_stack) {
+	TEST(gfx_sink, nodes_form_a_tree) {
 		sink out{};
-		out.push_object_name("house");
+		out.push_node("house", translation(10, 0, 0));
 		out.add_solid(square(), identity);
-		out.push_object_name("door");
-		out.add_solid(square(), translation(0, 0, 1));
-		out.pop_object_name();
-		out.push_object_name("window");
-		out.add_solid(square(), translation(0, 0, 2));
-		out.pop_object_name();
-		out.pop_object_name();
+		out.push_node("door", translation(1, 0, 0));
+		out.add_solid(square(), identity);
+		out.pop_node();
+		out.push_node("window", translation(0, 1, 0));
+		out.add_solid(square(), identity);
+		out.pop_node();
+		out.pop_node();
+		EXPECT_EQ(out.current(), sink::root);
 
-		auto const& by_name = out.solids().at("");
-		ASSERT_EQ(by_name.size(), 3u);
-		EXPECT_EQ(by_name.at(strings{"house"}).faces().size(), 1u);
-		EXPECT_EQ(by_name.at((strings{"house", "door"})).faces().size(), 1u);
-		EXPECT_EQ(by_name.at((strings{"house", "window"})).faces().size(), 1u);
+		ASSERT_EQ(out.nodes().size(), 4u);
+		auto const& root = out.at(sink::root);
+		ASSERT_EQ(root.children.size(), 1u);
+		auto const house_id = root.children[0];
+		auto const& house = out.at(house_id);
+		EXPECT_EQ(house.name, "house");
+		EXPECT_EQ(house.parent, sink::root);
+		EXPECT_EQ(house.local, translation(10, 0, 0));
+		EXPECT_EQ(house.meshes.at("").faces().size(), 1u);
+		ASSERT_EQ(house.children.size(), 2u);
+		EXPECT_EQ(out.at(house.children[0]).name, "door");
+		EXPECT_EQ(out.at(house.children[1]).name, "window");
+		EXPECT_EQ(out.at(house.children[0]).parent, house_id);
+		// the meshes are relative to their nodes
+		EXPECT_EQ(out.at(house.children[0]).meshes.at("").vertices().front(), (glm::dvec3{0, 0, 0}));
 	}
 
-	TEST(gfx_sink, material_and_name_are_independent) {
+	TEST(gfx_sink, same_names_are_separate_nodes) {
 		sink out{};
-		out.push_object_name("door");
-		out.push_material("wood");
+		out.push_node("leg", translation(1, 0, 0));
 		out.add_solid(square(), identity);
-		out.pop_object_name();
-		out.add_solid(square(), translation(0, 0, 1));
+		out.pop_node();
+		out.push_node("leg", translation(-1, 0, 0));
+		out.add_solid(square(), identity);
+		out.pop_node();
 
-		auto const& by_name = out.solids().at("wood");
-		ASSERT_EQ(by_name.size(), 2u);
-		EXPECT_EQ(by_name.at(strings{"door"}).faces().size(), 1u);
-		EXPECT_EQ(by_name.at(strings{}).faces().size(), 1u);
+		auto const& children = out.at(sink::root).children;
+		ASSERT_EQ(children.size(), 2u);
+		EXPECT_EQ(out.at(children[0]).local, translation(1, 0, 0));
+		EXPECT_EQ(out.at(children[1]).local, translation(-1, 0, 0));
+		EXPECT_EQ(out.at(children[0]).meshes.at("").faces().size(), 1u);
+		EXPECT_EQ(out.at(children[1]).meshes.at("").faces().size(), 1u);
 	}
 
-	TEST(gfx_sink, solids_in_same_group_share_vertices) {
+	TEST(gfx_sink, global_matrix_composes_the_ancestors) {
+		sink out{};
+		out.push_node("outer", translation(10, 0, 0));
+		out.push_node("inner", mirror_x());
+		auto const inner = out.current();
+		EXPECT_EQ(out.global_matrix(inner), translation(10, 0, 0) * mirror_x());
+		EXPECT_EQ(out.global_matrix(sink::root), identity);
+	}
+
+	TEST(gfx_sink, scope_opens_node_for_name) {
+		sink out{};
+		{
+			auto const guard = out.scope("door", "wood", translation(1, 0, 0));
+			out.add_solid(square(), identity);
+			EXPECT_NE(out.current(), sink::root);
+		}
+		EXPECT_EQ(out.current(), sink::root);
+		auto const& door = out.at(out.at(sink::root).children.at(0));
+		EXPECT_EQ(door.name, "door");
+		EXPECT_EQ(door.local, translation(1, 0, 0));
+		EXPECT_EQ(door.meshes.at("wood").faces().size(), 1u);
+
+		// back to no material
+		out.add_solid(square(), identity);
+		EXPECT_EQ(out.at(sink::root).meshes.at("").faces().size(), 1u);
+	}
+
+	TEST(gfx_sink, scope_without_matrix_is_identity) {
+		sink out{};
+		{
+			auto const guard = out.scope("door");
+		}
+		EXPECT_EQ(out.at(out.at(sink::root).children.at(0)).local, identity);
+	}
+
+	TEST(gfx_sink, unnamed_scope_opens_no_node) {
+		sink out{};
+		{
+			auto const guard = out.scope({}, "wood");
+			out.add_solid(square(), identity);
+			EXPECT_EQ(out.current(), sink::root);
+		}
+		EXPECT_EQ(out.nodes().size(), 1u);
+		EXPECT_EQ(out.at(sink::root).meshes.at("wood").faces().size(), 1u);
+	}
+
+	TEST(gfx_sink, matrix_without_name_throws) {
+		sink out{};
+		EXPECT_THROW(static_cast<void>(out.scope({}, "wood", translation(1, 0, 0))), std::invalid_argument);
+		// nothing was pushed
+		out.add_solid(square(), identity);
+		EXPECT_EQ(out.nodes().size(), 1u);
+		EXPECT_EQ(out.at(sink::root).meshes.at("").faces().size(), 1u);
+	}
+
+	TEST(gfx_sink, solids_in_same_node_share_vertices) {
 		sink out{};
 		out.add_solid(square(), identity);
 		out.add_solid(square(), translation(1, 0, 0));
-		auto const& group = out.solids().at("").at(strings{});
-		EXPECT_EQ(group.vertices().size(), 6u);
-		EXPECT_EQ(group.faces().size(), 2u);
+		auto const& mesh = out.at(sink::root).meshes.at("");
+		EXPECT_EQ(mesh.vertices().size(), 6u);
+		EXPECT_EQ(mesh.faces().size(), 2u);
 	}
 
 	TEST(gfx_sink, popping_empty_stacks_is_harmless) {
 		sink out{};
 		out.pop_material();
-		out.pop_object_name();
+		out.pop_node();
+		EXPECT_EQ(out.current(), sink::root);
 		out.add_solid(square(), identity);
-		EXPECT_EQ(out.solids().at("").at(strings{}).faces().size(), 1u);
-	}
-
-	TEST(gfx_sink, mutable_solids_accessor) {
-		sink out{};
-		out.add_solid(square(), identity);
-		out.solids().clear();
-		EXPECT_TRUE(out.solids().empty());
+		EXPECT_EQ(out.at(sink::root).meshes.at("").faces().size(), 1u);
 	}
 }  // namespace pyxel::gfx::testing

@@ -3,18 +3,51 @@
 
 #include <algorithm>
 #include <pyxel/gfx/sink.hpp>
+#include <stdexcept>
+#include <utility>
 
 namespace pyxel::gfx {
+	sink::sink() : nodes_(1) {}
+
 	void sink::add_solid(solid const& solid, glm::dmat4 const& matrix) {
 		static std::string const no_material{};
 		auto const& material = materials_.empty() ? no_material : materials_.back();
-		solids_[material][names_].add_solid(solid, matrix);
+		nodes_[current_].meshes[material].add_solid(solid, matrix);
 	}
 
-	void sink::push_object_name(std::string const& name) { names_.emplace_back(name); }
+	void sink::push_node(std::string name, glm::dmat4 const& local) {
+		auto const id = nodes_.size();
+		nodes_.push_back({.parent = current_, .name = std::move(name), .local = local});
+		nodes_[current_].children.push_back(id);
+		current_ = id;
+	}
 
-	void sink::pop_object_name() {
-		if (!names_.empty()) names_.pop_back();
+	void sink::pop_node() {
+		if (auto const parent = nodes_[current_].parent) current_ = *parent;
+	}
+
+	glm::dmat4 sink::global_matrix(node_id id) const {
+		glm::dmat4 result{1.0};
+		for (std::optional<node_id> next = id; next; next = nodes_.at(*next).parent)
+			result = nodes_[*next].local * result;
+		return result;
+	}
+
+	sink::scope_context::scope_context(sink& out,
+	                                   std::string const& name,
+	                                   std::string const& material,
+	                                   std::optional<glm::dmat4> const& matrix)
+	    : out_{out}, has_name_{!name.empty()}, has_material_{!material.empty()} {
+		if (matrix && !has_name_) {
+			throw std::invalid_argument("sink.scope: a matrix needs a name, to open a node for it");
+		}
+		if (has_name_) out_.push_node(name, matrix.value_or(glm::dmat4{1.0}));
+		if (has_material_) out_.push_material(material);
+	}
+
+	sink::scope_context::~scope_context() {
+		if (has_material_) out_.pop_material();
+		if (has_name_) out_.pop_node();
 	}
 
 	void sink::push_material(std::string const& name) { materials_.emplace_back(name); }

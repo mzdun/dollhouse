@@ -2,16 +2,19 @@
 // This code is licensed under MIT license (see LICENSE for details)
 
 #include <gtest/gtest.h>
+#include <algorithm>
 #include <numbers>
 #include <pyxel/gfx.hpp>
 #include <pyxel/gfx/group.hpp>
 #include <pyxel/gfx/solid_object.hpp>
 #include <stdexcept>
+#include <string>
+#include <vector>
 
 namespace pyxel::gfx::testing {
 	using namespace math::literals;
 	using points_t = std::vector<glm::dvec3>;
-	using strings = sink::strings;
+	using strings = std::vector<std::string>;
 
 	namespace {
 		// single vertex at the local origin, so the sink shows where the
@@ -41,8 +44,36 @@ namespace pyxel::gfx::testing {
 			EXPECT_NEAR(actual.z, expected.z, 1e-12);
 		}
 
+		// the node at the path of names, starting with a child of the root
+		sink::node_id find(sink const& out, strings const& names) {
+			auto id = sink::root;
+			for (auto const& name : names) {
+				auto const& children = out.at(id).children;
+				auto const it =
+				    std::ranges::find_if(children, [&](sink::node_id child) { return out.at(child).name == name; });
+				if (it == children.end()) throw std::out_of_range{"no node named " + name};
+				id = *it;
+			}
+			return id;
+		}
+
+		// in the space of the node
 		points_t vertices(sink const& out, std::string const& material, strings const& names) {
-			return out.solids().at(material).at(names).vertices();
+			return out.at(find(out, names)).meshes.at(material).vertices();
+		}
+
+		// in the space of the root
+		points_t world_vertices(sink const& out, std::string const& material, strings const& names) {
+			auto const id = find(out, names);
+			auto const matrix = out.global_matrix(id);
+			points_t result{};
+			for (auto const& vertex : out.at(id).meshes.at(material).vertices())
+				result.push_back(apply(matrix, vertex));
+			return result;
+		}
+
+		bool has_meshes(sink const& out) {
+			return std::ranges::any_of(out.nodes(), [](sink::node const& node) { return !node.meshes.empty(); });
 		}
 	}  // namespace
 
@@ -93,7 +124,7 @@ namespace pyxel::gfx::testing {
 		grp.set_name("empty").set_material("wood");
 		sink out{};
 		grp.output(out, identity);
-		EXPECT_TRUE(out.solids().empty());
+		EXPECT_FALSE(has_meshes(out));
 	}
 
 	TEST(gfx_group, output_groups_by_name_and_material) {
@@ -132,9 +163,57 @@ namespace pyxel::gfx::testing {
 
 		sink out{};
 		house.output(out, identity);
-		EXPECT_EQ(vertices(out, "brick", {"house"}), (points_t{{10, 0, 0}}));
-		EXPECT_EQ(vertices(out, "wood", (strings{"house", "door"})), (points_t{{11, 0, 0}}));
-		EXPECT_EQ(vertices(out, "wood", (strings{"house", "door", "handle"})), (points_t{{11, 1, 0}}));
+		EXPECT_EQ(world_vertices(out, "brick", {"house"}), (points_t{{10, 0, 0}}));
+		EXPECT_EQ(world_vertices(out, "wood", (strings{"house", "door"})), (points_t{{11, 0, 0}}));
+		EXPECT_EQ(world_vertices(out, "wood", (strings{"house", "door", "handle"})), (points_t{{11, 1, 0}}));
+
+		// every named group keeps its own move, the vertices stay local
+		EXPECT_EQ(vertices(out, "wood", (strings{"house", "door", "handle"})), (points_t{{0, 0, 0}}));
+		EXPECT_EQ(out.at(find(out, {"house"})).local, translate(identity_matrix, 10.0_m));
+		EXPECT_EQ(out.at(find(out, {"house", "door"})).local, translate(identity_matrix, 1.0_m));
+	}
+
+	TEST(gfx_group, unnamed_groups_compose_into_named_node) {
+		group root{};
+		auto& moved = root.add<group>(offset::at_x(1.0_m));
+		auto& rotated = moved.add<group>();
+		rotated.transform(rotate_z(identity_matrix, deg(90)));
+		auto& door = rotated.add<group>(offset::at_x(2.0_m));
+		door.set_name("door");
+		door.add<marker>();
+
+		sink out{};
+		root.output(out, identity);
+		// moved by 2, rotated onto y, moved by 1 along x
+		auto const& node = out.at(find(out, {"door"}));
+		EXPECT_EQ(node.parent, sink::root);
+		expect_near(apply(node.local, {0, 0, 0}), {1, 2, 0});
+		EXPECT_EQ(vertices(out, "", {"door"}), (points_t{{0, 0, 0}}));
+	}
+
+	TEST(gfx_group, unnamed_group_inside_named_is_baked) {
+		group door{};
+		door.set_name("door");
+		auto& handle = door.add<group>(offset::at_y(1.0_m));
+		handle.add<marker>();
+
+		sink out{};
+		door.output(out, identity);
+		EXPECT_EQ(out.nodes().size(), 2u);
+		EXPECT_EQ(vertices(out, "", {"door"}), (points_t{{0, 1, 0}}));
+	}
+
+	TEST(gfx_group, same_named_siblings_are_separate_nodes) {
+		group table{};
+		table.add<group>(offset::at_x(1.0_m)).set_name("leg").add<marker>();
+		table.add<group>(offset::at_x(-1.0_m)).set_name("leg").add<marker>();
+
+		sink out{};
+		table.output(out, identity);
+		auto const& children = out.at(sink::root).children;
+		ASSERT_EQ(children.size(), 2u);
+		expect_near(apply(out.at(children[0]).local, {0, 0, 0}), {1, 0, 0});
+		expect_near(apply(out.at(children[1]).local, {0, 0, 0}), {-1, 0, 0});
 	}
 
 	TEST(gfx_group, output_restores_context_after_exception) {
@@ -144,6 +223,7 @@ namespace pyxel::gfx::testing {
 		sink out{};
 		EXPECT_THROW(grp.output(out, identity), std::runtime_error);
 
+		EXPECT_EQ(out.current(), sink::root);
 		group after{};
 		after.add<marker>();
 		after.output(out, identity);
@@ -195,7 +275,8 @@ namespace pyxel::gfx::testing {
 		root.add<solid_object>(solid::cube(1_m, 1_m, 1_m));
 		sink out{};
 		root.output(out, identity);
-		auto const& added = out.solids().begin()->second.begin()->second;
+		// unnamed: the mirror is baked, and the winding flipped
+		auto const& added = out.at(sink::root).meshes.at("");
 		auto const& verts = added.vertices();
 		for (auto const& face : added.faces()) {
 			auto const normal = glm::cross(verts[face[1]] - verts[face[0]], verts[face[2]] - verts[face[0]]);
@@ -205,5 +286,17 @@ namespace pyxel::gfx::testing {
 			center /= static_cast<double>(face.size());
 			EXPECT_GT(glm::dot(normal, center - glm::dvec3{-0.5, 0.5, 0.5}), 0.0);
 		}
+	}
+
+	TEST(gfx_group, named_mirror_stays_in_node) {
+		group root{};
+		root.set_name("mirrored").transform(scale(identity_matrix, -1, 1, 1));
+		root.add<marker>();
+		sink out{};
+		root.output(out, identity);
+		auto const& node = out.at(find(out, {"mirrored"}));
+		// the consumers of the tree must observe the negative determinant
+		EXPECT_LT(glm::determinant(node.local), 0.0);
+		EXPECT_EQ(vertices(out, "", {"mirrored"}), (points_t{{0, 0, 0}}));
 	}
 }  // namespace pyxel::gfx::testing

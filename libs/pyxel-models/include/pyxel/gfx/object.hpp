@@ -15,6 +15,9 @@ namespace pyxel::gfx {
 		object& operator=(object&&) = delete;
 
 		virtual ~object();
+		// `parent` is relative to the current node of the sink (the nearest
+		// named group), not to the world; it is only meant to be given to
+		// sink::add_solid or to the children's output
 		virtual void output(sink&, glm::dmat4 const& parent = {1.0}) const = 0;
 	};
 }  // namespace pyxel::gfx

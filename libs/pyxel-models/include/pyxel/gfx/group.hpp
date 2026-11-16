@@ -14,7 +14,16 @@
 
 namespace pyxel::gfx {
 	// named, painted and positioned container of other objects; all the
-	// setters return the group itself, so the calls can be chained
+	// setters return the group itself, so the calls can be chained.
+	//
+	// A named group is a node of the sink: its transformation, together with
+	// the ones of the unnamed groups above it (up to the nearest named
+	// group), is kept in the node, and its children start from identity.
+	// The transformation of an unnamed group is passed down instead, and
+	// baked into the vertices. So the transformation reaching a named group
+	// must be made of a translation, a rotation and a scale only: no shear,
+	// e.g. no non-uniform scale after a rotation (see sink). A negative
+	// scale, mirroring the contents, is fine
 	struct group : object {
 		group(length x = {}, length y = {}, length z = {}) : group{offset{x, y, z}} {}
 		group(offset const& pos) : transform_{gfx::translate(identity_matrix, pos)} {}

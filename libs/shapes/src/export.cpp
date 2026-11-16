@@ -20,38 +20,64 @@ namespace shapes {
 		using pyxel::gfx::materials;
 		using pyxel::gfx::sink;
 
-		// object path -> node; the meshes are attached to the node of their
-		// full path, so the hierarchy of the groups survives the export
-		struct node_tree {
-			std::vector<unsigned> meshes{};
-			std::map<std::string, node_tree> children{};
+		// glm is column-major (m[column][row]), Assimp is row-major
+		aiMatrix4x4 to_ai(glm::dmat4 const& m) {
+			auto const r = [](double value) { return static_cast<ai_real>(value); };
+			return {r(m[0][0]), r(m[1][0]), r(m[2][0]), r(m[3][0]),  //
+			        r(m[0][1]), r(m[1][1]), r(m[2][1]), r(m[3][1]),  //
+			        r(m[0][2]), r(m[1][2]), r(m[2][2]), r(m[3][2]),  //
+			        r(m[0][3]), r(m[1][3]), r(m[2][3]), r(m[3][3])};
+		}
 
-			node_tree& at(sink::strings const& path) {
-				auto* node = this;
-				for (auto const& name : path)
-					node = &node->children[name];
-				return *node;
+		// The nodes of the sink, with the indices of their meshes in the scene;
+		// a node is exported, if it has a mesh, or a descendant with one (the
+		// root always is, Assimp needs it)
+		struct node_tree {
+			explicit node_tree(sink const& out) : out_{out}, meshes(out.nodes().size()) {}
+
+			aiNode* to_ai() {
+				auto const& nodes = out_.nodes();
+				keep_.assign(nodes.size(), false);
+				// children are opened after their parents, so they come later
+				for (auto id = nodes.size(); id-- > 0;) {
+					if (meshes[id].empty() && !keep_[id]) continue;
+					keep_[id] = true;
+					if (auto const parent = nodes[id].parent) keep_[*parent] = true;
+				}
+				return to_ai(sink::root, nullptr);
 			}
 
-			aiNode* to_ai(std::string const& name, aiNode* parent) const {
-				auto* node = new aiNode{name};
-				node->mParent = parent;
+			std::vector<std::vector<unsigned>> meshes;
 
-				node->mNumMeshes = static_cast<unsigned>(meshes.size());
-				if (!meshes.empty()) {
-					node->mMeshes = new unsigned[meshes.size()];
-					std::copy(meshes.begin(), meshes.end(), node->mMeshes);
+		private:
+			aiNode* to_ai(sink::node_id id, aiNode* parent) const {
+				auto const& source = out_.at(id);
+				auto* node = new aiNode{source.name};
+				node->mParent = parent;
+				node->mTransformation = shapes::to_ai(source.local);
+
+				auto const& own = meshes[id];
+				node->mNumMeshes = static_cast<unsigned>(own.size());
+				if (!own.empty()) {
+					node->mMeshes = new unsigned[own.size()];
+					std::copy(own.begin(), own.end(), node->mMeshes);
 				}
 
-				node->mNumChildren = static_cast<unsigned>(children.size());
-				if (!children.empty()) {
-					node->mChildren = new aiNode*[children.size()];
+				auto const kept = static_cast<unsigned>(
+				    std::ranges::count_if(source.children, [this](sink::node_id child) { return keep_[child]; }));
+				node->mNumChildren = kept;
+				if (kept != 0) {
+					node->mChildren = new aiNode*[kept];
 					auto* dst = node->mChildren;
-					for (auto const& [child_name, child] : children)
-						*dst++ = child.to_ai(child_name, node);
+					for (auto const child : source.children) {
+						if (keep_[child]) *dst++ = to_ai(child, node);
+					}
 				}
 				return node;
 			}
+
+			sink const& out_;
+			std::vector<bool> keep_{};
 		};
 
 		// registered names follow `Material`, `Material.001`, ..., so this
@@ -220,11 +246,13 @@ namespace shapes {
 			return mesh;
 		}
 
-		std::string path_name(sink::strings const& path) {
+		// names of the node and of its ancestors, root first, e.g. `house/door`
+		std::string path_name(sink const& out, sink::node_id id) {
 			std::string result{};
-			for (auto const& name : path) {
-				if (!result.empty()) result += '/';
-				result += name;
+			for (std::optional<sink::node_id> next = id; next; next = out.at(*next).parent) {
+				auto const& name = out.at(*next).name;
+				if (name.empty()) continue;
+				result = result.empty() ? name : name + '/' + result;
 			}
 			return result;
 		}
@@ -232,16 +260,16 @@ namespace shapes {
 		std::unique_ptr<aiScene> make_scene(std::string const& name, sink const& out, materials const& repo) {
 			material_table table{repo};
 			std::vector<aiMesh*> meshes{};
-			node_tree tree{};
+			node_tree tree{out};
 
-			for (auto const& [material, by_path] : out.solids()) {
-				for (auto const& [path, solid] : by_path) {
-					auto* mesh = make_mesh(path_name(path), solid, table.index_of(material));
+			for (sink::node_id id = 0; id < out.nodes().size(); ++id) {
+				for (auto const& [material, solid] : out.at(id).meshes) {
+					auto* mesh = make_mesh(path_name(out, id), solid, table.index_of(material));
 					if (mesh->mNumFaces == 0) {
 						delete mesh;
 						continue;
 					}
-					tree.at(path).meshes.push_back(static_cast<unsigned>(meshes.size()));
+					tree.meshes[id].push_back(static_cast<unsigned>(meshes.size()));
 					meshes.push_back(mesh);
 				}
 			}
@@ -254,7 +282,7 @@ namespace shapes {
 			// of the model look like the roots of the hierarchy (the model is
 			// still named by the file)
 			auto scene = std::make_unique<aiScene>();
-			scene->mRootNode = tree.to_ai({}, nullptr);
+			scene->mRootNode = tree.to_ai();
 
 			scene->mNumMaterials = static_cast<unsigned>(materials.size());
 			scene->mMaterials = new aiMaterial*[materials.size()];

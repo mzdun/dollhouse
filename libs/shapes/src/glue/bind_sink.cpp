@@ -8,6 +8,7 @@
 #include <memory>
 #include <optional>
 #include <pyxel/gfx/sink.hpp>
+#include <pyxel/math/glm.hpp>
 #include <shapes/glue/glue.hpp>
 #include <string>
 #include <vector>
@@ -27,9 +28,14 @@ namespace shapes::glue {
 		public:
 			using id_type = std::uint64_t;
 
-			id_type push(sink& out, std::string const& name, std::string const& material) {
+			id_type push(sink& out,
+			             std::string const& name,
+			             std::string const& material,
+			             std::optional<glm::dmat4> const& matrix) {
+				// the entry is complete only, if the context did not throw
+				auto added = std::make_unique<entry>(last_id_ + 1, out, name, material, matrix);
 				auto const id = ++last_id_;
-				entries_.push_back(std::make_unique<entry>(id, out, name, material));
+				entries_.push_back(std::move(added));
 				return id;
 			}
 
@@ -51,8 +57,12 @@ namespace shapes::glue {
 
 		private:
 			struct entry {
-				entry(id_type id, sink& out, std::string const& name, std::string const& material)
-				    : id{id}, context{out, name, material} {}
+				entry(id_type id,
+				      sink& out,
+				      std::string const& name,
+				      std::string const& material,
+				      std::optional<glm::dmat4> const& matrix)
+				    : id{id}, context{out, name, material, matrix} {}
 
 				id_type id;
 				sink::scope_context context;
@@ -71,15 +81,15 @@ namespace shapes::glue {
 		// stack, while entered
 		class python_scope {
 		public:
-			python_scope(py::object out, std::string name, std::string material)
-			    : out_{std::move(out)}, name_{std::move(name)}, material_{std::move(material)} {}
+			python_scope(py::object out, std::string name, std::string material, std::optional<glm::dmat4> matrix)
+			    : out_{std::move(out)}, name_{std::move(name)}, material_{std::move(material)}, matrix_{matrix} {}
 
 			void enter() {
 				auto& scopes = python_scopes();
 				if (id_ && scopes.contains(*id_)) throw py::value_error("sink.scope_context: already entered");
 				// raises ReferenceError, once the sink is gone
 				auto& out = out_.cast<sink&>();
-				id_ = scopes.push(out, name_, material_);
+				id_ = scopes.push(out, name_, material_, matrix_);
 			}
 
 			void exit() {
@@ -101,6 +111,7 @@ namespace shapes::glue {
 			py::object out_;
 			std::string name_;
 			std::string material_;
+			std::optional<glm::dmat4> matrix_;
 			std::optional<scope_stack::id_type> id_{};
 		};
 	}  // namespace
@@ -123,13 +134,16 @@ namespace shapes::glue {
 		// wrapper be detached afterwards (see lifetime.hpp)
 		py::class_<sink, py::smart_holder> cls(
 		    m, "sink",
-		    "Receives the solids of a model, grouped by material and object path. Given to `output`, and only "
-		    "valid until that call returns; a sink kept for later raises ReferenceError.");
+		    "Receives the solids of a model, as a tree of nodes: every named scope (and every named group) "
+		    "opens a node, with a transformation of its own, and the solids are kept in the node current when "
+		    "they were added, by material. Given to `output`, and only valid until that call returns; a sink "
+		    "kept for later raises ReferenceError.");
 
-		py::class_<python_scope>(cls, "scope_context",
-		                         "Context manager returned by `sink.scope`; pushes the object name and material "
-		                         "on entry and pops them on exit. Scopes are exited in reverse order of entering; the "
-		                         "ones left open are closed when the `output` call they were entered in returns.")
+		py::class_<python_scope>(
+		    cls, "scope_context",
+		    "Context manager returned by `sink.scope`; opens the node and pushes the material "
+		    "on entry, and closes and pops them on exit. Scopes are exited in reverse order of entering; the "
+		    "ones left open are closed when the `output` call they were entered in returns.")
 		    .def(
 		        "__enter__",
 		        [](python_scope& self) -> python_scope& {
@@ -142,19 +156,26 @@ namespace shapes::glue {
 		        "Pops what was pushed on entry; exceptions are not suppressed.");
 
 		cls.def("add_solid", &sink::add_solid, "solid"_a, "m"_a,
-		        "Adds the solid, transformed by the matrix `m`, under the current material and object path.")
+		        "Adds the solid, transformed by the matrix `m`, to the current node, under the current material. "
+		        "The matrix is relative to the current node, as is the one given to `output`.")
 
 		    .def(
 		        "scope",
-		        [](py::object const& self, std::string object_name, std::string material) {
+		        [](py::object const& self, std::string object_name, std::string material,
+		           std::optional<glm::dmat4> matrix) {
 			        // raises ReferenceError, if the sink is gone already
 			        static_cast<void>(self.cast<sink&>());
-			        return std::make_unique<python_scope>(self, std::move(object_name), std::move(material));
+			        if (matrix && object_name.empty()) {
+				        throw py::value_error("sink.scope: a matrix needs an object_name, to open a node for it");
+			        }
+			        return std::make_unique<python_scope>(self, std::move(object_name), std::move(material), matrix);
 		        },
-		        "object_name"_a = "", "material"_a = "",
-		        "Context manager for the `with` statement; inside, `object_name` is nested in the object path and "
-		        "`material` is used for the solids. An empty `object_name` or `material` leaves that part as it is. "
-		        "This is the only way to change the object path and the material, so an object can never change "
-		        "the ones set by its parents.");
+		        "object_name"_a = "", "material"_a = "", "m"_a = py::none(),
+		        "Context manager for the `with` statement. A non-empty `object_name` opens a child of the current "
+		        "node, transformed by `m` (identity, if None), so the matrices given to `add_solid` inside are "
+		        "relative to it; `m` must be made of a translation, a rotation and a scale only (no shear; a "
+		        "negative scale is fine). A non-empty `material` is used for the solids inside. `m` without "
+		        "an `object_name` raises ValueError. This is the only way to open a node and to change the "
+		        "material, so an object can never change the ones set by its parents.");
 	}
 }  // namespace shapes::glue
