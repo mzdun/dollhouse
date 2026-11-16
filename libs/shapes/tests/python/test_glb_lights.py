@@ -2,7 +2,7 @@
 # This code is licensed under MIT license (see LICENSE for details)
 
 """Lights in glTF 2 binaries: `glb2` is exported through `glb2-lights`, which
-adds KHR_lights_punctual to what Assimp writes."""
+adds KHR_lights_punctual and PYXEL_lights_area to what Assimp writes."""
 
 import json
 import math
@@ -15,6 +15,7 @@ import shapes
 from shapes import I, cm, deg, solid
 
 EXTENSION = "KHR_lights_punctual"
+AREA_EXTENSION = "PYXEL_lights_area"
 GLB_MAGIC = 0x46546C67
 CHUNK_JSON = 0x4E4F534A
 
@@ -70,12 +71,31 @@ def nodes_with_lights(doc: dict[str, Any]) -> dict[str, dict[str, Any]]:
     }
 
 
+def area_lights(doc: dict[str, Any]) -> list[dict[str, Any]]:
+    result: list[dict[str, Any]] = doc["extensions"][AREA_EXTENSION]["lights"]
+    return result
+
+
+def nodes_with_area_lights(doc: dict[str, Any]) -> dict[str, dict[str, Any]]:
+    """Area lights by the name of their node."""
+    found = area_lights(doc)
+    return {
+        node.get("name", ""): found[node["extensions"][AREA_EXTENSION]["light"]]
+        for node in doc["nodes"]
+        if AREA_EXTENSION in node.get("extensions", {})
+    }
+
+
 def cube() -> solid:
     return solid.cube(cm(10), cm(10), cm(10))
 
 
 def spot(**kwargs: Any) -> shapes.light:
     return shapes.light(type=shapes.light_type.spot, **kwargs)
+
+
+def area(**kwargs: Any) -> shapes.light:
+    return shapes.light(type=shapes.light_type.area, **kwargs)
 
 
 class TestFormat:
@@ -136,14 +156,14 @@ class TestLights:
             "sun": "directional",
         }
 
-    def test_area_lights_are_left_out(self, tmp_path):
+    def test_area_lights_are_not_punctual(self, tmp_path):
         def fill(root: shapes.group) -> None:
             root.add(cube())
-            root.add_group(name="panel").add(shapes.light(type=shapes.light_type.area))
+            root.add_group(name="panel").add(area())
 
         doc = export_glb(tmp_path, fill)
         assert EXTENSION not in doc.get("extensionsUsed", [])
-        assert "pyxel_light" not in json.dumps(doc)
+        assert EXTENSION not in doc.get("extensions", {})
 
     def test_color_and_intensity(self, tmp_path):
         def fill(root: shapes.group) -> None:
@@ -207,10 +227,97 @@ class TestLights:
         assert [-m[8], -m[9], -m[10]] == pytest.approx([0, -1, 0], abs=1e-6)
 
 
+class TestAreaLights:
+    def test_extension_is_used_not_required(self, tmp_path):
+        doc = export_glb(tmp_path, lambda root: root.add_group(name="panel").add(area()))
+        assert AREA_EXTENSION in doc["extensionsUsed"]
+        assert AREA_EXTENSION not in doc.get("extensionsRequired", [])
+        assert set(nodes_with_area_lights(doc)) == {"panel"}
+
+    def test_no_area_lights_no_extension(self, tmp_path):
+        doc = export_glb(tmp_path, lambda root: root.add_group(name="lamp").add(spot()))
+        assert AREA_EXTENSION not in doc.get("extensionsUsed", [])
+        assert AREA_EXTENSION not in doc.get("extensions", {})
+
+    def test_mixed_with_punctual(self, tmp_path):
+        def fill(root: shapes.group) -> None:
+            root.add_group(name="lamp").add(spot())
+            root.add_group(name="panel").add(area())
+            root.add_group(name="bulb").add(shapes.light(type=shapes.light_type.point))
+
+        doc = export_glb(tmp_path, fill)
+        assert set(nodes_with_lights(doc)) == {"lamp", "bulb"}
+        assert set(nodes_with_area_lights(doc)) == {"panel"}
+        assert {EXTENSION, AREA_EXTENSION} <= set(doc["extensionsUsed"])
+
+    def test_tags_are_removed(self, tmp_path):
+        def fill(root: shapes.group) -> None:
+            root.add_group(name="panel").add(area(range=cm(300)))
+            root.add_group(pos=shapes.at_x(cm(10))).add(area())
+
+        doc = export_glb(tmp_path, fill)
+        text = json.dumps(doc)
+        for tag in ("pyxel_light", "PBR_LightRange", "pyxel_area_shape", "pyxel_area_spread"):
+            assert tag not in text
+        assert all("extras" not in node for node in doc["nodes"])
+
+    @pytest.mark.parametrize(
+        "shape, width, height, expected",
+        [
+            (shapes.area_shape.square, 120, 40, ("rectangle", 1.2, 1.2)),
+            (shapes.area_shape.rectangle, 120, 40, ("rectangle", 1.2, 0.4)),
+            (shapes.area_shape.disk, 30, 50, ("ellipse", 0.3, 0.3)),
+            (shapes.area_shape.ellipse, 30, 50, ("ellipse", 0.3, 0.5)),
+        ],
+    )
+    def test_shapes(self, tmp_path, shape, width, height, expected):
+        surface = shapes.light_area(shape=shape, width=cm(width), height=cm(height))
+        doc = export_glb(
+            tmp_path, lambda root: root.add_group(name="panel").add(area(area=surface))
+        )
+        (light,) = area_lights(doc)
+        kind, w, h = expected
+        assert light["shape"] == kind
+        assert light["width"] == pytest.approx(w)
+        assert light["height"] == pytest.approx(h)
+
+    def test_light_properties(self, tmp_path):
+        surface = shapes.light_area(spread=deg(120))
+
+        def fill(root: shapes.group) -> None:
+            root.add_group(name="warm").add(
+                area(color=shapes.rgb(255, 0, 0), intensity=300, range=cm(250), area=surface)
+            )
+            root.add_group(name="plain").add(area())
+
+        found = nodes_with_area_lights(export_glb(tmp_path, fill))
+        warm, plain = found["warm"], found["plain"]
+        assert warm["name"] == "warm"
+        assert warm["color"] == pytest.approx([1, 0, 0])
+        assert warm["intensity"] == pytest.approx(300)
+        assert warm["range"] == pytest.approx(2.5)
+        assert warm["spread"] == pytest.approx(math.radians(120))
+        assert plain["color"] == pytest.approx([1, 1, 1])
+        assert plain["intensity"] == pytest.approx(1)
+        assert plain["spread"] == pytest.approx(math.pi)
+        assert "range" not in plain
+        assert "type" not in plain
+
+    def test_transformed_light_gets_its_own_node(self, tmp_path):
+        def fill(root: shapes.group) -> None:
+            lamp = root.add_group(name="lamp")
+            lamp.add(cube())
+            lamp.add_group().transform(I.rotate_x(-deg(90))).add(area())
+
+        doc = export_glb(tmp_path, fill)
+        assert set(nodes_with_area_lights(doc)) == {"Light"}
+
+
 class TestOtherFormats:
     def test_collada_has_no_tags(self, tmp_path):
         def lights_model(root: shapes.group) -> str:
             root.add_group(name="lamp").add(spot(range=cm(300)))
+            root.add_group(name="panel").add(area())
             return "collada"
 
         shapes.library.model(lights_model)
@@ -220,5 +327,5 @@ class TestOtherFormats:
         finally:
             shapes.library.clear_models()
         text = path.read_text(encoding="UTF-8")
-        assert "pyxel_light" not in text
-        assert "PBR_LightRange" not in text
+        for tag in ("pyxel_light", "PBR_LightRange", "pyxel_area_shape", "pyxel_area_spread"):
+            assert tag not in text

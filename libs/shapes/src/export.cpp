@@ -34,21 +34,46 @@ namespace shapes {
 			        r(m[0][3]), r(m[1][3]), r(m[2][3]), r(m[3][3])};
 		}
 
-		// node created for a light, which cannot use the node it is in
 		// marks the node of a light for the glb2-lights exporter, which reads
-		// it back from the extras of the glTF node (see glb_lights.hpp)
+		// it back from the extras of the glTF node (see glb_lights.hpp); the
+		// size of an area light goes with the aiLight, the rest of its
+		// surface has no place there
 		struct light_tag {
 			unsigned index{};
 			std::optional<pyxel::gfx::length> range{};
+			std::optional<light::area_t> area{};
 		};
+
+		light_tag make_tag(unsigned index, light const& source) {
+			light_tag result{.index = index, .range = source.range};
+			if (source.type == light_type::area) result.area = source.area;
+			return result;
+		}
+
+		int32_t to_tag(pyxel::gfx::area_shape shape) noexcept {
+			switch (shape) {
+				case pyxel::gfx::area_shape::disk:
+				case pyxel::gfx::area_shape::ellipse:
+					return glb_lights::area_ellipse;
+				case pyxel::gfx::area_shape::square:
+				case pyxel::gfx::area_shape::rectangle:
+					break;
+			}
+			return glb_lights::area_rectangle;
+		}
 
 		aiMetadata* make_metadata(light_tag const& tag) {
 			auto* meta = new aiMetadata{};
 			meta->Add(glb_lights::light_key, static_cast<int32_t>(tag.index));
 			if (tag.range) meta->Add(glb_lights::range_key, static_cast<float>(tag.range->count()));
+			if (tag.area) {
+				meta->Add(glb_lights::area_shape_key, to_tag(tag.area->shape));
+				meta->Add(glb_lights::area_spread_key, static_cast<float>(tag.area->spread.count()));
+			}
 			return meta;
 		}
 
+		// node created for a light, which cannot use the node it is in
 		struct light_leaf {
 			std::string name{};
 			glm::dmat4 matrix{1.0};
@@ -325,8 +350,8 @@ namespace shapes {
 		// KHR_lights_punctual: the intensity is folded into the colors, the
 		// falloff is 1 / d^2 (the range has no place in aiLight, and is lost),
 		// the light shines along -z of its node, and the cone angles go from
-		// the axis to the edge. Not every exporter writes every light: none
-		// writes the area lights, for one
+		// the axis to the edge. Not every exporter writes every light: of
+		// Assimp's own, none writes the area lights
 		aiLight* make_light(std::string const& name, light const& source) {
 			auto* result = new aiLight{};
 			result->mName = name;
@@ -396,7 +421,7 @@ namespace shapes {
 					auto const own_node = matrix == glm::dmat4{1.0} && !node.name.empty() &&
 					                      name_counts[node.name] == 1 && tree.meshes[id].empty() &&
 					                      !claimed.contains(id);
-					light_tag const tag{.index = static_cast<unsigned>(result.size()), .range = source.range};
+					auto const tag = make_tag(static_cast<unsigned>(result.size()), source);
 					if (own_node) {
 						claimed.insert(id);
 						tree.own_lights[id] = tag;
