@@ -21,6 +21,7 @@ namespace shapes::glue {
 	void bind_length(py::module_& m);
 	void bind_main(py::module_& m);
 	void bind_library(py::module_& m);
+	void bind_light(py::module_& m);
 	void bind_object(py::module_& m);
 	void bind_offset(py::module_& m);
 	void bind_rng(py::module_& m);
