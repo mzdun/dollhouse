@@ -229,7 +229,9 @@ class TestLights:
 
 class TestAreaLights:
     def test_extension_is_used_not_required(self, tmp_path):
-        doc = export_glb(tmp_path, lambda root: root.add_group(name="panel").add(area()))
+        doc = export_glb(
+            tmp_path, lambda root: root.add_group(name="panel").add(area())
+        )
         assert AREA_EXTENSION in doc["extensionsUsed"]
         assert AREA_EXTENSION not in doc.get("extensionsRequired", [])
         assert set(nodes_with_area_lights(doc)) == {"panel"}
@@ -257,7 +259,12 @@ class TestAreaLights:
 
         doc = export_glb(tmp_path, fill)
         text = json.dumps(doc)
-        for tag in ("pyxel_light", "PBR_LightRange", "pyxel_area_shape", "pyxel_area_spread"):
+        for tag in (
+            "pyxel_light",
+            "PBR_LightRange",
+            "pyxel_area_shape",
+            "pyxel_area_spread",
+        ):
             assert tag not in text
         assert all("extras" not in node for node in doc["nodes"])
 
@@ -286,7 +293,12 @@ class TestAreaLights:
 
         def fill(root: shapes.group) -> None:
             root.add_group(name="warm").add(
-                area(color=shapes.rgb(255, 0, 0), intensity=300, range=cm(250), area=surface)
+                area(
+                    color=shapes.rgb(255, 0, 0),
+                    intensity=300,
+                    range=cm(250),
+                    area=surface,
+                )
             )
             root.add_group(name="plain").add(area())
 
@@ -327,5 +339,10 @@ class TestOtherFormats:
         finally:
             shapes.library.clear_models()
         text = path.read_text(encoding="UTF-8")
-        for tag in ("pyxel_light", "PBR_LightRange", "pyxel_area_shape", "pyxel_area_spread"):
+        for tag in (
+            "pyxel_light",
+            "PBR_LightRange",
+            "pyxel_area_shape",
+            "pyxel_area_spread",
+        ):
             assert tag not in text

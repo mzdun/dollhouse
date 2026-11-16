@@ -3,10 +3,13 @@
 
 #include <algorithm>
 #include <format>
+#include <memory>
 #include <pyxel/io/export.hpp>
 #include <shapes/library.hpp>
 #include <stdexcept>
+#include <string>
 #include <utility>
+#include <vector>
 
 namespace shapes {
 	namespace {

@@ -15,7 +15,9 @@
 #include <pyxel/io/export.hpp>
 #include <set>
 #include <stdexcept>
+#include <string>
 #include <variant>
+#include <vector>
 #include "glb_lights.hpp"
 
 namespace pyxel::io {
