@@ -77,6 +77,36 @@ if(PLANNER_INSTALL)
     install(TARGETS shapes DESTINATION shapes)
 endif()
 
+# Environment of the Python interpreter loading the module from this build
+# tree (on sanitized builds: the ASan preload, see dollhouse_python_env)
+dollhouse_python_env(SHAPES_PYTHON_ENV)
+
+# #################################################################
+# #  STUBS
+# #################################################################
+# The .pyi stubs go next to the module, from where `flow dyn-install` copies
+# them into site-packages
+execute_process(
+    COMMAND ${Python3_EXECUTABLE} -c "import pybind11_stubgen"
+    RESULT_VARIABLE SHAPES_STUBGEN_MISSING
+    OUTPUT_QUIET ERROR_QUIET
+)
+if(SHAPES_STUBGEN_MISSING)
+    message(WARNING "pybind11-stubgen not found for ${Python3_EXECUTABLE}; stubs of `shapes` will not be generated")
+else()
+    list(JOIN SHAPES_PYTHON_ENV "|" SHAPES_PYTHON_ENV_ARG)
+    add_custom_command(TARGET shapes POST_BUILD
+        COMMAND ${CMAKE_COMMAND}
+            -DPYTHON=${Python3_EXECUTABLE}
+            -DMODULE=shapes
+            -DOUTPUT_DIR=${PROJECT_BINARY_DIR}/bin
+            "-DPYTHON_ENV=${SHAPES_PYTHON_ENV_ARG}"
+            -P ${PROJECT_SOURCE_DIR}/.flow/cmake/genstubs.cmake
+        COMMENT "Generating stubs of the shapes module"
+        VERBATIM
+    )
+endif()
+
 # #################################################################
 # #  TESTING
 # #################################################################
@@ -95,9 +125,14 @@ if(DOLLHOUSE_TESTING)
             ${SHAPES_PYTEST_DIR}
         WORKING_DIRECTORY ${SHAPES_PYTEST_DIR}
     )
+    set(SHAPES_PYTEST_ENV
+        "SHAPES_MODULE_DIR=${PROJECT_BINARY_DIR}/bin"
+        "PYTHONPYCACHEPREFIX=${CMAKE_CURRENT_BINARY_DIR}/pycache"
+        ${SHAPES_PYTHON_ENV}
+    )
     set_tests_properties(shapes-python PROPERTIES
         LABELS python
         TIMEOUT 300
-        ENVIRONMENT "SHAPES_MODULE_DIR=${PROJECT_BINARY_DIR}/bin;PYTHONPYCACHEPREFIX=${CMAKE_CURRENT_BINARY_DIR}/pycache"
+        ENVIRONMENT "${SHAPES_PYTEST_ENV}"
     )
 endif()
