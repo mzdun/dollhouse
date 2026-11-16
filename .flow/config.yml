@@ -10,9 +10,9 @@ extensions:
 
 entry:
   config: [Conan, CMake]
-  build: [Build, GenStubs]
-  dyn-install: [Build, GenStubs, DynModulesInstall]
-  test: [Build, GenStubs, Test]
+  build: [Build]
+  dyn-install: [Build, DynModulesInstall]
+  test: [Build, Test]
   verify:
     - Build
     - Test

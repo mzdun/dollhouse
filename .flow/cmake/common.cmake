@@ -115,3 +115,30 @@ endif()
 if (DOLLHOUSE_W_ERROR)
   message(STATUS "Compiling with warnings treated as errors")
 endif()
+
+# Sets OUT_VAR to the environment (a list of NAME=value) a Python interpreter
+# needs to load a module of this build.
+#
+# With sanitizers on, the module links the ASan runtime, but the interpreter
+# loading it does not. ASan has to be the first library in the process, so it
+# is preloaded; libstdc++ is preloaded with it, or ASan's __cxa_throw
+# interceptor stays unresolved in the (C-only) interpreter and the first C++
+# exception aborts the process. Leak detection is off, as CPython does not
+# free everything at exit.
+function(dollhouse_python_env OUT_VAR)
+  set(result)
+  if(DOLLHOUSE_SANITIZE AND CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+    set(preload)
+    foreach(lib libasan.so libstdc++.so)
+      execute_process(
+        COMMAND ${CMAKE_CXX_COMPILER} -print-file-name=${lib}
+        OUTPUT_VARIABLE lib_path
+        OUTPUT_STRIP_TRAILING_WHITESPACE
+      )
+      list(APPEND preload ${lib_path})
+    endforeach()
+    list(JOIN preload " " preload)
+    list(APPEND result "LD_PRELOAD=${preload}" "ASAN_OPTIONS=detect_leaks=0")
+  endif()
+  set(${OUT_VAR} ${result} PARENT_SCOPE)
+endfunction()
