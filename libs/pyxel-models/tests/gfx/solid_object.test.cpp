@@ -23,10 +23,11 @@ namespace pyxel::gfx::testing {
 
 		sink out{};
 		root.output(out, identity_matrix);
-		ASSERT_EQ(out.solids().size(), 1u);
-		auto const& [material, by_name] = *out.solids().begin();
-		ASSERT_EQ(by_name.size(), 1u);
-		auto const& added = by_name.begin()->second;
+		// an unnamed group: baked into the root node
+		ASSERT_EQ(out.nodes().size(), 1u);
+		auto const& meshes = out.at(sink::root).meshes;
+		ASSERT_EQ(meshes.size(), 1u);
+		auto const& added = meshes.begin()->second;
 		EXPECT_EQ(added.vertices().size(), 8u);
 		EXPECT_EQ(added.faces().size(), 6u);
 		for (auto const& vertex : added.vertices()) {

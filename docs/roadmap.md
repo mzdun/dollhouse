@@ -19,7 +19,7 @@
   - [ ] Export texture materials with bumps and normals
 - [ ] Plans
   - [ ] Propose YAML schema
-  - [ ] Support "transform" on nodes
+  - [ ] Support "transform" on YAML nodes
   - [ ] Build the floor plan
   - [ ] Build the walls and doorways
   - [ ] Build plinths

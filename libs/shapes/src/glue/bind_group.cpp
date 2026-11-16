@@ -35,6 +35,10 @@ namespace shapes::glue {
 		    "only provided by the host or by `add_group`, and placed with `transform` and the `matrix` operations. "
 		    "They are only valid until the model function they were given to returns; a group kept for later "
 		    "raises ReferenceError. "
+		    "A named group becomes a node of the exported model, keeping its transformation (with the ones of "
+		    "the unnamed groups above it); the transformation of an unnamed group is baked into the vertices. "
+		    "So the transformation reaching a named group must be made of a translation, a rotation and a scale "
+		    "only: no shear, e.g. no non-uniform scale after a rotation. A negative scale (mirroring) is fine. "
 		    "All the `set_...` methods and `transform` return the group itself, so the calls can be chained.")
 
 		    // name and material

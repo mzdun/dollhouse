@@ -41,7 +41,9 @@ namespace shapes::glue {
 		};
 
 		constexpr auto output_doc =
-		    "Adds the geometry to `sink`, transformed by the matrix `m`; must be implemented by the subclasses.";
+		    "Adds the geometry to `sink`, transformed by the matrix `m`; must be implemented by the subclasses. "
+		    "`m` is relative to the current node of the sink (the nearest named group or scope), not to the "
+		    "world, and is only meant to be given to `sink.add_solid`.";
 	}  // namespace
 
 	void bind_object(py::module_& m) {

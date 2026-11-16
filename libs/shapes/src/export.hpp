@@ -19,9 +19,11 @@ namespace shapes {
 	// every export format of the linked Assimp
 	std::vector<export_format> const& export_formats();
 
-	// writes the solids collected by `out` to `path`, using the given export
-	// format; the root node is unnamed, `name` is used in error messages;
-	// throws std::runtime_error on failure.
+	// writes the nodes collected by `out` to `path`, using the given export
+	// format; every node keeps its name and local transformation, and the
+	// nodes with no meshes, in them or below, are left out; the root node
+	// is unnamed, `name` is used in error messages; throws
+	// std::runtime_error on failure.
 	// Only the materials used by the solids are exported, looked up in
 	// `repo`; solids with an unknown or empty material get a magenta one
 	void export_scene(std::string const& name,
