@@ -89,7 +89,9 @@ class TestLight:
         assert lamp.range is None
 
     def test_directional_ignores_distance(self):
-        sun = shapes.light(type=shapes.light_type.directional, intensity=1000, range=cm(1))
+        sun = shapes.light(
+            type=shapes.light_type.directional, intensity=1000, range=cm(1)
+        )
         assert sun.illuminance_at(shapes.at_x(cm(10000))) == pytest.approx(1000)
 
     def test_cone_is_squared(self):
@@ -126,7 +128,9 @@ class TestLight:
         assert lamp.illuminance_at(ahead(cm(200))) == pytest.approx(1)
 
     def test_repr(self):
-        text = repr(shapes.light(type=shapes.light_type.spot, name="bulb", range=cm(300)))
+        text = repr(
+            shapes.light(type=shapes.light_type.spot, name="bulb", range=cm(300))
+        )
         assert text == (
             "light(type=light_type.spot, name='bulb', color=rgb(255, 255, 255), intensity=1, range=cm(300), "
             "cone=light_cone(inner_angle=deg(0), outer_angle=deg(45)), "
@@ -145,7 +149,12 @@ class TestLightArea:
         assert area == shapes.light_area()
 
     def test_keywords(self):
-        area = shapes.light_area(shape=shapes.area_shape.rectangle, width=cm(200), height=cm(50), spread=deg(90))
+        area = shapes.light_area(
+            shape=shapes.area_shape.rectangle,
+            width=cm(200),
+            height=cm(50),
+            spread=deg(90),
+        )
         assert area.shape == shapes.area_shape.rectangle
         assert area.effective_height() == cm(50)
         assert area.surface().value == pytest.approx(1.0)
@@ -168,7 +177,9 @@ class TestLightArea:
         lamp.area.shape = shapes.area_shape.disk
         lamp.area.width = cm(30)
         lamp.area.spread = deg(120)
-        assert lamp.area == shapes.light_area(shape=shapes.area_shape.disk, width=cm(30), spread=deg(120))
+        assert lamp.area == shapes.light_area(
+            shape=shapes.area_shape.disk, width=cm(30), spread=deg(120)
+        )
 
     def test_spread_limits_illuminance(self):
         lamp = shapes.light(type=shapes.light_type.area, intensity=8)
@@ -181,8 +192,15 @@ class TestLightArea:
         assert lamp.illuminance_at(off_axis) == 0
 
     def test_repr(self):
-        text = repr(shapes.light_area(shape=shapes.area_shape.ellipse, width=cm(20), height=cm(10)))
-        assert text == "light_area(shape=area_shape.ellipse, width=cm(20), height=cm(10), spread=deg(180))"
+        text = repr(
+            shapes.light_area(
+                shape=shapes.area_shape.ellipse, width=cm(20), height=cm(10)
+            )
+        )
+        assert (
+            text
+            == "light_area(shape=area_shape.ellipse, width=cm(20), height=cm(10), spread=deg(180))"
+        )
 
 
 class TestAddingLights:
