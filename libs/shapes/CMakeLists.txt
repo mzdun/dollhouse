@@ -55,8 +55,8 @@ foreach(CONFIG DEBUG RELEASE RELWITHDEBINFO MINSIZEREL)
     )
 endforeach()
 
-target_compile_options(shapes PRIVATE ${PLANNER_ADDITIONAL_COMPILE_FLAGS})
-target_link_options(shapes PUBLIC ${PLANNER_ADDITIONAL_LINK_FLAGS})
+target_compile_options(shapes PRIVATE ${DOLLHOUSE_ADDITIONAL_COMPILE_FLAGS})
+target_link_options(shapes PUBLIC ${DOLLHOUSE_ADDITIONAL_LINK_FLAGS})
 target_include_directories(shapes
     PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include
     PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src
@@ -72,7 +72,7 @@ set_target_properties(shapes PROPERTIES
 )
 set_target_properties(shapes PROPERTIES FOLDER apps)
 
-if(PLANNER_INSTALL)
+if(DOLLHOUSE_INSTALL)
     install(TARGETS shapes DESTINATION shapes)
 endif()
 

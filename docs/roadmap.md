@@ -1,6 +1,7 @@
 # Roadmap
 
 - [x] Setup Dollhouse structure
+- [ ] Bundle multiple shapes binaries into archive, from 3.12, 3.13, 3.14 and possibly 3.15
 - [ ] Shapes and models
   - [x] Setup `pybind11` module for `shapes` exposing `pyxel-models`
   - [x] Implement `pyxel-models` up to and including groups
@@ -9,7 +10,7 @@
   - [x] Solid operations
   - [x] Export models with diffusion matrials
   - [x] Add random number generator with seeding
-  - [ ] Export light sources
+  - [x] Export light sources
   - [ ] Solid face identification (for textures)
   - [ ] UV mapping/unwrapping
     - [ ] By hand
