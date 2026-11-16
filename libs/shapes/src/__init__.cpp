@@ -25,6 +25,7 @@ PYBIND11_MODULE(shapes, m, py::mod_gil_not_used()) {
 	shapes::glue::bind_dmat4_ops(m);
 	shapes::glue::bind_size(m);
 	shapes::glue::bind_color(m);
+	shapes::glue::bind_light(m);
 	shapes::glue::bind_solid(m);
 	shapes::glue::bind_sink(m);
 	shapes::glue::bind_object(m);

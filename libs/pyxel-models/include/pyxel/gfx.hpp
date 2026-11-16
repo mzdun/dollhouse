@@ -5,5 +5,6 @@
 
 #include <pyxel/gfx/csg.hpp>
 #include <pyxel/gfx/format.hpp>
+#include <pyxel/gfx/light.hpp>
 #include <pyxel/gfx/space.hpp>
 #include <pyxel/gfx/transform.hpp>

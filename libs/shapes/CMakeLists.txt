@@ -21,6 +21,7 @@ set(SRCS
     src/glue/bind_group.cpp
     src/glue/bind_length.cpp
     src/glue/bind_library.cpp
+    src/glue/bind_light.cpp
     src/glue/bind_main.cpp
     src/glue/bind_object.cpp
     src/glue/bind_offset.cpp
