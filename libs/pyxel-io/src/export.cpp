@@ -1,7 +1,6 @@
 // Copyright (c) 2026 Marcin Zdun
 // This code is licensed under MIT license (see LICENSE for details)
 
-#include "export.hpp"
 #include <assimp/postprocess.h>
 #include <assimp/scene.h>
 #include <algorithm>
@@ -13,17 +12,18 @@
 #include <map>
 #include <memory>
 #include <optional>
+#include <pyxel/io/export.hpp>
 #include <set>
 #include <stdexcept>
 #include <variant>
 #include "glb_lights.hpp"
 
-namespace shapes {
+namespace pyxel::io {
 	namespace {
-		using pyxel::gfx::light;
-		using pyxel::gfx::light_type;
-		using pyxel::gfx::materials;
-		using pyxel::gfx::sink;
+		using gfx::light;
+		using gfx::light_type;
+		using gfx::materials;
+		using gfx::sink;
 
 		// glm is column-major (m[column][row]), Assimp is row-major
 		aiMatrix4x4 to_ai(glm::dmat4 const& m) {
@@ -114,7 +114,7 @@ namespace shapes {
 				auto const& source = out_.at(id);
 				auto* node = new aiNode{source.name};
 				node->mParent = parent;
-				node->mTransformation = shapes::to_ai(source.local);
+				node->mTransformation = io::to_ai(source.local);
 				if (tag_lights_ && own_lights[id]) node->mMetaData = make_metadata(*own_lights[id]);
 
 				auto const& own = meshes[id];
@@ -138,7 +138,7 @@ namespace shapes {
 					for (auto const& [name, matrix, tag] : leaves) {
 						auto* leaf = new aiNode{name};
 						leaf->mParent = node;
-						leaf->mTransformation = shapes::to_ai(matrix);
+						leaf->mTransformation = io::to_ai(matrix);
 						if (tag_lights_) leaf->mMetaData = make_metadata(tag);
 						*dst++ = leaf;
 					}
@@ -437,10 +437,7 @@ namespace shapes {
 			return result;
 		}
 
-		std::unique_ptr<aiScene> make_scene(std::string const& name,
-		                                    sink const& out,
-		                                    materials const& repo,
-		                                    bool tag_lights) {
+		std::unique_ptr<aiScene> make_scene(sink const& out, materials const& repo, bool tag_lights) {
 			material_table table{repo};
 			std::vector<aiMesh*> meshes{};
 			node_tree tree{out, tag_lights};
@@ -514,7 +511,7 @@ namespace shapes {
 		// glTF 2 binary, with KHR_lights_punctual added; the light nodes are
 		// tagged for it, the other formats do not need the tags
 		std::string const actual_format = format_id == glb_lights::base_format_id ? glb_lights::format_id : format_id;
-		auto const scene = make_scene(name, out, repo, actual_format == glb_lights::format_id);
+		auto const scene = make_scene(out, repo, actual_format == glb_lights::format_id);
 
 		// the meshes come with flat normals already (see make_mesh); the
 		// n-gons are split into triangles, which keep the normals
@@ -524,4 +521,4 @@ namespace shapes {
 			    std::format("cannot export `{}` to {}: {}", name, path.string(), exporter.GetErrorString()));
 		}
 	}
-}  // namespace shapes
+}  // namespace pyxel::io

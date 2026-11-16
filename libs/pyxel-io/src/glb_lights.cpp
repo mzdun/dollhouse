@@ -22,7 +22,7 @@
 #include <string_view>
 #include <vector>
 
-namespace shapes::glb_lights {
+namespace pyxel::io::glb_lights {
 	namespace {
 		static_assert(std::endian::native == std::endian::little, "GLB is little-endian");
 
@@ -335,4 +335,4 @@ namespace shapes::glb_lights {
 		exporter.RegisterExporter({format_id, "glTF 2.0 (binary), with KHR_lights_punctual and PYXEL_lights_area",
 		                           "glb", &export_glb_lights});
 	}
-}  // namespace shapes::glb_lights
+}  // namespace pyxel::io::glb_lights

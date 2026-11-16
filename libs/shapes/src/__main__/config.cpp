@@ -7,12 +7,12 @@
 #include <filesystem>
 #include <format>
 #include <iostream>
+#include <pyxel/io/export.hpp>
 #include <pyxel/version.hpp>
 #include <string>
 #include <string_view>
 #include <utility>
 #include <vector>
-#include "../export.hpp"
 
 template <>
 struct args::converter<std::filesystem::path> {
@@ -24,6 +24,8 @@ struct args::converter<std::filesystem::path> {
 
 namespace shapes::__main__ {
 	namespace {
+		using pyxel::io::export_formats;
+
 		// owns a copy of the arguments, with the char* view args::from_main
 		// expects; must outlive the parser made from it
 		class arg_stg {
