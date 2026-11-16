@@ -16,6 +16,7 @@ set(SRCS
     include/pyxel/gfx/format.hpp
     include/pyxel/gfx/group.hpp
     include/pyxel/gfx/light.hpp
+    include/pyxel/gfx/light_object.hpp
     include/pyxel/gfx/materials.hpp
     include/pyxel/gfx/object.hpp
     include/pyxel/gfx/sink.hpp
@@ -93,6 +94,7 @@ if(DOLLHOUSE_TESTING)
         tests/gfx/format.test.cpp
         tests/gfx/group.test.cpp
         tests/gfx/light.test.cpp
+        tests/gfx/light_object.test.cpp
         tests/gfx/revolve.test.cpp
         tests/gfx/sink.test.cpp
         tests/gfx/sized.test.cpp

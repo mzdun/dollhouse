@@ -15,6 +15,10 @@ namespace pyxel::gfx {
 		nodes_[current_].meshes[material].add_solid(solid, matrix);
 	}
 
+	void sink::add_light(gfx::light const& light, glm::dmat4 const& matrix) {
+		nodes_[current_].lights.push_back({.light = light, .matrix = matrix});
+	}
+
 	void sink::push_node(std::string name, glm::dmat4 const& local) {
 		auto const id = nodes_.size();
 		nodes_.push_back({.parent = current_, .name = std::move(name), .local = local});

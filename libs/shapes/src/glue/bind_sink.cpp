@@ -7,6 +7,7 @@
 #include <cstdint>
 #include <memory>
 #include <optional>
+#include <pyxel/gfx/light.hpp>
 #include <pyxel/gfx/sink.hpp>
 #include <pyxel/math/glm.hpp>
 #include <shapes/glue/glue.hpp>
@@ -158,6 +159,11 @@ namespace shapes::glue {
 		cls.def("add_solid", &sink::add_solid, "solid"_a, "m"_a,
 		        "Adds the solid, transformed by the matrix `m`, to the current node, under the current material. "
 		        "The matrix is relative to the current node, as is the one given to `output`.")
+
+		    .def("add_light", &sink::add_light, "light"_a, "m"_a,
+		         "Adds a copy of the light, placed by the matrix `m` (relative to the current node, as for "
+		         "`add_solid`), to the current node; the light shines along the -z of `m`, which must be made of "
+		         "a translation, a rotation and a scale only. The material is not used.")
 
 		    .def(
 		        "scope",
