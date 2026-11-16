@@ -7,6 +7,7 @@
 #include <algorithm>
 #include <assimp/Exporter.hpp>
 #include <cmath>
+#include <cstdint>
 #include <format>
 #include <functional>
 #include <map>
@@ -15,6 +16,7 @@
 #include <set>
 #include <stdexcept>
 #include <variant>
+#include "glb_lights.hpp"
 
 namespace shapes {
 	namespace {
@@ -33,9 +35,24 @@ namespace shapes {
 		}
 
 		// node created for a light, which cannot use the node it is in
+		// marks the node of a light for the glb2-lights exporter, which reads
+		// it back from the extras of the glTF node (see glb_lights.hpp)
+		struct light_tag {
+			unsigned index{};
+			std::optional<pyxel::gfx::length> range{};
+		};
+
+		aiMetadata* make_metadata(light_tag const& tag) {
+			auto* meta = new aiMetadata{};
+			meta->Add(glb_lights::light_key, static_cast<int32_t>(tag.index));
+			if (tag.range) meta->Add(glb_lights::range_key, static_cast<float>(tag.range->count()));
+			return meta;
+		}
+
 		struct light_leaf {
 			std::string name{};
 			glm::dmat4 matrix{1.0};
+			light_tag tag{};
 		};
 
 		// The nodes of the sink, with the indices of their meshes in the scene,
@@ -43,8 +60,12 @@ namespace shapes {
 		// a mesh or a light, or a descendant with one (the root always is,
 		// Assimp needs it)
 		struct node_tree {
-			explicit node_tree(sink const& out)
-			    : out_{out}, meshes(out.nodes().size()), light_leaves(out.nodes().size()) {}
+			node_tree(sink const& out, bool tag_lights)
+			    : out_{out}
+			    , tag_lights_{tag_lights}
+			    , meshes(out.nodes().size())
+			    , light_leaves(out.nodes().size())
+			    , own_lights(out.nodes().size()) {}
 
 			aiNode* to_ai() {
 				auto const& nodes = out_.nodes();
@@ -60,6 +81,8 @@ namespace shapes {
 
 			std::vector<std::vector<unsigned>> meshes;
 			std::vector<std::vector<light_leaf>> light_leaves;
+			// the light using the node itself, if any
+			std::vector<std::optional<light_tag>> own_lights;
 
 		private:
 			aiNode* to_ai(sink::node_id id, aiNode* parent) const {
@@ -67,6 +90,7 @@ namespace shapes {
 				auto* node = new aiNode{source.name};
 				node->mParent = parent;
 				node->mTransformation = shapes::to_ai(source.local);
+				if (tag_lights_ && own_lights[id]) node->mMetaData = make_metadata(*own_lights[id]);
 
 				auto const& own = meshes[id];
 				node->mNumMeshes = static_cast<unsigned>(own.size());
@@ -86,10 +110,11 @@ namespace shapes {
 					for (auto const child : source.children) {
 						if (keep_[child]) *dst++ = to_ai(child, node);
 					}
-					for (auto const& [name, matrix] : leaves) {
+					for (auto const& [name, matrix, tag] : leaves) {
 						auto* leaf = new aiNode{name};
 						leaf->mParent = node;
 						leaf->mTransformation = shapes::to_ai(matrix);
+						if (tag_lights_) leaf->mMetaData = make_metadata(tag);
 						*dst++ = leaf;
 					}
 				}
@@ -97,6 +122,7 @@ namespace shapes {
 			}
 
 			sink const& out_;
+			bool tag_lights_;
 			std::vector<bool> keep_{};
 		};
 
@@ -370,24 +396,29 @@ namespace shapes {
 					auto const own_node = matrix == glm::dmat4{1.0} && !node.name.empty() &&
 					                      name_counts[node.name] == 1 && tree.meshes[id].empty() &&
 					                      !claimed.contains(id);
+					light_tag const tag{.index = static_cast<unsigned>(result.size()), .range = source.range};
 					if (own_node) {
 						claimed.insert(id);
+						tree.own_lights[id] = tag;
 						result.push_back(make_light(node.name, source));
 						continue;
 					}
 
 					auto name = generated();
-					tree.light_leaves[id].push_back({name, matrix});
+					tree.light_leaves[id].push_back({.name = name, .matrix = matrix, .tag = tag});
 					result.push_back(make_light(name, source));
 				}
 			}
 			return result;
 		}
 
-		std::unique_ptr<aiScene> make_scene(std::string const& name, sink const& out, materials const& repo) {
+		std::unique_ptr<aiScene> make_scene(std::string const& name,
+		                                    sink const& out,
+		                                    materials const& repo,
+		                                    bool tag_lights) {
 			material_table table{repo};
 			std::vector<aiMesh*> meshes{};
-			node_tree tree{out};
+			node_tree tree{out, tag_lights};
 
 			for (sink::node_id id = 0; id < out.nodes().size(); ++id) {
 				for (auto const& [material, solid] : out.at(id).meshes) {
@@ -452,12 +483,17 @@ namespace shapes {
 	                  materials const& repo,
 	                  std::string const& format_id,
 	                  std::filesystem::path const& path) {
-		auto const scene = make_scene(name, out, repo);
-
 		Assimp::Exporter exporter{};
+		glb_lights::register_exporter(exporter);
+
+		// glTF 2 binary, with KHR_lights_punctual added; the light nodes are
+		// tagged for it, the other formats do not need the tags
+		std::string const actual_format = format_id == glb_lights::base_format_id ? glb_lights::format_id : format_id;
+		auto const scene = make_scene(name, out, repo, actual_format == glb_lights::format_id);
+
 		// the meshes come with flat normals already (see make_mesh); the
 		// n-gons are split into triangles, which keep the normals
-		auto const result = exporter.Export(scene.get(), format_id, path.string(), aiProcess_Triangulate);
+		auto const result = exporter.Export(scene.get(), actual_format, path.string(), aiProcess_Triangulate);
 		if (result != aiReturn_SUCCESS) {
 			throw std::runtime_error(
 			    std::format("cannot export `{}` to {}: {}", name, path.string(), exporter.GetErrorString()));

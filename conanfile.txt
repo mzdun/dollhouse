@@ -5,6 +5,7 @@ fmt/10.2.1
 glm/1.0.1
 pybind11/3.0.1
 assimp/5.4.3
+rapidjson/cci.20230929
 
 [generators]
 CMakeDeps

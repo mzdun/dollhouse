@@ -13,6 +13,8 @@ set(SRCS
     src/__main__/main.cpp
     src/export.cpp
     src/export.hpp
+    src/glb_lights.cpp
+    src/glb_lights.hpp
     src/glue/bind_angle.cpp
     src/glue/bind_area.cpp
     src/glue/bind_axis.cpp
@@ -63,7 +65,7 @@ target_include_directories(shapes
     PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include
     PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src
 )
-target_link_libraries(shapes PRIVATE pyxel-models mbits::args assimp::assimp)
+target_link_libraries(shapes PRIVATE pyxel-models mbits::args assimp::assimp rapidjson)
 
 if(SHAPES_NOTIFIER_SRC)
     target_compile_definitions(shapes PRIVATE SHAPES_HAS_NOTIFIER)
