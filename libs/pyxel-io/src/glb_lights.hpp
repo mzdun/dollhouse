@@ -30,7 +30,7 @@
 // - `spread`: the full angle of the emission around -z, in radians, up to pi
 //   (the whole front half-space)
 // - `range`, optional, as in KHR_lights_punctual
-namespace shapes::glb_lights {
+namespace pyxel::io::glb_lights {
 	inline constexpr auto format_id = "glb2-lights";
 	inline constexpr auto base_format_id = "glb2";
 
@@ -48,4 +48,4 @@ namespace shapes::glb_lights {
 	// registers `glb2-lights` with the exporter; it is not listed by
 	// export_formats(), as it takes the place of `glb2`
 	void register_exporter(Assimp::Exporter& exporter);
-}  // namespace shapes::glb_lights
+}  // namespace pyxel::io::glb_lights

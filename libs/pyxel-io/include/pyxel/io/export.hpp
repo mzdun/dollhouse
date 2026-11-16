@@ -9,7 +9,7 @@
 #include <string>
 #include <vector>
 
-namespace shapes {
+namespace pyxel::io {
 	struct export_format {
 		std::string id{};
 		std::string extension{};
@@ -31,4 +31,4 @@ namespace shapes {
 	                  pyxel::gfx::materials const& repo,
 	                  std::string const& format_id,
 	                  std::filesystem::path const& path);
-}  // namespace shapes
+}  // namespace pyxel::io

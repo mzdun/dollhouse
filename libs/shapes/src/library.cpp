@@ -3,13 +3,17 @@
 
 #include <algorithm>
 #include <format>
+#include <pyxel/io/export.hpp>
 #include <shapes/library.hpp>
 #include <stdexcept>
 #include <utility>
-#include "export.hpp"
 
 namespace shapes {
 	namespace {
+		using pyxel::io::export_format;
+		using pyxel::io::export_formats;
+		using pyxel::io::export_scene;
+
 		library* current = nullptr;
 
 		export_format const* find_format(std::string_view id) {

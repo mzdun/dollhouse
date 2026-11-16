@@ -13,7 +13,6 @@
 #include <string>
 #include <string_view>
 #include <vector>
-#include "../export.hpp"
 #include "config.hpp"
 
 namespace shapes::__main__ {
