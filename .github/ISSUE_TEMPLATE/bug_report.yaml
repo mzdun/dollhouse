@@ -64,6 +64,8 @@ body:
       description: Which version of dollhouse was used?
       options:
         - Current (v0.1.0)
+        - Previous (v0.0.0)
+        - Older, than v0.0.0
         - Other, e.g. main branch
     validations:
       required: true
