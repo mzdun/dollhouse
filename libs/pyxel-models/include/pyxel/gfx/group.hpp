@@ -6,6 +6,7 @@
 #include <algorithm>
 #include <memory>
 #include <optional>
+#include <pyxel/gfx/light_object.hpp>
 #include <pyxel/gfx/object.hpp>
 #include <pyxel/gfx/transform.hpp>
 #include <string>
@@ -66,6 +67,8 @@ namespace pyxel::gfx {
 			children_.emplace_back(std::move(child));
 			return *result;
 		}
+		// adds a copy of the light as a child, wrapped in a light_object
+		void add(gfx::light value) { add<light_object>(std::move(value)); }
 
 		struct add_group_options {
 			offset pos{};

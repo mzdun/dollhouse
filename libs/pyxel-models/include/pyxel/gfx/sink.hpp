@@ -6,6 +6,7 @@
 #include <cstddef>
 #include <map>
 #include <optional>
+#include <pyxel/gfx/light.hpp>
 #include <pyxel/gfx/solid.hpp>
 #include <pyxel/math/glm.hpp>
 #include <string>
@@ -13,8 +14,9 @@
 
 namespace pyxel::gfx {
 	// Collects the geometry of a model as a tree of nodes. Every node has
-	// a name, a local transformation (relative to its parent node) and the
-	// meshes added while it was the current node, one per material.
+	// a name, a local transformation (relative to its parent node), and the
+	// meshes (one per material) and lights added while it was the current
+	// node.
 	//
 	// The tree starts with an unnamed root. A named scope (see `scope`) opens
 	// a child node of the current one, with the matrix given; the solids
@@ -60,6 +62,13 @@ namespace pyxel::gfx {
 			faces_t faces_{};
 		};
 
+		// a light, with the matrix placing it in its node; the light shines
+		// along the -z of that matrix (see light)
+		struct placed_light {
+			gfx::light light{};
+			glm::dmat4 matrix{1.0};
+		};
+
 		struct node {
 			// empty for the root only
 			std::optional<node_id> parent{};
@@ -68,6 +77,8 @@ namespace pyxel::gfx {
 			glm::dmat4 local{1.0};
 			// by material; vertices in the space of this node
 			std::map<std::string, glm_solid> meshes{};
+			// in the order of adding
+			std::vector<placed_light> lights{};
 			// in the order of opening
 			std::vector<node_id> children{};
 		};
@@ -77,6 +88,13 @@ namespace pyxel::gfx {
 		// bakes the solid with `matrix` (relative to the current node) into
 		// the mesh of the current material, in the current node
 		void add_solid(solid const& solid, glm::dmat4 const& matrix);
+
+		// keeps a copy of the light, with `matrix` (relative to the current
+		// node), in the current node; the material is not used. A light has
+		// no geometry to bake the matrix into, so the matrix is kept as it
+		// is, and the same rules apply to it as to the local matrices of the
+		// nodes: no shear
+		void add_light(light const& light, glm::dmat4 const& matrix);
 
 		// opens a child of the current node and makes it current; nodes are
 		// never merged, so two siblings with the same name are two nodes

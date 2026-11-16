@@ -183,3 +183,54 @@ class TestLightArea:
     def test_repr(self):
         text = repr(shapes.light_area(shape=shapes.area_shape.ellipse, width=cm(20), height=cm(10)))
         assert text == "light_area(shape=area_shape.ellipse, width=cm(20), height=cm(10), spread=deg(180))"
+
+
+class TestAddingLights:
+    """Python cannot read the sink back; these check the calls are accepted,
+    and that a model with lights still builds."""
+
+    def build(self, tmp_path, fill):
+        def lights_model(root: shapes.group):
+            fill(root)
+            return "obj"
+
+        shapes.library.model(lights_model)
+        shapes.library.output_directory = tmp_path
+        try:
+            return shapes.library.build_models()
+        finally:
+            shapes.library.clear_models()
+
+    def test_group_add_returns_none(self, tmp_path):
+        results = []
+
+        def fill(root):
+            results.append(root.add(shapes.light(type=shapes.light_type.spot)))
+            results.append(root.add_group(name="lamp").add(shapes.light()))
+
+        self.build(tmp_path, fill)
+        assert results == [None, None]
+
+    def test_group_add_copies(self, tmp_path):
+        lamp = shapes.light(name="bulb")
+
+        def fill(root):
+            root.add(lamp)
+            lamp.name = "changed"
+
+        self.build(tmp_path, fill)
+        assert lamp.name == "changed"
+
+    def test_sink_add_light(self, tmp_path):
+        calls = []
+
+        class fixture(shapes.sized):
+            def __init__(self):
+                super().__init__(cm(10), cm(10), cm(10))
+
+            def output(self, sink, m):
+                with sink.scope("fixture", m=m):
+                    calls.append(sink.add_light(shapes.light(), shapes.I))
+
+        self.build(tmp_path, lambda root: root.add(fixture()))
+        assert calls == [None]

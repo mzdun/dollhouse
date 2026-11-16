@@ -5,6 +5,7 @@
 #include <format>
 #include <memory>
 #include <pyxel/gfx/group.hpp>
+#include <pyxel/gfx/light.hpp>
 #include <pyxel/gfx/solid.hpp>
 #include <pyxel/gfx/solid_object.hpp>
 #include <shapes/glue/glue.hpp>
@@ -13,6 +14,7 @@
 
 namespace shapes::glue {
 	using pyxel::gfx::group;
+	using pyxel::gfx::light;
 	using pyxel::gfx::object;
 	using pyxel::gfx::offset;
 	using pyxel::gfx::solid;
@@ -78,7 +80,13 @@ namespace shapes::glue {
 		        },
 		        py::kw_only(), "pos"_a = offset{}, "name"_a = "", "material"_a = "", child_ref,
 		        "Adds an empty child group and returns it; the child is owned by this group.")
-		    // the solids go first, the other overload takes any Python object
+		    // the solids and lights go first, the last overload takes any
+		    // Python object
+		    .def(
+		        "add", [](group& self, light const& value) { self.add(value); }, "light"_a,
+		        "Adds a copy of the light, placed by the transformation of this group, as for any other child; "
+		        "later changes to `light` do not affect the copy, and the same light can be added many times. "
+		        "The light shines along the -z of that transformation. Returns None.")
 		    .def(
 		        "add", [](group& self, solid const& shape) { self.add<solid_object>(shape); }, "shape"_a,
 		        "Adds a copy of the solid, e.g. a result of `union` or `solid.cube`; later changes to `shape` do not "
