@@ -21,6 +21,7 @@ target_include_directories(dollhouse
     ${CMAKE_CURRENT_BINARY_DIR}/src
 )
 target_link_libraries(dollhouse pyxel-models fmt::fmt mbits::args)
+dollhouse_copy_asan_runtime(dollhouse)
 set_target_properties(dollhouse PROPERTIES
   VERSION ${PROJECT_VERSION_MAJOR}.${PROJECT_VERSION_MINOR}
 )

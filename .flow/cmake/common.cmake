@@ -8,6 +8,7 @@ function(add_project_test TARGET)
     PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/tests
     ${CMAKE_CURRENT_BINARY_DIR})
+  dollhouse_copy_asan_runtime(${TARGET}-test)
 endfunction()
 
 function(add_win32_icon TARGET NAME)
@@ -60,6 +61,7 @@ if (MSVC)
       /fsanitize=address
       /D_DISABLE_VECTOR_ANNOTATION
       /D_DISABLE_STRING_ANNOTATION
+      /D_DISABLE_OPTIONAL_ANNOTATION
     )
   endif()
   if (DOLLHOUSE_W_ERROR)
@@ -141,4 +143,26 @@ function(dollhouse_python_env OUT_VAR)
     list(APPEND result "LD_PRELOAD=${preload}" "ASAN_OPTIONS=detect_leaks=0")
   endif()
   set(${OUT_VAR} ${result} PARENT_SCOPE)
+endfunction()
+
+# Copies the ASan runtime next to the binary of TARGET after each build.
+#
+# With sanitizers on, MSVC links every binary against the dynamic ASan
+# runtime, which lives next to cl.exe and is not on the search path of a
+# process started outside of a developer prompt. Python (3.8+) does not
+# search PATH for the dependencies of an extension module at all, only the
+# module's own directory, so the runtime has to be copied there.
+function(dollhouse_copy_asan_runtime TARGET)
+  if(NOT (DOLLHOUSE_SANITIZE AND MSVC))
+    return()
+  endif()
+  get_filename_component(compiler_dir "${CMAKE_CXX_COMPILER}" DIRECTORY)
+  file(GLOB runtime "${compiler_dir}/clang_rt.asan_dynamic-*.dll")
+  if(NOT runtime)
+    message(FATAL_ERROR "ASan runtime not found in ${compiler_dir}")
+  endif()
+  add_custom_command(TARGET ${TARGET} POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different ${runtime} $<TARGET_FILE_DIR:${TARGET}>
+    VERBATIM
+  )
 endfunction()

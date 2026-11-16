@@ -81,6 +81,10 @@ endif()
 # tree (on sanitized builds: the ASan preload, see dollhouse_python_env)
 dollhouse_python_env(SHAPES_PYTHON_ENV)
 
+# On sanitized MSVC builds, the module needs the ASan runtime next to it
+# before anything (stubs, tests) imports it
+dollhouse_copy_asan_runtime(shapes)
+
 # #################################################################
 # #  STUBS
 # #################################################################
