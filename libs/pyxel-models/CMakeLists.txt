@@ -56,6 +56,13 @@ source_group(TREE ${CMAKE_CURRENT_BINARY_DIR} PREFIX gen FILES ${GEN_SRCS})
 add_library(pyxel-models ${SRCS} ${GEN_SRCS})
 
 target_compile_options(pyxel-models PRIVATE ${DOLLHOUSE_ADDITIONAL_COMPILE_FLAGS})
+
+# Models built from printed seeds must come out bit-identical on every build:
+# keep GCC/Clang from fusing a*b+c into FMA instructions in optimized builds
+# (MSVC already does not contract under its default /fp:precise)
+target_compile_options(pyxel-models PRIVATE
+    $<$<COMPILE_LANG_AND_ID:CXX,GNU,Clang,AppleClang>:-ffp-contract=off>
+)
 target_link_options(pyxel-models PUBLIC ${DOLLHOUSE_ADDITIONAL_LINK_FLAGS})
 target_include_directories(pyxel-models
     PUBLIC
