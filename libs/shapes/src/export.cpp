@@ -12,11 +12,14 @@
 #include <map>
 #include <memory>
 #include <optional>
+#include <set>
 #include <stdexcept>
 #include <variant>
 
 namespace shapes {
 	namespace {
+		using pyxel::gfx::light;
+		using pyxel::gfx::light_type;
 		using pyxel::gfx::materials;
 		using pyxel::gfx::sink;
 
@@ -29,18 +32,26 @@ namespace shapes {
 			        r(m[0][3]), r(m[1][3]), r(m[2][3]), r(m[3][3])};
 		}
 
-		// The nodes of the sink, with the indices of their meshes in the scene;
-		// a node is exported, if it has a mesh, or a descendant with one (the
-		// root always is, Assimp needs it)
+		// node created for a light, which cannot use the node it is in
+		struct light_leaf {
+			std::string name{};
+			glm::dmat4 matrix{1.0};
+		};
+
+		// The nodes of the sink, with the indices of their meshes in the scene,
+		// and the nodes made for their lights; a node is exported, if it has
+		// a mesh or a light, or a descendant with one (the root always is,
+		// Assimp needs it)
 		struct node_tree {
-			explicit node_tree(sink const& out) : out_{out}, meshes(out.nodes().size()) {}
+			explicit node_tree(sink const& out)
+			    : out_{out}, meshes(out.nodes().size()), light_leaves(out.nodes().size()) {}
 
 			aiNode* to_ai() {
 				auto const& nodes = out_.nodes();
 				keep_.assign(nodes.size(), false);
 				// children are opened after their parents, so they come later
 				for (auto id = nodes.size(); id-- > 0;) {
-					if (meshes[id].empty() && !keep_[id]) continue;
+					if (meshes[id].empty() && nodes[id].lights.empty() && !keep_[id]) continue;
 					keep_[id] = true;
 					if (auto const parent = nodes[id].parent) keep_[*parent] = true;
 				}
@@ -48,6 +59,7 @@ namespace shapes {
 			}
 
 			std::vector<std::vector<unsigned>> meshes;
+			std::vector<std::vector<light_leaf>> light_leaves;
 
 		private:
 			aiNode* to_ai(sink::node_id id, aiNode* parent) const {
@@ -63,14 +75,22 @@ namespace shapes {
 					std::copy(own.begin(), own.end(), node->mMeshes);
 				}
 
+				auto const& leaves = light_leaves[id];
 				auto const kept = static_cast<unsigned>(
 				    std::ranges::count_if(source.children, [this](sink::node_id child) { return keep_[child]; }));
-				node->mNumChildren = kept;
-				if (kept != 0) {
-					node->mChildren = new aiNode*[kept];
+				auto const child_count = kept + static_cast<unsigned>(leaves.size());
+				node->mNumChildren = child_count;
+				if (child_count != 0) {
+					node->mChildren = new aiNode*[child_count];
 					auto* dst = node->mChildren;
 					for (auto const child : source.children) {
 						if (keep_[child]) *dst++ = to_ai(child, node);
+					}
+					for (auto const& [name, matrix] : leaves) {
+						auto* leaf = new aiNode{name};
+						leaf->mParent = node;
+						leaf->mTransformation = shapes::to_ai(matrix);
+						*dst++ = leaf;
 					}
 				}
 				return node;
@@ -257,6 +277,113 @@ namespace shapes {
 			return result;
 		}
 
+		aiColor3D to_linear(pyxel::gfx::color const& color, float factor) noexcept {
+			return {to_linear(color.r) * factor, to_linear(color.g) * factor, to_linear(color.b) * factor};
+		}
+
+		aiLightSourceType to_ai(light_type type) noexcept {
+			switch (type) {
+				case light_type::directional:
+					return aiLightSource_DIRECTIONAL;
+				case light_type::spot:
+					return aiLightSource_SPOT;
+				case light_type::area:
+					return aiLightSource_AREA;
+				case light_type::point:
+					break;
+			}
+			return aiLightSource_POINT;
+		}
+
+		// The reverse of what Assimp's glTF 2 importer does with
+		// KHR_lights_punctual: the intensity is folded into the colors, the
+		// falloff is 1 / d^2 (the range has no place in aiLight, and is lost),
+		// the light shines along -z of its node, and the cone angles go from
+		// the axis to the edge. Not every exporter writes every light: none
+		// writes the area lights, for one
+		aiLight* make_light(std::string const& name, light const& source) {
+			auto* result = new aiLight{};
+			result->mName = name;
+			result->mType = to_ai(source.type);
+			result->mPosition = {0, 0, 0};
+			result->mDirection = {0, 0, -1};
+			result->mUp = {0, 1, 0};
+
+			auto const color = to_linear(source.color, source.intensity);
+			result->mColorDiffuse = color;
+			result->mColorSpecular = color;
+
+			if (source.type == light_type::directional) {
+				result->mAttenuationConstant = 1;
+				result->mAttenuationLinear = 0;
+				result->mAttenuationQuadratic = 0;
+			} else {
+				result->mAttenuationConstant = 0;
+				result->mAttenuationLinear = 0;
+				result->mAttenuationQuadratic = 1;
+			}
+
+			if (source.type == light_type::spot) {
+				result->mAngleInnerCone = static_cast<float>(source.cone.inner_angle.count());
+				result->mAngleOuterCone = static_cast<float>(source.cone.outer_angle.count());
+			}
+
+			if (source.type == light_type::area) {
+				result->mSize = {static_cast<ai_real>(source.area.width.count()),
+				                 static_cast<ai_real>(source.area.effective_height().count())};
+			}
+			return result;
+		}
+
+		// The exporters find the node of a light by its name. A light with an
+		// identity matrix belongs to the node it was added in, and takes its
+		// name; that needs the node to be named, to have a name of its own (no
+		// other node may use it), no other light and no meshes (the Collada
+		// and FBX exporters give a node either meshes or a light, never
+		// both). Any other light gets a new child node, with a generated
+		// name, `Light`, `Light.001`, ..., placed by the light's matrix
+		std::vector<aiLight*> make_lights(sink const& out, node_tree& tree) {
+			auto const& nodes = out.nodes();
+
+			std::map<std::string, size_t> name_counts{};
+			for (auto const& node : nodes)
+				++name_counts[node.name];
+
+			std::set<std::string> taken{};
+			for (auto const& [name, count] : name_counts)
+				taken.insert(name);
+
+			unsigned counter = 0;
+			auto const generated = [&] {
+				std::string name{"Light"};
+				while (taken.contains(name))
+					name = std::format("Light.{:03}", ++counter);
+				taken.insert(name);
+				return name;
+			};
+
+			std::set<sink::node_id> claimed{};
+			std::vector<aiLight*> result{};
+			for (sink::node_id id = 0; id < nodes.size(); ++id) {
+				auto const& node = nodes[id];
+				for (auto const& [source, matrix] : node.lights) {
+					auto const own_node = matrix == glm::dmat4{1.0} && !node.name.empty() &&
+					                      name_counts[node.name] == 1 && tree.meshes[id].empty() &&
+					                      !claimed.contains(id);
+					if (own_node) {
+						claimed.insert(id);
+						result.push_back(make_light(node.name, source));
+						continue;
+					}
+
+					auto name = generated();
+					tree.light_leaves[id].push_back({name, matrix});
+					result.push_back(make_light(name, source));
+				}
+			}
+			return result;
+		}
+
 		std::unique_ptr<aiScene> make_scene(std::string const& name, sink const& out, materials const& repo) {
 			material_table table{repo};
 			std::vector<aiMesh*> meshes{};
@@ -273,6 +400,8 @@ namespace shapes {
 					meshes.push_back(mesh);
 				}
 			}
+
+			auto const lights = make_lights(out, tree);
 
 			// exporters expect at least one material
 			auto& materials = table.list();
@@ -292,6 +421,12 @@ namespace shapes {
 			if (!meshes.empty()) {
 				scene->mMeshes = new aiMesh*[meshes.size()];
 				std::copy(meshes.begin(), meshes.end(), scene->mMeshes);
+			}
+
+			scene->mNumLights = static_cast<unsigned>(lights.size());
+			if (!lights.empty()) {
+				scene->mLights = new aiLight*[lights.size()];
+				std::copy(lights.begin(), lights.end(), scene->mLights);
 			}
 			return scene;
 		}
