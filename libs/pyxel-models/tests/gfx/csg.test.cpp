@@ -19,6 +19,9 @@
 #define NOMINMAX
 #endif
 #include <windows.h>
+// minwindef.h defines both as empty macros
+#undef near
+#undef far
 #else
 #include <pthread.h>
 #endif
