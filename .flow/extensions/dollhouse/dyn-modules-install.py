@@ -85,6 +85,40 @@ def _remove_stubs(rt: env.Runtime, root: Path, module: str):
             stub.unlink()
 
 
+def _locate_installed_binaries(root: Path, module: str) -> list[Path]:
+    """Every binary of the module under root, including the versioned ones
+    (``….so.0.1``) left by older builds, and broken symlinks."""
+    patterns = [
+        "{module}.*.{ext}",
+        "{module}.*.{ext}.*",
+        "{module}/__init__.*.{ext}",
+        "{module}/__init__.*.{ext}.*",
+    ]
+    found = set[Path]()
+    for pattern in patterns:
+        for ext in EXTENSIONS:
+            for path in root.glob(pattern.format(module=module, ext=ext)):
+                if path.is_file() or path.is_symlink():
+                    found.add(path)
+    return sorted(found)
+
+
+def _remove_binaries(rt: env.Runtime, root: Path, module: str):
+    """Removes the binaries of the module from root, so the binaries of
+    other versions, or other ABI tags, do not linger."""
+    for path in _locate_installed_binaries(root, module):
+        rt.print("rm", str(path))
+        if rt.dry_run:
+            continue
+        try:
+            path.unlink()
+        except PermissionError:
+            rt.fatal(
+                f"dyn-modules-install: {path} is in use; "
+                "close the Python processes using it"
+            )
+
+
 @step.register
 class DynModulesInstallStep:
     """
@@ -116,6 +150,7 @@ class DynModulesInstallStep:
                     "is pybind11-stubgen installed?",
                 )
 
+            _remove_binaries(rt, site_packages, module)
             for dll in files:
                 dst_dir = (site_packages / dll).parent
                 result = rt.mkdirs(str(dst_dir))
