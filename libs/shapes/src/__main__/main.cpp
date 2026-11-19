@@ -1,7 +1,6 @@
 // Copyright (c) 2026 Marcin Zdun
 // This code is licensed under MIT license (see LICENSE for details)
 
-#include <algorithm>
 #include <filesystem>
 #include <format>
 #include <iostream>
@@ -10,35 +9,74 @@
 #include <shapes/__main__/main.hpp>
 #include <shapes/glue/glue.hpp>
 #include <shapes/library.hpp>
-#include <span>
 #include <string>
 #include <string_view>
+#include <utility>
 #include <vector>
 #include "config.hpp"
 
 namespace shapes::__main__ {
 	namespace {
-		void load_and_run(std::string const& name,
-		                  std::filesystem::path const& outdir,
-		                  std::string const& exporter_id) {
+		// UTF-8, as Python expects in sys.path and in file names
+		py::str as_py(std::filesystem::path const& path) { return py::str{pyxel::as_str(path.u8string())}; }
+
+		// the directory of the script goes to the end of sys.path, so the
+		// scripts can import their helpers, but no helper shadows a module
+		// of the standard library; removed again, once the script is done
+		class search_path {
+		public:
+			explicit search_path(py::str dir)
+			    : path_{py::module_::import("sys").attr("path").cast<py::list>()}, dir_{std::move(dir)} {
+				path_.append(dir_);
+			}
+
+			search_path(search_path const&) = delete;
+			search_path& operator=(search_path const&) = delete;
+
+			~search_path() {
+				// the last entry equal to ours, in case the script added
+				// more after it, or the same one earlier
+				try {
+					for (auto index = py::len(path_); index > 0; --index) {
+						if (py::object{path_[index - 1]}.equal(dir_)) {
+							path_.attr("pop")(index - 1);
+							break;
+						}
+					}
+				} catch (py::error_already_set&) {
+					// nothing to restore; the run is ending with an error
+				}
+			}
+
+		private:
+			py::list path_;
+			py::str dir_;
+		};
+
+		// runs the script, then builds its models, which the script did not
+		// build itself; returns false, if the script registered no models
+		bool load_and_run(script const& file, std::filesystem::path const& outdir, std::string const& exporter_id) {
 			auto lib = library{};
 			if (!exporter_id.empty()) {
 				lib.set_exporter_id(exporter_id);
 			}
 			lib.set_output_directory(outdir);
 
-			py::module_::import(name.c_str());
+			auto const path = std::filesystem::absolute(file.path);
+			search_path const guard{as_py(path.parent_path())};
 
-			// build any models not yet build by the script itself
+			// loaded from its file, under a name, which no import statement
+			// can spell, so it is neither shadowed by a module already loaded
+			// (e.g. a script named `abc`), nor imported again by a helper
+			auto const name = std::format("shapes:{}", file.name);
+			auto const util = py::module_::import("importlib.util");
+			auto const spec = util.attr("spec_from_file_location")(name, as_py(path));
+			auto const module = util.attr("module_from_spec")(spec);
+			py::module_::import("sys").attr("modules")[py::str{name}] = module;
+			spec.attr("loader").attr("exec_module")(module);
+
 			lib.build_models();
-		}
-
-		void run_scripts(std::span<std::string const> module_names,
-		                 std::filesystem::path const& outdir,
-		                 std::string const& exporter_id) {
-			for (auto const& filename : module_names) {
-				load_and_run(filename, outdir, exporter_id);
-			}
+			return !lib.models().empty();
 		}
 	}  // namespace
 
@@ -47,14 +85,6 @@ namespace shapes::__main__ {
 		if (cfg.return_code >= 0) {
 			return cfg.return_code;
 		}
-
-		// the scripts are imported as modules, so their directory goes
-		// first on the search path; absolute, so a later chdir does not
-		// change it, and as UTF-8 text, as Python expects in sys.path
-		auto const sys = py::module_::import("sys");
-		auto const input_dir =
-		    cfg.input.empty() ? std::filesystem::current_path() : std::filesystem::absolute(cfg.input);
-		sys.attr("path").attr("insert")(0, py::str{pyxel::as_str(input_dir.u8string())});
 
 		// mkdir -p; an empty path is the current directory, which exists
 		auto const outdir =
@@ -68,7 +98,14 @@ namespace shapes::__main__ {
 			return 1;
 		}
 
-		run_scripts(cfg.modules, outdir, cfg.exporter_id);
+		for (auto const& file : cfg.scripts) {
+			if (!load_and_run(file, outdir, cfg.exporter_id)) {
+				auto const path = file.path.u8string();
+				std::cerr << std::format("python -m shapes: error: script `{}` registered no models\n",
+				                         pyxel::as_sv(path));
+				return 1;
+			}
+		}
 		return 0;
 	}
 }  // namespace shapes::__main__

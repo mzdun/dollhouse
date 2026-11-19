@@ -7,6 +7,7 @@
 #include <filesystem>
 #include <format>
 #include <iostream>
+#include <optional>
 #include <pyxel/base/str.hpp>
 #include <pyxel/io/export.hpp>
 #include <pyxel/version.hpp>
@@ -66,6 +67,32 @@ namespace shapes::__main__ {
 		// UTF-8, whatever the code page; path::string() would use the ANSI
 		// one on Windows, and may throw
 		std::string as_text(std::filesystem::path const& path) { return pyxel::as_str(path.u8string()); }
+
+		constexpr std::u8string_view model_suffix = u8".model.py";
+
+		// `chair` is `chair.model.py`, or `chair.py`; `chair.py` and
+		// `chair.model.py` name the file directly
+		std::optional<script> find_script(std::filesystem::path const& dir, std::string const& name) {
+			auto const u8name = pyxel::as_u8v(name);
+			std::vector<std::u8string> candidates{};
+			if (u8name.ends_with(u8".py"sv)) {
+				candidates.emplace_back(u8name);
+			} else {
+				candidates.push_back(std::u8string{u8name} + std::u8string{model_suffix});
+				candidates.push_back(std::u8string{u8name} + u8".py");
+			}
+
+			std::error_code ec{};
+			for (auto const& filename : candidates) {
+				auto path = dir / filename;
+				if (!std::filesystem::is_regular_file(path, ec)) continue;
+
+				auto stem = std::u8string_view{filename};
+				stem.remove_suffix(stem.ends_with(model_suffix) ? model_suffix.size() : u8".py"sv.size());
+				return script{.path = std::move(path), .name = pyxel::as_str(stem)};
+			}
+			return std::nullopt;
+		}
 
 		bool is_known_format(std::string_view id) {
 			return std::ranges::any_of(export_formats(), [id](auto const& format) { return format.id == id; });
@@ -135,9 +162,12 @@ namespace shapes::__main__ {
 			        "script imports are not being tracked")
 			    .opt();
 #endif  // SHAPES_HAS_WATCH
-			parser.arg(result.modules)
-			    .meta("<module>")
-			    .help("script(s) to run; defaults to all available modules")
+			std::vector<std::string> names{};
+			parser.arg(names)
+			    .meta("<script>")
+			    .help(
+			        "script(s) to run, by name: `chair` runs `chair.model.py`, or `chair.py`, if there is no "
+			        "`chair.model.py`; defaults to all `*.model.py` scripts")
 			    .opt();
 			parser.parse();
 
@@ -158,26 +188,42 @@ namespace shapes::__main__ {
 				usage_error(parser, std::format("output path `{}` is not a directory", as_text(result.outdir)));
 			}
 
-			result.modules_in_args = !result.modules.empty();
+			// an empty path means the current directory, but the iterator
+			// would not accept it
+			auto const dir = result.input.empty() ? std::filesystem::path{"."} : result.input;
 
-			if (!result.modules_in_args) {
-				// an empty path means the current directory, but the
-				// iterator would not accept it
-				auto const dir = result.input.empty() ? std::filesystem::path{"."} : result.input;
+			if (!names.empty()) {
+				for (auto const& name : names) {
+					auto found = find_script(dir, name);
+					if (!found) {
+						usage_error(parser, std::format("script `{}` not found in `{}`", name, as_text(dir)));
+					}
+					result.scripts.push_back(std::move(*found));
+				}
+			} else {
 				std::filesystem::directory_iterator it{dir, ec};
 				if (ec) {
 					usage_error(parser, std::format("cannot list the scripts in `{}`: {}", as_text(dir),
 					                                pyxel::message_u8(ec)));
 				}
 
+				// only the model scripts; other .py files are helpers, which
+				// the scripts import, and are never run on their own
 				for (auto const& entry : it) {
-					if (!entry.is_regular_file()) continue;
-					if (entry.path().extension().u8string() != u8".py"sv) continue;
-					auto const stem = entry.path().stem().u8string();
-					if (stem.starts_with(u8"__"sv) || stem.ends_with(u8"__"sv)) continue;
+					if (!entry.is_regular_file(ec)) continue;
+					auto const filename = entry.path().filename().u8string();
+					if (!filename.ends_with(model_suffix)) continue;
+					auto const name = std::u8string_view{filename}.substr(0, filename.size() - model_suffix.size());
+					if (name.empty()) continue;
 
-					result.modules.emplace_back(pyxel::as_sv(stem));
+					result.scripts.push_back({.path = entry.path(), .name = pyxel::as_str(name)});
 				}
+				if (result.scripts.empty()) {
+					usage_error(parser, std::format("no `*.model.py` scripts in `{}`", as_text(dir)));
+				}
+
+				// the directory order is unspecified
+				std::ranges::sort(result.scripts, {}, &script::name);
 			}
 		} catch (exit_request const& request) {
 			std::cout.flush();
