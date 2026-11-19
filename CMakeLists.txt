@@ -19,6 +19,7 @@ set(DOLLHOUSE_TESTING ON CACHE BOOL "Compile and/or run self-tests")
 set(DOLLHOUSE_INSTALL ON CACHE BOOL "Install the application")
 set(DOLLHOUSE_SANITIZE OFF CACHE BOOL "Compile with sanitizers enabled")
 set(DOLLHOUSE_W_ERROR OFF CACHE BOOL "Compile with warnings turned to errors")
+set(DOLLHOUSE_FREE_THREADED OFF CACHE BOOL "Declare the shapes module safe to run without the GIL (not thread-safe yet)")
 
 set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_EXTENSIONS OFF)

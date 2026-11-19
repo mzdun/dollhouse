@@ -38,6 +38,7 @@ On Windows use `flow` (or `flow.cmd`) instead of `./flow`.
 - `config`, `build`, `test` and `verify` are aliases defined in `entry` of `.flow/config.yml`; each runs a fixed list of steps.
 - `-D key=value` filters the build matrix in `.flow/matrix.yml` (keys: `compiler`, `build_type`, `sanitizer`, `os`). `--dbg`, `--rel`, `--both` and `--sane` are shortcuts for common `-D` sets.
 - `-E w-error=on` turns warnings into errors.
+- `-E freethreaded-shapes=on` declares the `shapes` module safe to run without the GIL on the free-threaded CPython. The module is not thread-safe yet, so use it for experiments only; without it, importing `shapes` turns the GIL on.
 - `--official` limits the matrix to the release builds listed in `.flow/official.yml`.
 
 Build trees go to `build/debug` and `build/release`. Test reports (JUnit XML) are written under `build/<config>/test-results/`.

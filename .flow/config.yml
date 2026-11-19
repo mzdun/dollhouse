@@ -45,6 +45,11 @@ cmake:
     #   ./flow run -E w-error=on
     # ("true", "yes", "1" and "with-w-error" also work).
     DOLLHOUSE_W_ERROR: "?config:w-error"
+    # Declares the `shapes` module safe to run without the GIL, on the
+    # free-threaded CPython; it is not thread-safe yet, so only for
+    # experiments. Always OFF, unless added with
+    #   ./flow run -E freethreaded-shapes=on
+    DOLLHOUSE_FREE_THREADED: "?config:freethreaded-shapes"
     # DOLLHOUSE_CUTDOWN_OS: "?runtime:cutdown_os"
 
 shortcuts:
