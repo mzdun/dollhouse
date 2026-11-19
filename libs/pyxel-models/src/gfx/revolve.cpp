@@ -6,6 +6,7 @@
 #include <numbers>
 #include <pyxel/gfx/solid.hpp>
 #include <stdexcept>
+#include <utility>
 #include <vector>
 
 namespace pyxel::gfx {

@@ -5,6 +5,7 @@
 #include <pyxel/gfx.hpp>
 #include <pyxel/gfx/sink.hpp>
 #include <stdexcept>
+#include <vector>
 
 namespace pyxel::gfx::testing {
 	using namespace math::literals;

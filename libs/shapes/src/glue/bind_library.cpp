@@ -10,6 +10,8 @@
 #include <shapes/glue/glue.hpp>
 #include <shapes/library.hpp>
 #include <stdexcept>
+#include <string>
+#include <utility>
 #include "lifetime.hpp"
 
 namespace shapes::glue {

@@ -89,6 +89,8 @@ def test_box_normals_are_flat_and_outwards(tmp_path: Path, matrix):
 
     for face in faces:
         (a, _), (b, _), (c, _) = face[:3]
+        # b - a and c - a: the edges from a
+        # pylint: disable-next=arguments-out-of-order
         winding = unit(cross(sub(b, a), sub(c, a)))
         face_centre: Vec = tuple((a[i] + b[i] + c[i]) / 3 for i in range(3))  # type: ignore
         assert dot(winding, sub(face_centre, centre)) > 0, "face wound inwards"
@@ -126,7 +128,14 @@ def test_model_name_creates_subdirectories(tmp_path: Path, name: str, expected: 
 
 @pytest.mark.parametrize(
     "name",
-    ["../escaped", "..\\escaped", "a/../../escaped", "a\\..\\..\\escaped", "/absolute", "\\absolute"],
+    [
+        "../escaped",
+        "..\\escaped",
+        "a/../../escaped",
+        "a\\..\\..\\escaped",
+        "/absolute",
+        "\\absolute",
+    ],
 )
 def test_model_name_cannot_leave_output_directory(name: str):
     with pytest.raises(ValueError, match="leaves the output directory"):

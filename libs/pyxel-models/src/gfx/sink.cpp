@@ -4,7 +4,9 @@
 #include <algorithm>
 #include <pyxel/gfx/sink.hpp>
 #include <stdexcept>
+#include <string>
 #include <utility>
+#include <vector>
 
 namespace pyxel::gfx {
 	sink::sink() : nodes_(1) {}

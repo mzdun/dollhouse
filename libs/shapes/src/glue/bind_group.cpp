@@ -11,6 +11,7 @@
 #include <shapes/glue/glue.hpp>
 #include <stdexcept>
 #include <string>
+#include <utility>
 
 namespace shapes::glue {
 	using pyxel::gfx::group;

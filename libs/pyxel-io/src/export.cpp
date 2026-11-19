@@ -280,14 +280,14 @@ namespace pyxel::io {
 			};
 			std::vector<flat_face> faces{};
 			faces.reserve(solid.faces().size());
+			auto const past_the_end = [=](size_t index) { return index >= vertex_count; };
+
 			size_t corner_count = 0;
 			for (auto const& face : solid.faces()) {
 				if (face.size() < 3) continue;
 				// faces with an index past the last vertex are dropped, as the
 				// sink promises
-				if (std::ranges::any_of(face, [=](size_t index) { return index >= vertex_count; })) {
-					continue;
-				}
+				if (std::ranges::any_of(face, past_the_end)) continue;
 				auto const normal = face_normal(vertices, face);
 				if (!normal) continue;
 				faces.push_back({&face, *normal});

@@ -16,6 +16,7 @@ def run_shapes(env: dict[str, str], *args: str):
         capture_output=True,
         text=True,
         timeout=60,
+        check=False,
     )
 
 

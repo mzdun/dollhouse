@@ -6,6 +6,7 @@
 #include <pyxel/gfx/solid.hpp>
 #include <type_traits>
 #include <utility>
+#include <vector>
 
 namespace pyxel::gfx::testing {
 	using namespace math::literals;
