@@ -1,0 +1,34 @@
+# pylint configuration for super-linter; the Python files it lints are the
+# pytest suites under libs/ (tools/ is excluded in linter.yml)
+
+[MASTER]
+jobs=0
+
+[MESSAGES CONTROL]
+disable=
+    # from super-linter's own template: pytest and the built shapes module
+    # are not installed in the linter's image
+    import-error,
+    # test names say what they check; see the roadmap for docstrings
+    missing-module-docstring,
+    missing-class-docstring,
+    missing-function-docstring,
+    # each test builds its own model in tmp_path; see the roadmap
+    duplicate-code,
+    # pytest fixtures are passed as arguments named after the fixtures, and
+    # parametrized tests take one argument per parameter
+    redefined-outer-name,
+    too-many-arguments,
+    too-many-positional-arguments,
+    # the test classes derive from the shapes API, overriding one method
+    too-few-public-methods,
+
+[FORMAT]
+# black wraps the code at 88, but never splits the string literals; the
+# same limit as linelength in CPPLINT.cfg
+max-line-length=120
+
+[BASIC]
+# PascalCase, or snake_case for classes deriving from the shapes API
+# (shapes.sized, shapes.object), which uses snake_case class names itself
+class-rgx=([A-Z][a-zA-Z0-9]*|[a-z_][a-z0-9_]*)$

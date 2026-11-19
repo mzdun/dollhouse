@@ -8,6 +8,12 @@ jobs:
     name: Super-linter
     runs-on: ubuntu-latest
 
+    permissions:
+      contents: read
+      packages: read
+      # super-linter reports a status check for each linter
+      statuses: write
+
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
@@ -15,7 +21,7 @@ jobs:
           fetch-depth: 0
 
       - name: Lint Code Base
-        uses: github/super-linter/slim@v5
+        uses: super-linter/super-linter/slim@v8.5.0
         env:
           VALIDATE_ALL_CODEBASE: false
           DEFAULT_BRANCH: main
@@ -39,11 +45,9 @@ jobs:
           VALIDATE_HTML: true
 
           VALIDATE_JAVASCRIPT_ES: true
-          VALIDATE_JAVASCRIPT_STANDARD: true
           VALIDATE_JSX: true
 
           VALIDATE_TYPESCRIPT_ES: true
-          VALIDATE_TYPESCRIPT_STANDARD: true
           VALIDATE_TSX: true
 
           IGNORE_GENERATED_FILES: true
