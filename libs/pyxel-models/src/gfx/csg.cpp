@@ -19,7 +19,7 @@
 
 namespace pyxel::gfx {
 	namespace {
-		// in metres; points closer to a plane than that lie on it
+		// in meters; points closer to a plane than that lie on it
 		constexpr double plane_tolerance = 1e-7;
 
 		struct plane {
@@ -295,7 +295,7 @@ namespace pyxel::gfx {
 				face.reserve(poly.vertices.size());
 				for (auto const& vertex : poly.vertices) {
 					auto const index = result.add_vert(offset::from(vertex));
-					// neighbours may collapse into one vertex
+					// neighbors may collapse into one vertex
 					if (face.empty() || face.back() != index) face.push_back(index);
 				}
 				if (face.size() > 1 && face.front() == face.back()) face.pop_back();

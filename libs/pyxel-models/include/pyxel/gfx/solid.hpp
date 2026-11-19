@@ -44,7 +44,7 @@ namespace pyxel::gfx {
 
 		// Basic solids. The boxes have their minimal corner at the origin, the
 		// prism and the pyramid stand on the XZ plane, with the origin in the
-		// middle of the base, and the sphere has the origin in its centre.
+		// middle of the base, and the sphere has the origin in its center.
 		// Throw std::invalid_argument for lengths not larger than zero, or for
 		// too few sides.
 

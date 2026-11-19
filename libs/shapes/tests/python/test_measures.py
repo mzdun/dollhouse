@@ -11,7 +11,7 @@ class TestLength:
         assert shapes.length() == shapes.cm(0)
 
     @pytest.mark.parametrize(
-        "make, amount, metres",
+        "make, amount, meters",
         [
             (shapes.cm, 2, 0.02),
             (shapes.cm, 150, 1.5),
@@ -19,14 +19,14 @@ class TestLength:
             (shapes.mm, 1000, 1.0),
         ],
     )
-    def test_units(self, make, amount, metres):
-        assert make(amount).value == pytest.approx(metres)
+    def test_units(self, make, amount, meters):
+        assert make(amount).value == pytest.approx(meters)
 
     def test_conversions(self):
         assert shapes.cm(12).to_mm() == pytest.approx(120)
         assert shapes.mm(35).to_cm() == pytest.approx(3.5)
 
-    # lengths are stored in metres, so e.g. cm(3) - cm(1) is 0.03 - 0.01,
+    # lengths are stored in meters, so e.g. cm(3) - cm(1) is 0.03 - 0.01,
     # which is not exactly 0.02; compare the results with a tolerance
     @pytest.mark.parametrize(
         "result, expected",
@@ -69,7 +69,7 @@ class TestLength:
         assert str(shapes.cm(2)) == "2 cm"
 
     def test_text_past_micrometers(self):
-        # more micrometres, than a 64-bit integer holds
+        # more micrometers, than a 64-bit integer holds
         assert str(shapes.cm(1e20)) == "1e+20 cm"
         assert str(shapes.cm(-1e20)) == "-1e+20 cm"
 

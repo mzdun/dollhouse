@@ -17,7 +17,7 @@ namespace shapes::glue {
 		    m, {
 		           .name = "volume",
 		           .doc = "Volume in the model space; e.g. `volume(cm3=1.5)`, or a product of an area and a length.",
-		           .base_unit = "cubic metres",
+		           .base_unit = "cubic meters",
 		           .cm_arg = "cm3",
 		           .mm_arg = "mm3",
 		           .cm_symbol = "cm³",

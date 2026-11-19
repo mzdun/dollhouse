@@ -156,7 +156,7 @@ Driven by measurements, not done up front.
 - [ ] Bundle `shapes` binaries for Python 3.12, 3.13, 3.14 and possibly 3.15 into one archive, once `shapes` has users other than its author
 - [ ] Evaluate corefinement libraries (Manifold, CGAL, mcut) to replace the quadratic BSP in solid operations
   - [ ] Speed on dense solids
-  - [ ] Licence compatible with MIT
+  - [ ] License compatible with MIT
   - [ ] Bit-identical results across builds
   - [ ] Available in Conan
 - [ ] Python tests: add docstrings and factor the repeated model building into a `conftest.py` helper, then re-enable the `missing-*-docstring` and `duplicate-code` checks in `.github/linters/.python-lint`

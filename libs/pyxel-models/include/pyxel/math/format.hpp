@@ -98,7 +98,7 @@ struct std::formatter<pyxel::math::distance<Storage, Ratio>> : std::formatter<st
 		using namespace pyxel::math;
 
 		static constexpr auto suffix = detail::length_suffix<Ratio>();
-		auto const text = suffix.empty() ? std::format("{} m", detail::format_count(metres_f{value}.count()))
+		auto const text = suffix.empty() ? std::format("{} m", detail::format_count(meters_f{value}.count()))
 		                                 : std::format("{} {}", detail::format_count(value.count()), suffix);
 		return std::formatter<std::string_view>::format(text, ctx);
 	}

@@ -51,7 +51,7 @@ namespace pyxel::gfx {
 			rings.push_back(std::move(ring));
 		}
 
-		// vertices are added, when a face needs them, so the centre of a cap
+		// vertices are added, when a face needs them, so the center of a cap
 		// is not left behind unused
 		solid result{};
 		auto const add_face = [&result](std::vector<offset> const& points) {

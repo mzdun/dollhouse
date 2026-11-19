@@ -11,7 +11,7 @@
 #include <utility>
 
 namespace pyxel::gfx {
-	using length = math::metres_f;
+	using length = math::meters_f;
 	using angle = math::radians;
 
 	inline constexpr length cm(double value) noexcept { return math::centimeters_f{value}; }
@@ -42,7 +42,7 @@ namespace pyxel::gfx {
 		static constexpr offset at_y(length y) noexcept { return {.y = y}; }
 		static constexpr offset at_z(length z) noexcept { return {.z = z}; }
 
-		// glm vectors are in metres
+		// glm vectors are in meters
 		static offset from(glm::dvec3 const& v) noexcept { return {length{v.x}, length{v.y}, length{v.z}}; }
 		glm::dvec3 to_glm() const noexcept { return {x.count(), y.count(), z.count()}; }
 

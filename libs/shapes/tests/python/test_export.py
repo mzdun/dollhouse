@@ -85,15 +85,15 @@ def test_box_normals_are_flat_and_outwards(tmp_path: Path, matrix):
     assert len(faces) == 12
 
     corners = [p for face in faces for p, _ in face]
-    centre: Vec = tuple(sum(p[i] for p in corners) / len(corners) for i in range(3))  # type: ignore
+    center: Vec = tuple(sum(p[i] for p in corners) / len(corners) for i in range(3))  # type: ignore
 
     for face in faces:
         (a, _), (b, _), (c, _) = face[:3]
         # b - a and c - a: the edges from a
         # pylint: disable-next=arguments-out-of-order
         winding = unit(cross(sub(b, a), sub(c, a)))
-        face_centre: Vec = tuple((a[i] + b[i] + c[i]) / 3 for i in range(3))  # type: ignore
-        assert dot(winding, sub(face_centre, centre)) > 0, "face wound inwards"
+        face_center: Vec = tuple((a[i] + b[i] + c[i]) / 3 for i in range(3))  # type: ignore
+        assert dot(winding, sub(face_center, center)) > 0, "face wound inwards"
         for _, normal in face:
             assert dot(winding, unit(normal)) == pytest.approx(1.0, abs=1e-5)
 

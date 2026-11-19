@@ -25,7 +25,7 @@ namespace pyxel::math::testing {
 		EXPECT_EQ(std::format("{}", 2.25_mm), "2.25 mm");
 	}
 
-	TEST(math_format, unnamed_unit_in_metres) {
+	TEST(math_format, unnamed_unit_in_meters) {
 		EXPECT_EQ(std::format("{}", distance<long long, std::ratio<1, 4>>{6}), "1.5 m");
 		EXPECT_EQ(std::format("{}", distance<long long, std::kilo>{2}), "2000 m");
 	}
@@ -62,19 +62,19 @@ namespace pyxel::math::testing {
 	}
 
 	TEST(math_format, dyn_not_finite) {
-		EXPECT_EQ(std::format("{}", dyn(metres_f{std::numeric_limits<double>::quiet_NaN()})), "nan cm");
-		EXPECT_EQ(std::format("{}", dyn(metres_f{std::numeric_limits<double>::infinity()})), "inf cm");
-		EXPECT_EQ(std::format("{}", dyn(metres_f{-std::numeric_limits<double>::infinity()})), "-inf cm");
+		EXPECT_EQ(std::format("{}", dyn(meters_f{std::numeric_limits<double>::quiet_NaN()})), "nan cm");
+		EXPECT_EQ(std::format("{}", dyn(meters_f{std::numeric_limits<double>::infinity()})), "inf cm");
+		EXPECT_EQ(std::format("{}", dyn(meters_f{-std::numeric_limits<double>::infinity()})), "-inf cm");
 	}
 
 	TEST(math_format, dyn_past_micrometers) {
 		// 2^63 um is about 9.2e12 m; below, the micrometers are exact
-		EXPECT_EQ(std::format("{}", dyn(metres_f{9e12})), "900000000000000 cm");
-		EXPECT_EQ(std::format("{}", dyn(metres_f{-9e12})), "-900000000000000 cm");
-		EXPECT_EQ(std::format("{}", dyn(metres_f{1e18})), "1e+20 cm");
-		EXPECT_EQ(std::format("{}", dyn(metres_f{-1e18})), "-1e+20 cm");
+		EXPECT_EQ(std::format("{}", dyn(meters_f{9e12})), "900000000000000 cm");
+		EXPECT_EQ(std::format("{}", dyn(meters_f{-9e12})), "-900000000000000 cm");
+		EXPECT_EQ(std::format("{}", dyn(meters_f{1e18})), "1e+20 cm");
+		EXPECT_EQ(std::format("{}", dyn(meters_f{-1e18})), "-1e+20 cm");
 		// integral storage overflowed in the conversion itself
-		EXPECT_EQ(std::format("{}", dyn(metres{10'000'000'000'000})), "1e+15 cm");
+		EXPECT_EQ(std::format("{}", dyn(meters{10'000'000'000'000})), "1e+15 cm");
 	}
 
 	TEST(math_format, ostream_matches_format) {

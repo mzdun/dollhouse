@@ -61,7 +61,7 @@ namespace pyxel::gfx::testing {
 		EXPECT_EQ(out.faces(), (faces_t{{0, 1, 2, 3}}));
 	}
 
-	TEST(gfx_glm_solid, vertices_are_in_metres) {
+	TEST(gfx_glm_solid, vertices_are_in_meters) {
 		solid obj{};
 		obj.add_vert(25_cm, 5_mm, -1.0_m);
 		obj.add_face(size_t{0}, size_t{0}, size_t{0});

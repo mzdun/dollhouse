@@ -67,11 +67,11 @@ namespace pyxel::math {
 		//
 		// - floating-point to integral storage: NaN, infinity, and any value
 		//   past the range of the target (about 9.2e12 m for micrometers,
-		//   9.2e9 m for nanometers) are undefined behaviour of static_cast;
+		//   9.2e9 m for nanometers) are undefined behavior of static_cast;
 		//   in practice, x86 returns LLONG_MIN, other platforms may not.
-		// - integral to integral, towards a finer unit (metres to
+		// - integral to integral, towards a finer unit (meters to
 		//   micrometers): the multiplication overflows signed integers,
-		//   which is undefined behaviour as well.
+		//   which is undefined behavior as well.
 		// - floating-point to floating-point is well-defined: NaN and
 		//   infinity pass through, and a finite value multiplied past the
 		//   range of a double becomes infinity.
@@ -306,13 +306,13 @@ namespace pyxel::math {
 		return rhs * lhs;
 	}
 
-	using metres = distance<long long>;
+	using meters = distance<long long>;
 	using decimeters = distance<long long, std::deci>;
 	using centimeters = distance<long long, std::centi>;
 	using millimeters = distance<long long, std::milli>;
 	using micrometers = distance<long long, std::micro>;
 	using nanometers = distance<long long, std::nano>;
-	using metres_f = distance<double>;
+	using meters_f = distance<double>;
 	using decimeters_f = distance<double, std::deci>;
 	using centimeters_f = distance<double, std::centi>;
 	using millimeters_f = distance<double, std::milli>;
@@ -331,7 +331,7 @@ namespace pyxel::math {
 	constexpr TYPE operator""_##SUFFIX(unsigned long long v) noexcept { return TYPE{static_cast<long long>(v)}; } \
 	constexpr TYPE##_f operator""_##SUFFIX(long double v) noexcept { return TYPE##_f{static_cast<double>(v)}; }
 
-		PYXEL_MATH_LENGTH_UDL(metres, m)
+		PYXEL_MATH_LENGTH_UDL(meters, m)
 		PYXEL_MATH_LENGTH_UDL(decimeters, dm)
 		PYXEL_MATH_LENGTH_UDL(centimeters, cm)
 		PYXEL_MATH_LENGTH_UDL(millimeters, mm)

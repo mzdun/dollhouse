@@ -52,7 +52,7 @@ namespace pyxel::gfx::testing {
 		EXPECT_EQ(off, (offset{2.0_m, 4.0_m, 6.0_m}));
 	}
 
-	TEST(gfx_offset, glm_round_trip_is_in_metres) {
+	TEST(gfx_offset, glm_round_trip_is_in_meters) {
 		EXPECT_EQ(offset(1.0_m, 25_cm, -2.0_m).to_glm(), (glm::dvec3{1.0, 0.25, -2.0}));
 		EXPECT_EQ(offset::from(glm::dvec3{1.0, 0.25, -2.0}), (offset{1.0_m, 25_cm, -2.0_m}));
 	}

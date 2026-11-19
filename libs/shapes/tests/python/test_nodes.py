@@ -61,7 +61,7 @@ def named(node: ET.Element, name: str) -> list[ET.Element]:
 
 
 def translation(node: ET.Element) -> list[float]:
-    """Translation column of the node's row-major matrix, in metres."""
+    """Translation column of the node's row-major matrix, in meters."""
     m = floats(node, "c:matrix")
     return [m[3], m[7], m[11]]
 
