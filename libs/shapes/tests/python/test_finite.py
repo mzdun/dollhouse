@@ -39,7 +39,13 @@ class TestArguments:
 
     @pytest.mark.parametrize(
         "value",
-        [cm(1), deg(1), shapes.area(cm2=1), shapes.volume(cm3=1), shapes.offset(x=cm(1))],
+        [
+            cm(1),
+            deg(1),
+            shapes.area(cm2=1),
+            shapes.volume(cm3=1),
+            shapes.offset(x=cm(1)),
+        ],
         ids=["length", "angle", "area", "volume", "offset"],
     )
     def test_factors_and_divisors(self, value, bad):
