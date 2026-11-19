@@ -118,6 +118,42 @@ if (DOLLHOUSE_W_ERROR)
   message(STATUS "Compiling with warnings treated as errors")
 endif()
 
+# Hardening. The flags depending on the configuration are generator
+# expressions, as Visual Studio picks the configuration at build time.
+set(_dollhouse_optimized "$<NOT:$<CONFIG:Debug>>")
+if (MSVC)
+  # Control Flow Guard; incremental linking of Debug builds does not go with it
+  list(APPEND DOLLHOUSE_ADDITIONAL_COMPILE_FLAGS "$<${_dollhouse_optimized}:/guard:cf>")
+  list(APPEND DOLLHOUSE_ADDITIONAL_LINK_FLAGS "$<${_dollhouse_optimized}:/guard:cf>")
+else()
+  include(CheckCXXCompilerFlag)
+  list(APPEND DOLLHOUSE_ADDITIONAL_COMPILE_FLAGS -fstack-protector-strong)
+  # turns a stack overflow into a crash, instead of a jump over the guard page
+  check_cxx_compiler_flag(-fstack-clash-protection DOLLHOUSE_HAS_STACK_CLASH_PROTECTION)
+  if (DOLLHOUSE_HAS_STACK_CLASH_PROTECTION)
+    list(APPEND DOLLHOUSE_ADDITIONAL_COMPILE_FLAGS -fstack-clash-protection)
+  endif()
+  if (CMAKE_SYSTEM_NAME STREQUAL "Linux")
+    # needs optimizations, and gets in the way of the ASan interceptors; the
+    # toolchain may define it already (Ubuntu does), hence -U first, or the
+    # redefinition warns
+    if (NOT DOLLHOUSE_SANITIZE)
+      list(APPEND DOLLHOUSE_ADDITIONAL_COMPILE_FLAGS
+        "$<${_dollhouse_optimized}:-U_FORTIFY_SOURCE>"
+        "$<${_dollhouse_optimized}:-D_FORTIFY_SOURCE=3>"
+      )
+    endif()
+    list(APPEND DOLLHOUSE_ADDITIONAL_LINK_FLAGS -Wl,-z,relro,-z,now)
+  endif()
+  # checks of the standard library (bounds of operator[], front() of an
+  # empty container, ...); each library ignores the macro of the other one
+  list(APPEND DOLLHOUSE_ADDITIONAL_COMPILE_FLAGS
+    "$<$<CONFIG:Debug>:-D_GLIBCXX_ASSERTIONS>"
+    "$<$<CONFIG:Debug>:-D_LIBCPP_HARDENING_MODE=_LIBCPP_HARDENING_MODE_DEBUG>"
+  )
+endif()
+unset(_dollhouse_optimized)
+
 # Sets OUT_VAR to the environment (a list of NAME=value) a Python interpreter
 # needs to load a module of this build.
 #
