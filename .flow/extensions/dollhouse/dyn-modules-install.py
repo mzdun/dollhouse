@@ -23,12 +23,18 @@ as either one of::
 
     NAME.pyi                  NAME/**/*.pyi
 
+and the description of its build (``.flow/cmake/variant.cmake``), as
+either one of::
+
+    NAME.variant.json         NAME/__init__.variant.json
+
 Builds with sanitizers are never installed, as a plain interpreter cannot
 load them. On Windows, Debug builds are installed only with
 ``DOLLHOUSE_INSTALL_DEBUG=1`` in the environment, as they need the debug
 runtime of Visual Studio.
 """
 
+import json
 import os
 import sysconfig
 from pathlib import Path
@@ -92,9 +98,63 @@ def _remove_stubs(rt: env.Runtime, root: Path, module: str):
             stub.unlink()
 
 
+def _variant_files(module: str) -> list[Path]:
+    """Paths, relative to the module root, of the files describing the
+    build of the module (see ``.flow/cmake/variant.cmake``)."""
+    return [
+        Path(f"{module}.variant.json"),
+        Path(module) / "__init__.variant.json",
+    ]
+
+
+def _locate_variants(root: Path, module: str) -> list[Path]:
+    """Paths, relative to root, of the variant files of the module."""
+    return [path for path in _variant_files(module) if (root / path).is_file()]
+
+
+def _read_variant(path: Path) -> dict | None:
+    try:
+        with open(path, encoding="UTF-8") as file:
+            result = json.load(file)
+    except (OSError, ValueError):
+        return None
+    return result if isinstance(result, dict) else None
+
+
+def _describe_variant(variant: dict | None) -> str:
+    if variant is None:
+        return "unknown build"
+    result = str(variant.get("build_type", "?"))
+    if variant.get("sanitizer"):
+        result += " with sanitizers"
+    commit = variant.get("commit")
+    if commit:
+        result += f" @ {str(commit)[:9]}"
+        if variant.get("dirty"):
+            result += " (dirty)"
+    return result
+
+
+def _report_replaced_variant(rt: env.Runtime, old_path: Path, new_path: Path):
+    """Says, which build is replaced, if the installed one differs."""
+    if not old_path.is_file():
+        return
+    old = _read_variant(old_path)
+    new = _read_variant(new_path)
+    keys = ["build_type", "sanitizer", "commit", "dirty"]
+    if old is not None and new is not None:
+        if all(old.get(key) == new.get(key) for key in keys):
+            return
+    rt.message(
+        f"replacing {_describe_variant(old)} with {_describe_variant(new)}",
+        level=env.Msg.ALWAYS,
+    )
+
+
 def _locate_installed_binaries(root: Path, module: str) -> list[Path]:
     """Every binary of the module under root, including the versioned ones
-    (``….so.0.1``) left by older builds, and broken symlinks."""
+    (``….so.0.1``) left by older builds, and broken symlinks, together with
+    the variant files describing them."""
     patterns = [
         "{module}.*.{ext}",
         "{module}.*.{ext}.*",
@@ -107,6 +167,10 @@ def _locate_installed_binaries(root: Path, module: str) -> list[Path]:
             for path in root.glob(pattern.format(module=module, ext=ext)):
                 if path.is_file() or path.is_symlink():
                     found.add(path)
+    for path in _variant_files(module):
+        path = root / path
+        if path.is_file() or path.is_symlink():
+            found.add(path)
     return sorted(found)
 
 
@@ -176,8 +240,12 @@ class DynModulesInstallStep:
                     "is pybind11-stubgen installed?",
                 )
 
+            variants = _locate_variants(bin_dir, module)
+            for variant in variants:
+                _report_replaced_variant(rt, site_packages / variant, bin_dir / variant)
+
             _remove_binaries(rt, site_packages, module)
-            for dll in files:
+            for dll in files + variants:
                 dst_dir = (site_packages / dll).parent
                 result = rt.mkdirs(str(dst_dir))
                 if result:
