@@ -86,7 +86,9 @@ namespace pyxel::gfx {
 		sink();
 
 		// bakes the solid with `matrix` (relative to the current node) into
-		// the mesh of the current material, in the current node
+		// the mesh of the current material, in the current node; throws
+		// std::invalid_argument, leaving the sink as it was, if the matrix,
+		// or a baked vertex, is not finite
 		void add_solid(solid const& solid, glm::dmat4 const& matrix);
 
 		// keeps a copy of the light, with `matrix` (relative to the current

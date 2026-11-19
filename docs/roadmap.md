@@ -160,3 +160,4 @@ Driven by measurements, not done up front.
   - [ ] Bit-identical results across builds
   - [ ] Available in Conan
 - [ ] Python tests: add docstrings and factor the repeated model building into a `conftest.py` helper, then re-enable the `missing-*-docstring` and `duplicate-code` checks in `.github/linters/.python-lint`
+- [ ] Range-checked unit conversions: `value_cast`, `round` and the converting constructor of `pyxel::math::value` have undefined behavior for NaN, infinity and out-of-range values when converting to integral storage (see the comment on [`detail::convert`](../libs/pyxel-models/include/pyxel/math/value.hpp#L65)); decide between throwing, clamping or a checked variant

@@ -62,6 +62,22 @@ namespace pyxel::math {
 		    (!std::floating_point<StorageIn> && pi_power_v<RatioIn> == pi_power_v<RatioOut> &&
 		     std::ratio_divide<base_ratio_t<RatioIn>, base_ratio_t<RatioOut>>::den == 1);
 
+		// UNSAFE RANGES: nothing here checks the range; for now, the callers
+		// must keep the values within it.
+		//
+		// - floating-point to integral storage: NaN, infinity, and any value
+		//   past the range of the target (about 9.2e12 m for micrometers,
+		//   9.2e9 m for nanometers) are undefined behaviour of static_cast;
+		//   in practice, x86 returns LLONG_MIN, other platforms may not.
+		// - integral to integral, towards a finer unit (metres to
+		//   micrometers): the multiplication overflows signed integers,
+		//   which is undefined behaviour as well.
+		// - floating-point to floating-point is well-defined: NaN and
+		//   infinity pass through, and a finite value multiplied past the
+		//   range of a double becomes infinity.
+		//
+		// Reached through the converting constructor, value_cast and round
+		// below. See "Range-checked unit conversions" in docs/roadmap.md.
 		template <typename StorageOut, typename RatioOut, typename StorageIn, typename RatioIn>
 		constexpr StorageOut convert(StorageIn count) noexcept {
 			using div = std::ratio_divide<base_ratio_t<RatioIn>, base_ratio_t<RatioOut>>;
@@ -125,7 +141,8 @@ namespace pyxel::math {
 		    requires(std::floating_point<Storage> || std::integral<S>)
 		explicit constexpr value(S count) noexcept : v{static_cast<Storage>(count)} {}
 
-		// implicit only, when no precision can be lost
+		// implicit only, when no precision can be lost; explicit conversions
+		// to integral storage are not range-checked, see detail::convert
 		template <typename StorageIn, typename RatioIn>
 		    requires(!std::is_same_v<value, value<Tag, StorageIn, RatioIn>>)
 		constexpr explicit(!detail::is_lossless_v<StorageIn, RatioIn, Storage, Ratio>)
@@ -163,13 +180,16 @@ namespace pyxel::math {
 
 	// ---- casts -----------------------------------------------------------
 
-	// Explicit conversion, truncating towards zero.
+	// Explicit conversion, truncating towards zero. Not range-checked: NaN,
+	// infinity or a value past an integral target is UB, see detail::convert.
 	template <quantity To, typename Storage, typename Ratio>
 	constexpr To value_cast(value<typename To::tag, Storage, Ratio> const& in) noexcept {
 		return To{detail::convert<typename To::storage, typename To::ratio, Storage, Ratio>(in.count())};
 	}
 
-	// Explicit conversion, rounding half away from zero.
+	// Explicit conversion, rounding half away from zero. Not range-checked:
+	// NaN, infinity or a value past an integral target is UB, see
+	// detail::convert; format_dyn in format.hpp checks before calling it.
 	template <quantity To, typename Storage, typename Ratio>
 	constexpr To round(value<typename To::tag, Storage, Ratio> const& in) noexcept {
 		using out = typename To::storage;

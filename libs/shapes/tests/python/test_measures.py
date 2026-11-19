@@ -68,6 +68,11 @@ class TestLength:
         assert repr(shapes.cm(2)) == "cm(2)"
         assert str(shapes.cm(2)) == "2 cm"
 
+    def test_text_past_micrometers(self):
+        # more micrometres, than a 64-bit integer holds
+        assert str(shapes.cm(1e20)) == "1e+20 cm"
+        assert str(shapes.cm(-1e20)) == "-1e+20 cm"
+
 
 class TestArea:
     def test_keywords(self):

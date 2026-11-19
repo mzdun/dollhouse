@@ -38,7 +38,8 @@ namespace pyxel::gfx {
 
 		using material_t = std::variant<std::monostate, paint_opts>;
 
-		// Registering the same material twice returns the same name
+		// Registering the same material twice returns the same name; throws
+		// std::invalid_argument for roughness or metallic outside [0, 1]
 		std::string register_paint(std::string const& name, paint_opts const& opts);
 		std::string register_paint(paint_opts const& opts) { return register_paint({}, opts); }
 		// Returns std::monostate for unknown names

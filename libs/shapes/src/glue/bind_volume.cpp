@@ -3,6 +3,7 @@
 
 #include <pyxel/math/value.hpp>
 #include <ratio>
+#include "finite.hpp"
 #include "measure.hpp"
 
 namespace shapes::glue {
@@ -23,6 +24,12 @@ namespace shapes::glue {
 		       });
 
 		// area * length and length * area; `area` is bound before `volume`
-		py::reinterpret_borrow<py::class_<area>>(m.attr("area")).def(py::self * length()).def(length() * py::self);
+		py::reinterpret_borrow<py::class_<area>>(m.attr("area"))
+		    .def(
+		        "__mul__", [](area const& self, length const& rhs) { return checked(self * rhs, "volume"); },
+		        py::is_operator())
+		    .def(
+		        "__rmul__", [](area const& self, length const& lhs) { return checked(lhs * self, "volume"); },
+		        py::is_operator());
 	}
 }  // namespace shapes::glue

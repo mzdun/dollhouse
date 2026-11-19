@@ -7,6 +7,7 @@
 #include <pyxel/gfx/sized.hpp>
 #include <shapes/glue/glue.hpp>
 #include <string>
+#include "finite.hpp"
 #include "sink_lease.hpp"
 
 namespace shapes::glue {
@@ -98,12 +99,14 @@ namespace shapes::glue {
 		    .def(
 		        "scale",
 		        [](sized& self, std::optional<double> x, std::optional<double> y, std::optional<double> z) -> sized& {
-			        return self.scale(size::factors{.x = x, .y = y, .z = z});
+			        return self.scale(size::factors{
+			            .x = finite(x, "scale: x"), .y = finite(y, "scale: y"), .z = finite(z, "scale: z")});
 		        },
 		        py::kw_only(), "x"_a = py::none(), "y"_a = py::none(), "z"_a = py::none(), self_ref,
 		        "Multiplies each edge by its own factor, keeping the edges without one; returns the object.")
 		    .def(
-		        "scale", [](sized& self, double factor) -> sized& { return self.scale(factor); }, "factor"_a, self_ref,
-		        "Multiplies all the edges by `factor`; returns the object.");
+		        "scale",
+		        [](sized& self, double factor) -> sized& { return self.scale(finite(factor, "scale: factor")); },
+		        "factor"_a, self_ref, "Multiplies all the edges by `factor`; returns the object.");
 	}
 }  // namespace shapes::glue

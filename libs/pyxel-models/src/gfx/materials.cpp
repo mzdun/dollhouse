@@ -3,10 +3,16 @@
 
 #include <format>
 #include <pyxel/gfx/materials.hpp>
+#include <stdexcept>
 #include <string>
 
 namespace pyxel::gfx {
 	std::string materials::register_paint(std::string const& name, paint_opts const& opts) {
+		// NaN fails the comparisons; paints are compared with <=>
+		if (!(opts.roughness >= 0.0f && opts.roughness <= 1.0f))
+			throw std::invalid_argument(std::format("paint: roughness must be within [0, 1], not {}", opts.roughness));
+		if (!(opts.metallic >= 0.0f && opts.metallic <= 1.0f))
+			throw std::invalid_argument(std::format("paint: metallic must be within [0, 1], not {}", opts.metallic));
 		return register_material(name, opts);
 	}
 

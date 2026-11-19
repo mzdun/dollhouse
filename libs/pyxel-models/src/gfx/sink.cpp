@@ -14,7 +14,16 @@ namespace pyxel::gfx {
 	void sink::add_solid(solid const& solid, glm::dmat4 const& matrix) {
 		static std::string const no_material{};
 		auto const& material = materials_.empty() ? no_material : materials_.back();
-		nodes_[current_].meshes[material].add_solid(solid, matrix);
+		auto& meshes = nodes_[current_].meshes;
+		auto const it = meshes.find(material);
+		if (it != meshes.end()) {
+			it->second.add_solid(solid, matrix);
+			return;
+		}
+		// a failed bake must not leave an empty mesh behind
+		glm_solid mesh{};
+		mesh.add_solid(solid, matrix);
+		meshes.emplace(material, std::move(mesh));
 	}
 
 	void sink::add_light(gfx::light const& light, glm::dmat4 const& matrix) {
@@ -69,10 +78,22 @@ namespace pyxel::gfx {
 	}
 
 	void sink::glm_solid::add_solid(solid const& obj, glm::dmat4 const& matrix) {
+		// baked in full first: a vertex out of range throws before the mesh
+		// changes; NaN would break the ordering of the lookup map
+		std::vector<glm::dvec3> baked{};
+		baked.reserve(obj.vertices().size());
+		for (auto const& vertex : obj.vertices()) {
+			auto const point = vertex.apply(matrix).to_glm();
+			if (glm::any(glm::isnan(point)) || glm::any(glm::isinf(point)))
+				throw std::invalid_argument(
+				    "sink: a solid baked with this matrix has coordinates, which are not finite");
+			baked.push_back(point);
+		}
+
 		std::vector<size_t> remap{};
-		remap.reserve(obj.vertices().size());
-		for (auto const& vertex : obj.vertices())
-			remap.push_back(add_vertex(vertex.apply(matrix).to_glm()));
+		remap.reserve(baked.size());
+		for (auto const& point : baked)
+			remap.push_back(add_vertex(point));
 
 		// a mirroring transform turns the faces inside out; reverse the
 		// winding to keep them facing outwards

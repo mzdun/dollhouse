@@ -3,6 +3,7 @@
 
 #include <pyxel/math/value.hpp>
 #include <ratio>
+#include "finite.hpp"
 #include "measure.hpp"
 
 namespace shapes::glue {
@@ -22,6 +23,9 @@ namespace shapes::glue {
 		       });
 
 		// length * length; `length` is bound before `area`
-		py::reinterpret_borrow<py::class_<length>>(m.attr("length")).def(py::self * py::self);
+		py::reinterpret_borrow<py::class_<length>>(m.attr("length"))
+		    .def(
+		        "__mul__", [](length const& self, length const& rhs) { return checked(self * rhs, "area"); },
+		        py::is_operator());
 	}
 }  // namespace shapes::glue

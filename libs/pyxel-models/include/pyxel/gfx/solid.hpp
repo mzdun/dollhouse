@@ -21,7 +21,8 @@ namespace pyxel::gfx {
 
 		solid() = default;
 		// vertices are kept as given, duplicates included, since the faces
-		// refer to their indices
+		// refer to their indices; throws std::invalid_argument for a vertex
+		// with a coordinate, which is not finite
 		solid(std::vector<offset> vertices, std::vector<std::vector<size_t>> faces);
 
 		// Solid of revolution: the profile, a closed polygon in the XY plane,
@@ -89,7 +90,8 @@ namespace pyxel::gfx {
 		std::vector<std::vector<size_t>> const& faces() const noexcept { return faces_; }
 
 		// returns index of an equal vertex, if there is one already; only the
-		// new vertices are appended
+		// new vertices are appended; throws std::invalid_argument for NaN or
+		// infinite coordinates, which have no place in the lookup map
 		size_t add_vert(offset const& v);
 		size_t add_vert(length x, length y, length z) { return add_vert({x, y, z}); }
 

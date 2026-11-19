@@ -1,6 +1,7 @@
 // Copyright (c) 2026 Marcin Zdun
 // This code is licensed under MIT license (see LICENSE for details)
 
+#include <cmath>
 #include <pyxel/gfx/transform.hpp>
 #include <stdexcept>
 
@@ -24,11 +25,17 @@ namespace pyxel::gfx {
 	}
 
 	glm::dmat4 scale(glm::dmat4 const& matrix, double x, std::optional<double> y, std::optional<double> z) {
-		return glm::scale(identity_matrix, glm::dvec3{x, y.value_or(x), z.value_or(x)}) * matrix;
+		glm::dvec3 const factors{x, y.value_or(x), z.value_or(x)};
+		if (glm::any(glm::isnan(factors)) || glm::any(glm::isinf(factors)))
+			throw std::invalid_argument("scale factors must be finite");
+		return glm::scale(identity_matrix, factors) * matrix;
 	}
 
 	glm::dmat4 rotate(glm::dmat4 const& matrix, angle by, glm::dvec3 const& axis, offset const& pivot) {
+		if (glm::any(glm::isnan(axis)) || glm::any(glm::isinf(axis)))
+			throw std::invalid_argument("rotation axis must be finite");
 		if (!(glm::length(axis) > 0.0)) throw std::invalid_argument("rotation axis must not be zero");
+		if (!std::isfinite(by.count())) throw std::invalid_argument("rotation angle must be finite");
 
 		auto const around = pivot.to_glm();
 		auto const rotation = glm::translate(identity_matrix, around) * glm::rotate(identity_matrix, by.count(), axis) *
