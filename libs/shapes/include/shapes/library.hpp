@@ -65,11 +65,21 @@ namespace shapes {
 			return material_repo_.register_paint(name, opts);
 		}
 
-		// returns false, if a model with this name is already registered
+		// returns false, if a model with this name is already registered;
+		// throws std::logic_error, once the library is closed
 		bool add_model(std::string name, model_fn fn);
 		model_map const& models() const noexcept { return models_; }
 		// must not be called while building, see is_building()
 		void clear_models() noexcept { models_.clear(); }
+
+		// forgets the models and refuses the new ones, for a host about to go
+		// away: the models of the Python module hold Python callables, which
+		// must be released while the interpreter is still alive
+		void close() noexcept {
+			clear_models();
+			closed_ = true;
+		}
+		bool is_closed() const noexcept { return closed_; }
 
 		// builds the models, which did not run yet, and marks them as ran;
 		// a model, which failed, stays unmarked; throws std::logic_error,
@@ -90,6 +100,7 @@ namespace shapes {
 
 		library* previous_{nullptr};
 		bool building_{false};
+		bool closed_{false};
 		model_map models_{};
 		pyxel::gfx::materials material_repo_{};
 		std::string exporter_id_{};

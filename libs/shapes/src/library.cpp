@@ -78,6 +78,9 @@ namespace shapes {
 	}
 
 	bool library::add_model(std::string name, model_fn fn) {
+		if (closed_) {
+			throw std::logic_error(std::format("model `{}`: the library is closed", name));
+		}
 		// exceptional early exit on output directory escape
 		(void)model_file(name, "ext");
 		return models_.try_emplace(std::move(name), model_entry{.fn = std::move(fn)}).second;
