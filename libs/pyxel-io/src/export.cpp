@@ -17,6 +17,7 @@
 #include <set>
 #include <stdexcept>
 #include <string>
+#include <utility>
 #include <variant>
 #include <vector>
 #include "glb_lights.hpp"
@@ -88,12 +89,13 @@ namespace pyxel::io {
 		// a mesh or a light, or a descendant with one (the root always is,
 		// Assimp needs it)
 		struct node_tree {
+			// in the order of declaration: the public members come first
 			node_tree(sink const& out, bool tag_lights)
-			    : out_{out}
-			    , tag_lights_{tag_lights}
-			    , meshes(out.nodes().size())
+			    : meshes(out.nodes().size())
 			    , light_leaves(out.nodes().size())
-			    , own_lights(out.nodes().size()) {}
+			    , own_lights(out.nodes().size())
+			    , out_{out}
+			    , tag_lights_{tag_lights} {}
 
 			aiNode* to_ai() {
 				auto const& nodes = out_.nodes();
@@ -315,7 +317,9 @@ namespace pyxel::io {
 					mesh->mNormals[next_vertex] = ai_normal;
 					dst.mIndices[corner] = next_vertex++;
 				}
-				mesh->mPrimitiveTypes |= corners->size() == 3 ? aiPrimitiveType_TRIANGLE : aiPrimitiveType_POLYGON;
+				// aiPrimitiveType is a plain enum, which would be promoted to int
+				mesh->mPrimitiveTypes |=
+				    std::to_underlying(corners->size() == 3 ? aiPrimitiveType_TRIANGLE : aiPrimitiveType_POLYGON);
 			}
 			return mesh;
 		}
