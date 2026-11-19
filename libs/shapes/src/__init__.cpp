@@ -8,7 +8,11 @@
 
 namespace py = pybind11;
 
-PYBIND11_MODULE(shapes, m, py::mod_gil_not_used()) {
+// The module keeps global state (the libraries, the scopes of the sinks)
+// without locks, and relies on the GIL to serialize the calls; a free-threaded
+// interpreter turns the GIL on, when importing it, unless the build opts in
+// with DOLLHOUSE_FREE_THREADED (see libs/shapes/CMakeLists.txt).
+PYBIND11_MODULE(shapes, m, py::mod_gil_not_used(SHAPES_FREE_THREADED != 0)) {
 	m.doc() = "Python bindings for building 3D models from scripts";
 	m.attr("__version__") = pyxel::version::ui;
 

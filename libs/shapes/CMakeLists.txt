@@ -58,6 +58,16 @@ endforeach()
 
 target_compile_options(shapes PRIVATE ${DOLLHOUSE_ADDITIONAL_COMPILE_FLAGS})
 target_link_options(shapes PUBLIC ${DOLLHOUSE_ADDITIONAL_LINK_FLAGS})
+
+# Without the declaration, a free-threaded interpreter turns the GIL on, when
+# importing the module; the module keeps global state without locks, so it
+# can be declared GIL-free only for experiments with the free-threaded builds
+if (DOLLHOUSE_FREE_THREADED)
+    message(WARNING "The shapes module is declared safe to run without the GIL, which it is not yet")
+    target_compile_definitions(shapes PRIVATE SHAPES_FREE_THREADED=1)
+else()
+    target_compile_definitions(shapes PRIVATE SHAPES_FREE_THREADED=0)
+endif()
 target_include_directories(shapes
     PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include
     PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src
