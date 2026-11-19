@@ -4,6 +4,7 @@
 #include <algorithm>
 #include <format>
 #include <memory>
+#include <pyxel/base/str.hpp>
 #include <pyxel/io/export.hpp>
 #include <shapes/library.hpp>
 #include <stdexcept>
@@ -33,7 +34,7 @@ namespace shapes {
 			// on POSIX "\\" is a regular character, which lexically_normal()
 			// leaves alone; both separators must mean the same everywhere
 			std::ranges::replace(filename, '\\', '/');
-			auto const path = std::filesystem::path{std::u8string{filename.begin(), filename.end()}}.lexically_normal();
+			auto const path = std::filesystem::path{pyxel::as_u8v(filename)}.lexically_normal();
 			// the last element always ends with ".{extension}", so it is never
 			// removed by lexically_normal() and the path is never empty or "."
 			if (path.has_root_path() || *path.begin() == "..") {

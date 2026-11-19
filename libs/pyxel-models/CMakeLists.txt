@@ -4,6 +4,7 @@
 configure_file(src/version.hpp.in include/pyxel/version.hpp @ONLY)
 
 set(SRCS
+    include/pyxel/base/str.hpp
     include/pyxel/math.hpp
     include/pyxel/math/aabb.hpp
     include/pyxel/math/format.hpp
@@ -31,6 +32,7 @@ set(SRCS
     include/pyxel/rng/spinner.hpp
     include/pyxel/rng/xoshiro.hpp
 
+    src/base/str.cpp
     src/math/newell_normal.cpp
     src/math/value.cpp
     src/gfx/basic_solids.cpp
@@ -89,6 +91,7 @@ set_target_properties(pyxel-models PROPERTIES
 # #################################################################
 if(DOLLHOUSE_TESTING)
     set(TEST_SRCS
+        tests/base/str.test.cpp
         tests/gfx/basic_solids.test.cpp
         tests/gfx/csg.test.cpp
         tests/gfx/format.test.cpp

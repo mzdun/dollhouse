@@ -5,6 +5,7 @@
 #include <filesystem>
 #include <format>
 #include <iostream>
+#include <pyxel/base/str.hpp>
 #include <pyxel/version.hpp>
 #include <shapes/__main__/main.hpp>
 #include <shapes/glue/glue.hpp>
@@ -53,8 +54,7 @@ namespace shapes::__main__ {
 		auto const sys = py::module_::import("sys");
 		auto const input_dir =
 		    cfg.input.empty() ? std::filesystem::current_path() : std::filesystem::absolute(cfg.input);
-		auto const input_utf8 = input_dir.u8string();
-		sys.attr("path").attr("insert")(0, py::str{std::string{input_utf8.begin(), input_utf8.end()}});
+		sys.attr("path").attr("insert")(0, py::str{pyxel::as_str(input_dir.u8string())});
 
 		// mkdir -p; an empty path is the current directory, which exists
 		auto const outdir =
@@ -63,9 +63,8 @@ namespace shapes::__main__ {
 		std::filesystem::create_directories(outdir, ec);
 		if (ec) {
 			auto const outdir_utf8 = outdir.u8string();
-			std::cerr << std::format(
-			    "python -m shapes: error: cannot create output directory `{}`: {}\n",
-			    std::string_view{reinterpret_cast<char const*>(outdir_utf8.data()), outdir_utf8.size()}, ec.message());
+			std::cerr << std::format("python -m shapes: error: cannot create output directory `{}`: {}\n",
+			                         pyxel::as_sv(outdir_utf8), pyxel::message_u8(ec));
 			return 1;
 		}
 

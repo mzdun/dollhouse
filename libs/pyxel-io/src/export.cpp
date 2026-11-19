@@ -12,6 +12,7 @@
 #include <map>
 #include <memory>
 #include <optional>
+#include <pyxel/base/str.hpp>
 #include <pyxel/io/export.hpp>
 #include <set>
 #include <stdexcept>
@@ -517,10 +518,13 @@ namespace pyxel::io {
 
 		// the meshes come with flat normals already (see make_mesh); the
 		// n-gons are split into triangles, which keep the normals
-		auto const result = exporter.Export(scene.get(), actual_format, path.string(), aiProcess_Triangulate);
+		// Assimp takes the path as UTF-8 (on Windows, it converts it to
+		// UTF-16); path::string() would use the ANSI code page there
+		auto const path_u8 = as_str(path.u8string());
+		auto const result = exporter.Export(scene.get(), actual_format, path_u8, aiProcess_Triangulate);
 		if (result != aiReturn_SUCCESS) {
 			throw std::runtime_error(
-			    std::format("cannot export `{}` to {}: {}", name, path.string(), exporter.GetErrorString()));
+			    std::format("cannot export `{}` to {}: {}", name, path_u8, exporter.GetErrorString()));
 		}
 	}
 }  // namespace pyxel::io
