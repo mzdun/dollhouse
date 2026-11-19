@@ -45,9 +45,9 @@ namespace pyxel::gfx {
 		struct area_t {
 			area_shape shape{area_shape::square};
 			// side of a square / rectangle, or diameter of a disk / ellipse
-			length width{math::metres_f{1}};
+			length width{math::meters_f{1}};
 			// used by rectangles and ellipses only
-			length height{math::metres_f{1}};
+			length height{math::meters_f{1}};
 			// full angle of the emission, centered on the light's direction (-z);
 			// 180° covers the whole front half-space, smaller angles focus
 			// the light

@@ -21,7 +21,7 @@ namespace pyxel::gfx::testing {
 		constexpr auto nan = std::numeric_limits<double>::quiet_NaN();
 		constexpr auto inf = std::numeric_limits<double>::infinity();
 
-		length metres(double value) { return length{value}; }
+		length meters(double value) { return length{value}; }
 
 		glm::dmat4 with(double value) {
 			glm::dmat4 matrix{1.0};
@@ -36,9 +36,9 @@ namespace pyxel::gfx::testing {
 		for (auto const bad : {nan, inf, -inf}) {
 			solid obj{};
 			obj.add_vert(1_cm, 0_cm, 0_cm);
-			EXPECT_THROW(obj.add_vert(metres(bad), 0_cm, 0_cm), std::invalid_argument) << bad;
-			EXPECT_THROW(obj.add_vert(0_cm, metres(bad), 0_cm), std::invalid_argument) << bad;
-			EXPECT_THROW(obj.add_vert(0_cm, 0_cm, metres(bad)), std::invalid_argument) << bad;
+			EXPECT_THROW(obj.add_vert(meters(bad), 0_cm, 0_cm), std::invalid_argument) << bad;
+			EXPECT_THROW(obj.add_vert(0_cm, meters(bad), 0_cm), std::invalid_argument) << bad;
+			EXPECT_THROW(obj.add_vert(0_cm, 0_cm, meters(bad)), std::invalid_argument) << bad;
 			EXPECT_EQ(obj.vertices().size(), 1u) << bad;
 		}
 	}
@@ -48,14 +48,14 @@ namespace pyxel::gfx::testing {
 		// got the index of an existing vertex
 		solid obj{};
 		auto const first = obj.add_vert(1_cm, 0_cm, 0_cm);
-		EXPECT_THROW(obj.add_vert(metres(nan), 0_cm, 0_cm), std::invalid_argument);
+		EXPECT_THROW(obj.add_vert(meters(nan), 0_cm, 0_cm), std::invalid_argument);
 		auto const second = obj.add_vert(2_cm, 0_cm, 0_cm);
 		EXPECT_EQ(first, 0u);
 		EXPECT_EQ(second, 1u);
 	}
 
 	TEST(gfx_finite, constructor_rejects_nan) {
-		std::vector<offset> vertices{{}, {.x = metres(nan)}, {.y = 1_cm}};
+		std::vector<offset> vertices{{}, {.x = meters(nan)}, {.y = 1_cm}};
 		EXPECT_THROW((solid{vertices, {{0, 1, 2}}}), std::invalid_argument);
 	}
 
@@ -68,20 +68,20 @@ namespace pyxel::gfx::testing {
 	// ---- basic solids --------------------------------------------------------
 
 	TEST(gfx_finite, cube_rejects_nan_and_inf) {
-		EXPECT_THROW(solid::cube(metres(inf), 1_cm, 1_cm), std::invalid_argument);
-		EXPECT_THROW(solid::cube(1_cm, metres(nan), 1_cm), std::invalid_argument);
-		EXPECT_THROW(solid::cube(1_cm, 1_cm, metres(-inf)), std::invalid_argument);
+		EXPECT_THROW(solid::cube(meters(inf), 1_cm, 1_cm), std::invalid_argument);
+		EXPECT_THROW(solid::cube(1_cm, meters(nan), 1_cm), std::invalid_argument);
+		EXPECT_THROW(solid::cube(1_cm, 1_cm, meters(-inf)), std::invalid_argument);
 	}
 
 	TEST(gfx_finite, messages_name_the_problem) {
 		try {
-			solid::cube(metres(inf), 1_cm, 1_cm);
+			solid::cube(meters(inf), 1_cm, 1_cm);
 			FAIL() << "no exception";
 		} catch (std::invalid_argument const& err) {
 			EXPECT_STREQ(err.what(), "cube: the width must be finite");
 		}
 		try {
-			solid::cube(metres(nan), 1_cm, 1_cm);
+			solid::cube(meters(nan), 1_cm, 1_cm);
 			FAIL() << "no exception";
 		} catch (std::invalid_argument const& err) {
 			EXPECT_STREQ(err.what(), "cube: the width must be larger than zero");
@@ -89,29 +89,29 @@ namespace pyxel::gfx::testing {
 	}
 
 	TEST(gfx_finite, round_shapes_reject_nan_and_inf) {
-		EXPECT_THROW(solid::prism(1_cm, metres(inf), 8), std::invalid_argument);
-		EXPECT_THROW(solid::pyramid(metres(nan), 1_cm, 8), std::invalid_argument);
-		EXPECT_THROW(solid::sphere(metres(inf), 8), std::invalid_argument);
-		EXPECT_THROW(solid::oval_sphere(1_cm, metres(nan), std::nullopt, 8), std::invalid_argument);
+		EXPECT_THROW(solid::prism(1_cm, meters(inf), 8), std::invalid_argument);
+		EXPECT_THROW(solid::pyramid(meters(nan), 1_cm, 8), std::invalid_argument);
+		EXPECT_THROW(solid::sphere(meters(inf), 8), std::invalid_argument);
+		EXPECT_THROW(solid::oval_sphere(1_cm, meters(nan), std::nullopt, 8), std::invalid_argument);
 	}
 
 	TEST(gfx_finite, rounding_radius_rejects_nan_and_inf) {
 		// `radius < 0` let NaN through
-		EXPECT_THROW(solid::rounded_cube(1_cm, 1_cm, 1_cm, metres(nan), 2), std::invalid_argument);
-		EXPECT_THROW(solid::rounded_cube(1_cm, 1_cm, 1_cm, metres(inf), 2), std::invalid_argument);
-		EXPECT_THROW(solid::oval_rounded_cube(1_cm, 1_cm, 1_cm, 1_mm, metres(nan), std::nullopt, 2),
+		EXPECT_THROW(solid::rounded_cube(1_cm, 1_cm, 1_cm, meters(nan), 2), std::invalid_argument);
+		EXPECT_THROW(solid::rounded_cube(1_cm, 1_cm, 1_cm, meters(inf), 2), std::invalid_argument);
+		EXPECT_THROW(solid::oval_rounded_cube(1_cm, 1_cm, 1_cm, 1_mm, meters(nan), std::nullopt, 2),
 		             std::invalid_argument);
-		EXPECT_THROW(solid::oval_rounded_cube(1_cm, 1_cm, 1_cm, 1_mm, std::nullopt, metres(inf), 2),
+		EXPECT_THROW(solid::oval_rounded_cube(1_cm, 1_cm, 1_cm, 1_mm, std::nullopt, meters(inf), 2),
 		             std::invalid_argument);
 	}
 
 	TEST(gfx_finite, revolve_rejects_nan_and_inf) {
 		for (auto const bad : {nan, inf}) {
 			std::array<solid::profile_point, 4> const across{
-			    {{0_cm, 0_cm}, {metres(bad), 0_cm}, {1_cm, 1_cm}, {0_cm, 1_cm}}};
+			    {{0_cm, 0_cm}, {meters(bad), 0_cm}, {1_cm, 1_cm}, {0_cm, 1_cm}}};
 			EXPECT_THROW(solid::revolve(across, 8), std::invalid_argument) << bad;
 			std::array<solid::profile_point, 4> const along{
-			    {{0_cm, 0_cm}, {1_cm, metres(bad)}, {1_cm, 1_cm}, {0_cm, 1_cm}}};
+			    {{0_cm, 0_cm}, {1_cm, meters(bad)}, {1_cm, 1_cm}, {0_cm, 1_cm}}};
 			EXPECT_THROW(solid::revolve(along, 8), std::invalid_argument) << bad;
 		}
 	}
@@ -151,7 +151,7 @@ namespace pyxel::gfx::testing {
 	TEST(gfx_finite, sink_rejects_overflow) {
 		// finite matrix, finite vertices, infinite product: 10 m * 1e308
 		sink out{};
-		auto const cube = solid::cube(metres(10), metres(10), metres(10));
+		auto const cube = solid::cube(meters(10), meters(10), meters(10));
 		EXPECT_THROW(out.add_solid(cube, scale(identity_matrix, 1e308)), std::invalid_argument);
 		EXPECT_TRUE(out.at(sink::root).meshes.empty());
 	}

@@ -43,7 +43,7 @@ namespace shapes::glue {
 		        "profile encloses no area.")
 
 		    // basic solids; the boxes start at the origin, the prism and the
-		    // pyramid have it in the middle of the base, the sphere in the centre
+		    // pyramid have it in the middle of the base, the sphere in the center
 		    .def_static("cube", &solid::cube, "width"_a, "height"_a, "depth"_a,
 		                "Box of the given width (x), height (y) and depth (z), from (0, 0, 0) to (width, height, "
 		                "depth). Raises ValueError for sizes not larger than zero.")
@@ -60,13 +60,13 @@ namespace shapes::glue {
 		        "plane, with the origin in the middle of its base. Raises ValueError for sizes not larger than "
 		        "zero, or for less than 3 sides.")
 		    .def_static("sphere", &solid::sphere, "radius"_a, "longitudes"_a = 32,
-		                "UV sphere going from y = -radius to y = radius, centred on the origin, with `longitudes` "
+		                "UV sphere going from y = -radius to y = radius, centered on the origin, with `longitudes` "
 		                "meridians and half as many bands of latitude. Raises ValueError for a radius not larger than "
 		                "zero, or for less than 4 longitudes.")
 		    .def_static(
 		        "oval_sphere", &solid::oval_sphere, "rx"_a, "ry"_a = py::none(), "rz"_a = py::none(),
 		        "longitudes"_a = 32,
-		        "Sphere stretched along the axes, with the radii `rx`, `ry` and `rz`, centred on the origin; "
+		        "Sphere stretched along the axes, with the radii `rx`, `ry` and `rz`, centered on the origin; "
 		        "the missing radii are equal to `rx`. Same meridians and latitudes as `sphere`. Raises ValueError "
 		        "for radii not larger than zero, or for less than 4 longitudes.")
 		    .def_static(

@@ -134,8 +134,8 @@ namespace shapes::glue {
 			         return light_area{.shape = shape, .width = width, .height = height, .spread = spread};
 		         }),
 		         py::arg_v("shape", area_shape::square, "area_shape.square"),
-		         py::arg_v("width", length{pyxel::math::metres_f{1}}, "cm(100)"),
-		         py::arg_v("height", length{pyxel::math::metres_f{1}}, "cm(100)"),
+		         py::arg_v("width", length{pyxel::math::meters_f{1}}, "cm(100)"),
+		         py::arg_v("height", length{pyxel::math::meters_f{1}}, "cm(100)"),
 		         py::arg_v("spread", pyxel::gfx::deg(180), "deg(180)"))
 		    .def_readwrite("shape", &light_area::shape)
 		    .def_readwrite("width", &light_area::width, "Side of a square or rectangle, diameter of a disk or ellipse.")

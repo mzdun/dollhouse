@@ -17,7 +17,7 @@ namespace shapes::glue {
 	struct measure_names {
 		char const* name;
 		char const* doc;
-		char const* base_unit;  // for the docstring of `value`, e.g. "square metres"
+		char const* base_unit;  // for the docstring of `value`, e.g. "square meters"
 		char const* cm_arg;     // keyword argument and suffix of `to_...`, e.g. "cm2"
 		char const* mm_arg;
 		char const* cm_symbol;  // for __str__, e.g. "cm²"

@@ -25,7 +25,7 @@
 // - `name`, `color` and `intensity` (in candela), as in KHR_lights_punctual
 // - `shape`: "rectangle" or "ellipse"; squares and disks are written as
 //   rectangles and ellipses of equal sides
-// - `width` and `height`, in metres: the size of the emitting surface (for
+// - `width` and `height`, in meters: the size of the emitting surface (for
 //   ellipses, the diameters) along the local x and y; it faces -z
 // - `spread`: the full angle of the emission around -z, in radians, up to pi
 //   (the whole front half-space)

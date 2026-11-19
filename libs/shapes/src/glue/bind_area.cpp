@@ -16,7 +16,7 @@ namespace shapes::glue {
 		    m, {
 		           .name = "area",
 		           .doc = "Area in the model space; e.g. `area(cm2=1.5)`, or a product of two lengths.",
-		           .base_unit = "square metres",
+		           .base_unit = "square meters",
 		           .cm_arg = "cm2",
 		           .mm_arg = "mm2",
 		           .cm_symbol = "cm²",

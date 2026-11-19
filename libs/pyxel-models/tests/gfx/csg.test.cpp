@@ -72,7 +72,7 @@ namespace pyxel::gfx::testing {
 		return result;
 	}
 
-	constexpr double litre = 1e-3;  // m^3, a 10 cm cube
+	constexpr double liter = 1e-3;  // m^3, a 10 cm cube
 	constexpr double tolerance = 1e-12;
 
 	// two 10 cm cubes, the second moved by 5 cm along x, so they share half
@@ -81,14 +81,14 @@ namespace pyxel::gfx::testing {
 	solid const B = cube_at(offset::at_x(5_cm), 10_cm);
 
 	TEST(gfx_csg, box_helper_is_outward) {
-		EXPECT_NEAR(volume_of(A), litre, tolerance);
-		EXPECT_NEAR(volume_of(B), litre, tolerance);
+		EXPECT_NEAR(volume_of(A), liter, tolerance);
+		EXPECT_NEAR(volume_of(B), liter, tolerance);
 	}
 
 	TEST(gfx_csg, unite_overlapping) {
 		auto const result = unite(A, B);
 		ASSERT_TRUE(result.is_valid());
-		EXPECT_NEAR(volume_of(result), 1.5 * litre, tolerance);
+		EXPECT_NEAR(volume_of(result), 1.5 * liter, tolerance);
 		EXPECT_TRUE(near(min_of(result), offset{}));
 		EXPECT_TRUE(near(max_of(result), offset{15_cm, 10_cm, 10_cm}));
 	}
@@ -96,7 +96,7 @@ namespace pyxel::gfx::testing {
 	TEST(gfx_csg, intersect_overlapping) {
 		auto const result = intersect(A, B);
 		ASSERT_TRUE(result.is_valid());
-		EXPECT_NEAR(volume_of(result), .5 * litre, tolerance);
+		EXPECT_NEAR(volume_of(result), .5 * liter, tolerance);
 		EXPECT_TRUE(near(min_of(result), offset::at_x(5_cm)));
 		EXPECT_TRUE(near(max_of(result), offset{10_cm, 10_cm, 10_cm}));
 	}
@@ -104,12 +104,12 @@ namespace pyxel::gfx::testing {
 	TEST(gfx_csg, subtract_overlapping) {
 		auto const result = subtract(A, B);
 		ASSERT_TRUE(result.is_valid());
-		EXPECT_NEAR(volume_of(result), .5 * litre, tolerance);
+		EXPECT_NEAR(volume_of(result), .5 * liter, tolerance);
 		EXPECT_TRUE(near(min_of(result), offset{}));
 		EXPECT_TRUE(near(max_of(result), offset{5_cm, 10_cm, 10_cm}));
 
 		auto const other_way = subtract(B, A);
-		EXPECT_NEAR(volume_of(other_way), .5 * litre, tolerance);
+		EXPECT_NEAR(volume_of(other_way), .5 * liter, tolerance);
 		EXPECT_TRUE(near(min_of(other_way), offset::at_x(10_cm)));
 		EXPECT_TRUE(near(max_of(other_way), offset{15_cm, 10_cm, 10_cm}));
 	}
@@ -117,7 +117,7 @@ namespace pyxel::gfx::testing {
 	TEST(gfx_csg, symmetric_difference_overlapping) {
 		auto const result = symmetric_difference(A, B);
 		ASSERT_TRUE(result.is_valid());
-		EXPECT_NEAR(volume_of(result), litre, tolerance);
+		EXPECT_NEAR(volume_of(result), liter, tolerance);
 		EXPECT_TRUE(near(min_of(result), offset{}));
 		EXPECT_TRUE(near(max_of(result), offset{15_cm, 10_cm, 10_cm}));
 	}
@@ -143,47 +143,47 @@ namespace pyxel::gfx::testing {
 
 	TEST(gfx_csg, disjoint_solids) {
 		auto const far = cube_at(offset::at_x(1.0_m), 10_cm);
-		EXPECT_NEAR(volume_of(unite(A, far)), 2 * litre, tolerance);
+		EXPECT_NEAR(volume_of(unite(A, far)), 2 * liter, tolerance);
 		EXPECT_TRUE(intersect(A, far).faces().empty());
-		EXPECT_NEAR(volume_of(subtract(A, far)), litre, tolerance);
-		EXPECT_NEAR(volume_of(symmetric_difference(A, far)), 2 * litre, tolerance);
+		EXPECT_NEAR(volume_of(subtract(A, far)), liter, tolerance);
+		EXPECT_NEAR(volume_of(symmetric_difference(A, far)), 2 * liter, tolerance);
 	}
 
 	TEST(gfx_csg, nested_solids) {
 		// 20 cm cube with A in its corner, 5 cm inside on every axis
 		auto const outer = cube_at(offset{-5_cm, -5_cm, -5_cm}, 20_cm);
-		EXPECT_NEAR(volume_of(unite(outer, A)), 8 * litre, tolerance);
-		EXPECT_NEAR(volume_of(intersect(outer, A)), litre, tolerance);
+		EXPECT_NEAR(volume_of(unite(outer, A)), 8 * liter, tolerance);
+		EXPECT_NEAR(volume_of(intersect(outer, A)), liter, tolerance);
 		EXPECT_TRUE(subtract(A, outer).faces().empty());
 
 		// a hollow box: the cavity keeps its faces, now pointing inwards
 		auto const hollow = subtract(outer, A);
-		EXPECT_NEAR(volume_of(hollow), 7 * litre, tolerance);
-		EXPECT_NEAR(volume_of(symmetric_difference(outer, A)), 7 * litre, tolerance);
+		EXPECT_NEAR(volume_of(hollow), 7 * liter, tolerance);
+		EXPECT_NEAR(volume_of(symmetric_difference(outer, A)), 7 * liter, tolerance);
 	}
 
 	TEST(gfx_csg, solids_touching_at_a_face) {
 		auto const next = cube_at(offset::at_x(10_cm), 10_cm);
-		EXPECT_NEAR(volume_of(unite(A, next)), 2 * litre, tolerance);
+		EXPECT_NEAR(volume_of(unite(A, next)), 2 * liter, tolerance);
 		EXPECT_NEAR(std::abs(volume_of(intersect(A, next))), 0.0, tolerance);
-		EXPECT_NEAR(volume_of(subtract(A, next)), litre, tolerance);
+		EXPECT_NEAR(volume_of(subtract(A, next)), liter, tolerance);
 	}
 
 	TEST(gfx_csg, same_solid_twice) {
-		EXPECT_NEAR(volume_of(unite(A, A)), litre, tolerance);
-		EXPECT_NEAR(volume_of(intersect(A, A)), litre, tolerance);
+		EXPECT_NEAR(volume_of(unite(A, A)), liter, tolerance);
+		EXPECT_NEAR(volume_of(intersect(A, A)), liter, tolerance);
 		EXPECT_NEAR(std::abs(volume_of(subtract(A, A))), 0.0, tolerance);
 		EXPECT_NEAR(std::abs(volume_of(symmetric_difference(A, A))), 0.0, tolerance);
 	}
 
 	TEST(gfx_csg, empty_operands) {
 		solid const empty{};
-		EXPECT_NEAR(volume_of(unite(A, empty)), litre, tolerance);
-		EXPECT_NEAR(volume_of(unite(empty, A)), litre, tolerance);
+		EXPECT_NEAR(volume_of(unite(A, empty)), liter, tolerance);
+		EXPECT_NEAR(volume_of(unite(empty, A)), liter, tolerance);
 		EXPECT_TRUE(intersect(A, empty).faces().empty());
-		EXPECT_NEAR(volume_of(subtract(A, empty)), litre, tolerance);
+		EXPECT_NEAR(volume_of(subtract(A, empty)), liter, tolerance);
 		EXPECT_TRUE(subtract(empty, A).faces().empty());
-		EXPECT_NEAR(volume_of(symmetric_difference(empty, A)), litre, tolerance);
+		EXPECT_NEAR(volume_of(symmetric_difference(empty, A)), liter, tolerance);
 	}
 
 	TEST(gfx_csg, broken_faces_are_ignored) {
@@ -191,7 +191,7 @@ namespace pyxel::gfx::testing {
 		broken.add_face(std::vector<size_t>{0, 1});       // too short
 		broken.add_face(std::vector<size_t>{0, 1, 100});  // index past the last vertex
 		broken.add_face(std::vector<size_t>{0, 0, 0});    // no area
-		EXPECT_NEAR(volume_of(unite(broken, B)), 1.5 * litre, tolerance);
+		EXPECT_NEAR(volume_of(unite(broken, B)), 1.5 * liter, tolerance);
 	}
 
 	// ---- cleanup ---------------------------------------------------------
@@ -208,11 +208,11 @@ namespace pyxel::gfx::testing {
 		auto const result = cleanup(A);
 		EXPECT_EQ(result.vertices().size(), 8u);
 		EXPECT_EQ(result.faces().size(), 6u);
-		EXPECT_NEAR(volume_of(result), litre, tolerance);
+		EXPECT_NEAR(volume_of(result), liter, tolerance);
 	}
 
 	TEST(gfx_csg_cleanup, corner_overlap) {
-		// two 1 m cubes, the second moved by half a metre along every axis
+		// two 1 m cubes, the second moved by half a meter along every axis
 		auto const lhs = cube_at(offset{}, 1_m);
 		auto const rhs = cube_at(offset{50_cm, 50_cm, 50_cm}, 1_m);
 		auto const raw = unite(lhs, rhs);
@@ -253,7 +253,7 @@ namespace pyxel::gfx::testing {
 		auto const raw = subtract(slab, hole);
 		auto const result = cleanup(raw);
 		ASSERT_TRUE(result.is_valid());
-		EXPECT_NEAR(volume_of(result), 8 * litre, tolerance);
+		EXPECT_NEAR(volume_of(result), 8 * liter, tolerance);
 		// the outer and the hole's sides are merged, the holed top and
 		// bottom are not; nothing is left in the middle of a straight edge
 		EXPECT_LE(result.faces().size(), raw.faces().size());
@@ -276,7 +276,7 @@ namespace pyxel::gfx::testing {
 		auto const notched = subtract(bar, box(offset{10_cm, 5_cm, -1_cm}, offset{20_cm, 11_cm, 11_cm}));
 		auto const result = cleanup(notched);
 		ASSERT_TRUE(result.is_valid());
-		EXPECT_NEAR(volume_of(result), 2.5 * litre, tolerance);
+		EXPECT_NEAR(volume_of(result), 2.5 * liter, tolerance);
 		// a U-shaped prism: two U faces, and 8 rectangles around them
 		EXPECT_EQ(result.faces().size(), 10u);
 		EXPECT_EQ(result.vertices().size(), 16u);

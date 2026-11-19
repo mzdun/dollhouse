@@ -160,7 +160,7 @@ class TestLightArea:
         assert area.surface().value == pytest.approx(1.0)
 
     @pytest.mark.parametrize(
-        "shape, square_metres",
+        "shape, square_meters",
         [
             (shapes.area_shape.square, 4.0),
             (shapes.area_shape.rectangle, 6.0),
@@ -168,9 +168,9 @@ class TestLightArea:
             (shapes.area_shape.ellipse, 1.5 * math.pi),
         ],
     )
-    def test_surface(self, shape, square_metres):
+    def test_surface(self, shape, square_meters):
         area = shapes.light_area(shape=shape, width=cm(200), height=cm(300))
-        assert area.surface().value == pytest.approx(square_metres)
+        assert area.surface().value == pytest.approx(square_meters)
 
     def test_nested_properties_modify_the_light(self):
         lamp = shapes.light(type=shapes.light_type.area)

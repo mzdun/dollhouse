@@ -14,7 +14,7 @@
 
 namespace pyxel::gfx {
 	namespace {
-		// in metres; the same as the plane tolerance of the operations
+		// in meters; the same as the plane tolerance of the operations
 		constexpr double tolerance = 1e-7;
 		// for unit normals; ~0.01 degree
 		constexpr double normal_tolerance = 1e-4;
@@ -47,7 +47,7 @@ namespace pyxel::gfx {
 			return plane{normal / length, glm::dot(normal / length, points[face[0]])};
 		}
 
-		// drops repeated neighbours, including the last and the first
+		// drops repeated neighbors, including the last and the first
 		void drop_repeats(face_t& face) {
 			face.erase(std::unique(face.begin(), face.end()), face.end());
 			while (face.size() > 1 && face.front() == face.back())

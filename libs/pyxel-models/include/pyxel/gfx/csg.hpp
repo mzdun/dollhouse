@@ -15,7 +15,7 @@
 //
 // The results satisfy the same conditions, but faces of the operands may be
 // split into several smaller ones, and new vertices may lie on edges of
-// neighbouring faces (T-junctions). An empty result is a solid with no
+// neighboring faces (T-junctions). An empty result is a solid with no
 // faces.
 namespace pyxel::gfx {
 	// A | B: everything inside A, or B, or both
@@ -36,7 +36,7 @@ namespace pyxel::gfx {
 	// - vertices closer than 0.1 um are merged,
 	// - T-junctions are removed, by adding the vertices lying on an edge to
 	//   the faces along that edge,
-	// - neighbouring faces lying in the same plane are merged into one,
+	// - neighboring faces lying in the same plane are merged into one,
 	//   unless the merged face would have a hole,
 	// - vertices in the middle of a straight edge are removed, unless they
 	//   are a corner of another face.

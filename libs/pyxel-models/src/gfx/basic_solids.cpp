@@ -24,7 +24,7 @@ namespace pyxel::gfx {
 			if (!std::isfinite(value.count())) throw std::invalid_argument(std::format("{} must be finite", what));
 		}
 
-		// adds the face with its points; repeated neighbours are merged, and
+		// adds the face with its points; repeated neighbors are merged, and
 		// faces left with less than three vertices are dropped
 		void add_points(solid& result, std::vector<offset> const& points) {
 			std::vector<size_t> face{};
@@ -146,7 +146,7 @@ namespace pyxel::gfx {
 		auto const r_z = std::min(radius_z, length{depth / 2});
 		if (!(r_x > length{}) && !(r_y > length{}) && !(r_z > length{})) return cube(width, height, depth);
 
-		// centres of the corner ellipsoids, relative to the centre of the box
+		// centers of the corner ellipsoids, relative to the center of the box
 		auto const inner_x = length{width / 2} - r_x;
 		auto const inner_y = length{height / 2} - r_y;
 		auto const inner_z = length{depth / 2} - r_z;
@@ -157,7 +157,7 @@ namespace pyxel::gfx {
 		// rows from the south pole to the north one, the equator twice
 		struct row {
 			double angle;
-			length centre_y;
+			length center_y;
 		};
 		std::vector<row> rows{};
 		for (int hemisphere = 0; hemisphere < 2; ++hemisphere) {
@@ -171,19 +171,19 @@ namespace pyxel::gfx {
 		// axes twice
 		struct column {
 			double angle;
-			length centre_x;
-			length centre_z;
+			length center_x;
+			length center_z;
 		};
 		std::vector<column> columns{};
 		for (int quadrant = 0; quadrant < 4; ++quadrant) {
-			auto const centre_x = quadrant == 0 || quadrant == 3 ? inner_x : -inner_x;
-			auto const centre_z = quadrant < 2 ? inner_z : -inner_z;
+			auto const center_x = quadrant == 0 || quadrant == 3 ? inner_x : -inner_x;
+			auto const center_z = quadrant < 2 ? inner_z : -inner_z;
 			for (size_t step = 0; step <= segments; ++step)
-				columns.push_back({quarter * (quadrant + static_cast<double>(step) / steps), centre_x, centre_z});
+				columns.push_back({quarter * (quadrant + static_cast<double>(step) / steps), center_x, center_z});
 		}
 
 		// the minimal corner is at the origin
-		offset const centre{length{width / 2}, length{height / 2}, length{depth / 2}};
+		offset const center{length{width / 2}, length{height / 2}, length{depth / 2}};
 		auto const point = [&](row const& lat, column const& lon) {
 			// exact zeros at the poles and on the axes keep the cut faces flat
 			auto const at_pole = std::abs(std::abs(lat.angle) - quarter) < 1e-12;
@@ -207,9 +207,9 @@ namespace pyxel::gfx {
 				return std::pair{std::cos(angle), std::sin(angle)};
 			};
 			auto const [cos_lon, sin_lon] = along(lon.angle);
-			return offset{length{centre.x + lon.centre_x + r_x * (cos_lat * cos_lon)},
-			              length{centre.y + lat.centre_y + r_y * sin_lat},
-			              length{centre.z + lon.centre_z + r_z * (cos_lat * sin_lon)}};
+			return offset{length{center.x + lon.center_x + r_x * (cos_lat * cos_lon)},
+			              length{center.y + lat.center_y + r_y * sin_lat},
+			              length{center.z + lon.center_z + r_z * (cos_lat * sin_lon)}};
 		};
 
 		solid result{};

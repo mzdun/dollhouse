@@ -16,7 +16,7 @@ namespace pyxel::math::testing {
 	concept mul_assignable = requires(Lhs lhs, Rhs rhs) { lhs *= rhs; };  // NOLINT(readability/braces)
 
 	TEST(math_value, integer_literals_are_exact_lengths) {
-		static_assert(std::is_same_v<decltype(1_m), metres>);
+		static_assert(std::is_same_v<decltype(1_m), meters>);
 		static_assert(std::is_same_v<decltype(1_dm), decimeters>);
 		static_assert(std::is_same_v<decltype(1_cm), centimeters>);
 		static_assert(std::is_same_v<decltype(1_mm), millimeters>);
@@ -26,9 +26,9 @@ namespace pyxel::math::testing {
 	}
 
 	TEST(math_value, floating_literals_are_double_lengths) {
-		static_assert(std::is_same_v<decltype(1.5_m), metres_f>);
+		static_assert(std::is_same_v<decltype(1.5_m), meters_f>);
 		static_assert(std::is_same_v<decltype(1.5_mm), millimeters_f>);
-		static_assert(std::is_same_v<metres_f::storage, double>);
+		static_assert(std::is_same_v<meters_f::storage, double>);
 		EXPECT_DOUBLE_EQ((1.5_m).count(), 1.5);
 		EXPECT_DOUBLE_EQ((0.1_mm).count(), 0.1);
 	}
@@ -41,12 +41,12 @@ namespace pyxel::math::testing {
 
 	TEST(math_value, default_is_zero) {
 		EXPECT_EQ(micrometers{}.count(), 0);
-		EXPECT_EQ(metres_f{}.count(), 0.0);
+		EXPECT_EQ(meters_f{}.count(), 0.0);
 	}
 
 	TEST(math_value, constructs_from_zero) {
 		EXPECT_EQ(millimeters{0}.count(), 0);
-		EXPECT_EQ(metres_f{0}.count(), 0.0);
+		EXPECT_EQ(meters_f{0}.count(), 0.0);
 	}
 
 	TEST(math_value, integral_storage_rejects_floating_count) {
@@ -58,9 +58,9 @@ namespace pyxel::math::testing {
 
 	TEST(math_value, lossless_conversions_are_implicit) {
 		static_assert(std::is_convertible_v<millimeters, micrometers>);
-		static_assert(std::is_convertible_v<metres, nanometers>);
+		static_assert(std::is_convertible_v<meters, nanometers>);
 		static_assert(std::is_convertible_v<micrometers, millimeters_f>);
-		static_assert(std::is_convertible_v<metres_f, millimeters_f>);
+		static_assert(std::is_convertible_v<meters_f, millimeters_f>);
 
 		micrometers const um = 1_mm;
 		EXPECT_EQ(um.count(), 1'000);
@@ -72,7 +72,7 @@ namespace pyxel::math::testing {
 	TEST(math_value, lossy_conversions_are_explicit) {
 		static_assert(!std::is_convertible_v<micrometers, millimeters>);
 		static_assert(!std::is_convertible_v<millimeters_f, millimeters>);
-		static_assert(!std::is_convertible_v<metres_f, micrometers>);
+		static_assert(!std::is_convertible_v<meters_f, micrometers>);
 		static_assert(std::is_constructible_v<millimeters, micrometers>);
 	}
 
@@ -92,9 +92,9 @@ namespace pyxel::math::testing {
 	}
 
 	TEST(math_value, value_cast_to_double_keeps_fraction) {
-		EXPECT_DOUBLE_EQ(value_cast<metres_f>(1'500_mm).count(), 1.5);
-		EXPECT_DOUBLE_EQ(value_cast<metres_f>(25_cm).count(), 0.25);
-		EXPECT_EQ(value_cast<micrometers>(metres_f{0.5}).count(), 500'000);
+		EXPECT_DOUBLE_EQ(value_cast<meters_f>(1'500_mm).count(), 1.5);
+		EXPECT_DOUBLE_EQ(value_cast<meters_f>(25_cm).count(), 0.25);
+		EXPECT_EQ(value_cast<micrometers>(meters_f{0.5}).count(), 500'000);
 	}
 
 	TEST(math_value, compares_across_units) {
@@ -162,7 +162,7 @@ namespace pyxel::math::testing {
 		static_assert(std::is_same_v<decltype(scaled), millimeters_f const>);
 		EXPECT_DOUBLE_EQ(scaled.count(), 4.5);
 		EXPECT_DOUBLE_EQ((7_mm / 2.0).count(), 3.5);
-		EXPECT_DOUBLE_EQ((metres_f{3.0} / 2).count(), 1.5);
+		EXPECT_DOUBLE_EQ((meters_f{3.0} / 2).count(), 1.5);
 		static_assert(!std::is_convertible_v<decltype(3_mm * 1.5), millimeters>);
 	}
 
@@ -184,7 +184,7 @@ namespace pyxel::math::testing {
 		EXPECT_EQ(math::abs(-3_mm), 3_mm);
 		EXPECT_EQ((-3_mm).abs(), 3_mm);
 		EXPECT_EQ((3_mm).abs(), 3_mm);
-		EXPECT_DOUBLE_EQ(metres_f{-1.5}.abs().count(), 1.5);
+		EXPECT_DOUBLE_EQ(meters_f{-1.5}.abs().count(), 1.5);
 	}
 
 	TEST(math_value, length_times_length_is_area) {

@@ -19,9 +19,9 @@ namespace shapes::glue {
 		auto cls =
 		    py::class_<length>(m, "length", "Distance in the model space; create one with `cm(...)` or `mm(...)`.")
 		        .def(py::init<>(), "Zero length.")
-		        .def_property_readonly("value", &length::count, "The length, in metres.")
-		        .def("to_cm", &to_cm, "The length, in centimetres.")
-		        .def("to_mm", &to_mm, "The length, in millimetres.")
+		        .def_property_readonly("value", &length::count, "The length, in meters.")
+		        .def("to_cm", &to_cm, "The length, in centimeters.")
+		        .def("to_mm", &to_mm, "The length, in millimeters.")
 
 		        .def(-py::self)
 		        .def("__hash__", [](length const& self) { return py::hash(py::float_(self.count())); })
@@ -41,9 +41,9 @@ namespace shapes::glue {
 
 		m.def(
 		    "cm", [](double value) { return length{pyxel::math::centimeters_f{finite(value, "cm: the value")}}; },
-		    "value"_a, "Length of `value` centimetres.");
+		    "value"_a, "Length of `value` centimeters.");
 		m.def(
 		    "mm", [](double value) { return length{pyxel::math::millimeters_f{finite(value, "mm: the value")}}; },
-		    "value"_a, "Length of `value` millimetres.");
+		    "value"_a, "Length of `value` millimeters.");
 	}
 }  // namespace shapes::glue
