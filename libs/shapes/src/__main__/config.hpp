@@ -10,15 +10,21 @@
 namespace shapes::__main__ {
 #define SHAPES_HAS_WATCH 0
 
+	// a script to run: its file and the name it is known by, e.g.
+	// `chair` for `chair.model.py`
+	struct script {
+		std::filesystem::path path{};
+		std::string name{};
+	};
+
 	struct config {
-		std::vector<std::string> modules{};
+		std::vector<script> scripts{};
 		std::filesystem::path input{};
 		std::filesystem::path outdir{};
 		std::string exporter_id{};
 #if SHAPES_HAS_WATCH
 		bool watch{false};
 #endif  // SHAPES_HAS_WATCH
-		bool modules_in_args{false};
 		int return_code{-1};
 
 		static config from(std::vector<std::string>& args);
