@@ -7,6 +7,8 @@
 
 #include <algorithm>
 #include <cmath>
+#include <iterator>
+#include <limits>
 #include <memory>
 #include <optional>
 #include <pyxel/gfx/csg.hpp>
@@ -122,77 +124,141 @@ namespace pyxel::gfx {
 			}
 		}
 
+		// The tree is walked with explicit stacks, never recursively: the faces
+		// of a convex solid all lie behind each other's planes, so its tree is
+		// a chain as deep as the solid has faces, whichever face divides, and
+		// a recursive walk would overflow the call stack for dense solids.
 		class node {
 		public:
 			explicit node(polygons list = {}) { build(std::move(list)); }
 
-			// swaps inside and outside
-			void invert() {
-				for (auto& poly : polygons_)
-					poly.flip();
-				if (divider_) divider_->flip();
-				if (front_) front_->invert();
-				if (back_) back_->invert();
-				std::swap(front_, back_);
+			node(node const&) = delete;
+			node& operator=(node const&) = delete;
+			node(node&&) = delete;
+			node& operator=(node&&) = delete;
+
+			// the children are taken over first, so destroying one does not recurse
+			~node() {
+				std::vector<std::unique_ptr<node>> pending{};
+				take_children(pending);
+				while (!pending.empty()) {
+					auto child = std::move(pending.back());
+					pending.pop_back();
+					child->take_children(pending);
+				}
 			}
 
-			// removes the parts of the polygons, which are inside this tree
+			// swaps inside and outside
+			void invert() {
+				std::vector<node*> pending{this};
+				while (!pending.empty()) {
+					auto* current = pending.back();
+					pending.pop_back();
+
+					for (auto& poly : current->polygons_)
+						poly.flip();
+					if (current->divider_) current->divider_->flip();
+					std::swap(current->front_, current->back_);
+					current->push_children(pending);
+				}
+			}
+
+			// removes the parts of the polygons, which are inside this tree; the
+			// pieces kept in front of a divider come before the ones behind it
 			polygons clip_polygons(polygons list) const {
 				if (!divider_) return list;
 
-				polygons in_front{};
-				polygons in_back{};
-				for (auto const& poly : list)
-					split(*divider_, poly, in_front, in_back, in_front, in_back);
+				polygons result{};
+				// LIFO: the front half is pushed last, to be clipped first
+				std::vector<std::pair<node const*, polygons>> pending{};
+				pending.emplace_back(this, std::move(list));
+				while (!pending.empty()) {
+					auto [current, items] = std::move(pending.back());
+					pending.pop_back();
 
-				if (front_) in_front = front_->clip_polygons(std::move(in_front));
-				if (back_)
-					in_back = back_->clip_polygons(std::move(in_back));
-				else
-					in_back.clear();
+					polygons in_front{};
+					polygons in_back{};
+					for (auto const& poly : items)
+						split(*current->divider_, poly, in_front, in_back, in_front, in_back);
 
-				in_front.insert(in_front.end(), std::make_move_iterator(in_back.begin()),
-				                std::make_move_iterator(in_back.end()));
-				return in_front;
+					// with no back, the pieces behind the divider are inside
+					if (current->back_ && !in_back.empty())
+						pending.emplace_back(current->back_.get(), std::move(in_back));
+
+					if (current->front_) {
+						if (!in_front.empty()) pending.emplace_back(current->front_.get(), std::move(in_front));
+					} else {
+						result.insert(result.end(), std::make_move_iterator(in_front.begin()),
+						              std::make_move_iterator(in_front.end()));
+					}
+				}
+				return result;
 			}
 
 			// removes the parts of this tree's polygons, which are inside the other tree
 			void clip_to(node const& other) {
-				polygons_ = other.clip_polygons(std::move(polygons_));
-				if (front_) front_->clip_to(other);
-				if (back_) back_->clip_to(other);
+				std::vector<node*> pending{this};
+				while (!pending.empty()) {
+					auto* current = pending.back();
+					pending.pop_back();
+
+					current->polygons_ = other.clip_polygons(std::move(current->polygons_));
+					current->push_children(pending);
+				}
 			}
 
+			// the polygons of a node come before the ones in front of it, then
+			// the ones behind it
 			polygons all_polygons() const {
 				polygons result{};
-				collect(result);
+				std::vector<node const*> pending{this};
+				while (!pending.empty()) {
+					auto const* current = pending.back();
+					pending.pop_back();
+
+					result.insert(result.end(), current->polygons_.begin(), current->polygons_.end());
+					if (current->back_) pending.push_back(current->back_.get());
+					if (current->front_) pending.push_back(current->front_.get());
+				}
 				return result;
 			}
 
 			void build(polygons list) {
-				if (list.empty()) return;
-				if (!divider_) divider_ = list.front().surface;
+				std::vector<std::pair<node*, polygons>> pending{};
+				pending.emplace_back(this, std::move(list));
+				while (!pending.empty()) {
+					auto [current, items] = std::move(pending.back());
+					pending.pop_back();
 
-				polygons in_front{};
-				polygons in_back{};
-				for (auto const& poly : list)
-					split(*divider_, poly, polygons_, polygons_, in_front, in_back);
+					if (items.empty()) continue;
+					if (!current->divider_) current->divider_ = items.front().surface;
 
-				if (!in_front.empty()) {
-					if (!front_) front_ = std::make_unique<node>();
-					front_->build(std::move(in_front));
-				}
-				if (!in_back.empty()) {
-					if (!back_) back_ = std::make_unique<node>();
-					back_->build(std::move(in_back));
+					polygons in_front{};
+					polygons in_back{};
+					for (auto const& poly : items)
+						split(*current->divider_, poly, current->polygons_, current->polygons_, in_front, in_back);
+
+					if (!in_front.empty()) {
+						if (!current->front_) current->front_ = std::make_unique<node>();
+						pending.emplace_back(current->front_.get(), std::move(in_front));
+					}
+					if (!in_back.empty()) {
+						if (!current->back_) current->back_ = std::make_unique<node>();
+						pending.emplace_back(current->back_.get(), std::move(in_back));
+					}
 				}
 			}
 
 		private:
-			void collect(polygons& result) const {
-				result.insert(result.end(), polygons_.begin(), polygons_.end());
-				if (front_) front_->collect(result);
-				if (back_) back_->collect(result);
+			template <typename Node>
+			void push_children(std::vector<Node*>& pending) const {
+				if (front_) pending.push_back(front_.get());
+				if (back_) pending.push_back(back_.get());
+			}
+
+			void take_children(std::vector<std::unique_ptr<node>>& pending) {
+				if (front_) pending.push_back(std::move(front_));
+				if (back_) pending.push_back(std::move(back_));
 			}
 
 			std::optional<plane> divider_{};
@@ -204,13 +270,13 @@ namespace pyxel::gfx {
 		polygons to_polygons(solid const& obj) {
 			auto const& vertices = obj.vertices();
 
+			auto const past_the_end = [&](size_t index) { return index >= vertices.size(); };
+
 			polygons result{};
 			result.reserve(obj.faces().size());
 			for (auto const& face : obj.faces()) {
 				if (face.size() < 3) continue;
-				if (std::ranges::any_of(face, [&](size_t index) { return index >= vertices.size(); })) {
-					continue;
-				}
+				if (std::ranges::any_of(face, past_the_end)) continue;
 
 				std::vector<glm::dvec3> points{};
 				points.reserve(face.size());
@@ -238,6 +304,41 @@ namespace pyxel::gfx {
 			return result;
 		}
 
+		struct bounds {
+			glm::dvec3 min{std::numeric_limits<double>::infinity()};
+			glm::dvec3 max{-std::numeric_limits<double>::infinity()};
+
+			static bounds of(polygons const& list) {
+				bounds result{};
+				for (auto const& poly : list) {
+					for (auto const& vertex : poly.vertices) {
+						result.min = glm::min(result.min, vertex);
+						result.max = glm::max(result.max, vertex);
+					}
+				}
+				return result;
+			}
+
+			// the boxes are apart by more than the plane tolerance on at least
+			// one axis; boxes, which only touch, are not apart, so the faces
+			// they share still go through the trees
+			bool is_apart_from(bounds const& other) const noexcept {
+				for (glm::length_t axis = 0; axis < 3; ++axis) {
+					if (max[axis] + plane_tolerance < other.min[axis]) return true;
+					if (other.max[axis] + plane_tolerance < min[axis]) return true;
+				}
+				return false;
+			}
+		};
+
+		// Solids with bounding boxes apart cannot clip each other, so their
+		// polygons skip the trees: A | B is both lists, A - B is A, A & B is
+		// empty. Besides saving the work, the polygons are not cut along the
+		// planes of the other solid for nothing.
+		bool are_apart(polygons const& lhs, polygons const& rhs) {
+			return bounds::of(lhs).is_apart_from(bounds::of(rhs));
+		}
+
 		// An empty tree has no plane to clip with, so it would keep every
 		// polygon, even inverted, when it should stand for all of the space;
 		// hence empty operands are handled before any tree is built.
@@ -245,6 +346,10 @@ namespace pyxel::gfx {
 		polygons unite(polygons lhs, polygons rhs) {
 			if (lhs.empty()) return rhs;
 			if (rhs.empty()) return lhs;
+			if (are_apart(lhs, rhs)) {
+				lhs.insert(lhs.end(), std::make_move_iterator(rhs.begin()), std::make_move_iterator(rhs.end()));
+				return lhs;
+			}
 
 			node a{std::move(lhs)};
 			node b{std::move(rhs)};
@@ -258,7 +363,7 @@ namespace pyxel::gfx {
 		}
 
 		polygons subtract(polygons lhs, polygons rhs) {
-			if (lhs.empty() || rhs.empty()) return lhs;
+			if (lhs.empty() || rhs.empty() || are_apart(lhs, rhs)) return lhs;
 
 			node a{std::move(lhs)};
 			node b{std::move(rhs)};
@@ -274,7 +379,7 @@ namespace pyxel::gfx {
 		}
 
 		polygons intersect(polygons lhs, polygons rhs) {
-			if (lhs.empty() || rhs.empty()) return {};
+			if (lhs.empty() || rhs.empty() || are_apart(lhs, rhs)) return {};
 
 			node a{std::move(lhs)};
 			node b{std::move(rhs)};
