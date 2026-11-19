@@ -8,6 +8,7 @@
 #include <shapes/library.hpp>
 #include <stdexcept>
 #include <string>
+#include <string_view>
 #include <utility>
 #include <vector>
 
@@ -23,6 +24,22 @@ namespace shapes {
 			auto const& formats = export_formats();
 			auto const it = std::ranges::find(formats, id, &export_format::id);
 			return it == formats.end() ? nullptr : &*it;
+		}
+
+		// path of the model file, relative to the output directory; both "/"
+		// and "\\" separate the subdirectories, but the path must stay inside
+		std::filesystem::path model_file(std::string_view name, std::string_view extension) {
+			auto filename = std::format("{}.{}", name, extension);
+			// on POSIX "\\" is a regular character, which lexically_normal()
+			// leaves alone; both separators must mean the same everywhere
+			std::ranges::replace(filename, '\\', '/');
+			auto const path = std::filesystem::path{std::u8string{filename.begin(), filename.end()}}.lexically_normal();
+			// the last element always ends with ".{extension}", so it is never
+			// removed by lexically_normal() and the path is never empty or "."
+			if (path.has_root_path() || *path.begin() == "..") {
+				throw std::invalid_argument(std::format("model `{}`: the name leaves the output directory", name));
+			}
+			return path;
 		}
 
 		std::string default_exporter() {
@@ -60,6 +77,8 @@ namespace shapes {
 	}
 
 	bool library::add_model(std::string name, model_fn fn) {
+		// exceptional early exit on output directory escape
+		(void)model_file(name, "ext");
 		return models_.try_emplace(std::move(name), model_entry{.fn = std::move(fn)}).second;
 	}
 
@@ -92,8 +111,8 @@ namespace shapes {
 
 	std::filesystem::path library::export_model(built_model const& model) const {
 		auto const* format = find_format(model.exporter);
-		auto path = output_directory_ / std::format("{}.{}", model.name, format->extension);
-		std::filesystem::create_directories(output_directory_);
+		auto path = output_directory_ / model_file(model.name, format->extension);
+		std::filesystem::create_directories(path.parent_path());
 
 		pyxel::gfx::sink out{};
 		model.root.output(out, glm::dmat4{1});
