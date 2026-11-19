@@ -127,6 +127,8 @@ def _describe_variant(variant: dict | None) -> str:
     result = str(variant.get("build_type", "?"))
     if variant.get("sanitizer"):
         result += " with sanitizers"
+    if variant.get("free_threaded"):
+        result += " (free-threaded)"
     commit = variant.get("commit")
     if commit:
         result += f" @ {str(commit)[:9]}"
@@ -141,9 +143,19 @@ def _report_replaced_variant(rt: env.Runtime, old_path: Path, new_path: Path):
         return
     old = _read_variant(old_path)
     new = _read_variant(new_path)
-    keys = ["build_type", "sanitizer", "commit", "dirty"]
+    # files written before a key was added lack it; read as its default
+    keys = {
+        "build_type": None,
+        "sanitizer": None,
+        "free_threaded": False,
+        "commit": None,
+        "dirty": None,
+    }
     if old is not None and new is not None:
-        if all(old.get(key) == new.get(key) for key in keys):
+        if all(
+            old.get(key, default) == new.get(key, default)
+            for key, default in keys.items()
+        ):
             return
     rt.message(
         f"replacing {_describe_variant(old)} with {_describe_variant(new)}",
