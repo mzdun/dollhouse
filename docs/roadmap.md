@@ -154,3 +154,8 @@ Driven by measurements, not done up front.
 ## Any time
 
 - [ ] Bundle `shapes` binaries for Python 3.12, 3.13, 3.14 and possibly 3.15 into one archive, once `shapes` has users other than its author
+- [ ] Evaluate corefinement libraries (Manifold, CGAL, mcut) to replace the quadratic BSP in solid operations
+  - [ ] Speed on dense solids
+  - [ ] Licence compatible with MIT
+  - [ ] Bit-identical results across builds
+  - [ ] Available in Conan

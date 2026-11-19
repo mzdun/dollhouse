@@ -4,9 +4,24 @@
 #include <gtest/gtest.h>
 #include <algorithm>
 #include <cmath>
+#include <exception>
+#include <functional>
 #include <pyxel/gfx.hpp>
 #include <pyxel/gfx/csg.hpp>
 #include <pyxel/math/glm.hpp>
+#include <vector>
+
+#ifdef _WIN32
+#ifndef WIN32_LEAN_AND_MEAN
+#define WIN32_LEAN_AND_MEAN
+#endif
+#ifndef NOMINMAX
+#define NOMINMAX
+#endif
+#include <windows.h>
+#else
+#include <pthread.h>
+#endif
 
 namespace pyxel::gfx::testing {
 	using namespace math::literals;
@@ -112,6 +127,18 @@ namespace pyxel::gfx::testing {
 		[[maybe_unused]] auto const result = subtract(A, B);
 		EXPECT_EQ(A.vertices(), copy.vertices());
 		EXPECT_EQ(A.faces(), copy.faces());
+	}
+
+	TEST(gfx_csg, disjoint_solids_are_not_cut) {
+		// apart on Z, but the top of `low` (y = 10 cm) crosses the sides of
+		// `high`; going through the trees, the sides would be cut in two (the
+		// Z planes come last in the tree of a box, so the cut comes first)
+		auto const low = cube_at(offset{}, 10_cm);
+		auto const high = cube_at(offset{0_m, 5_cm, 1_m}, 10_cm);
+		EXPECT_EQ(unite(low, high).faces().size(), 12u);
+		EXPECT_EQ(subtract(low, high).faces().size(), 6u);
+		EXPECT_EQ(subtract(high, low).faces().size(), 6u);
+		EXPECT_EQ(symmetric_difference(low, high).faces().size(), 12u);
 	}
 
 	TEST(gfx_csg, disjoint_solids) {
@@ -259,5 +286,76 @@ namespace pyxel::gfx::testing {
 		auto const result = cleanup(solid{});
 		EXPECT_TRUE(result.vertices().empty());
 		EXPECT_TRUE(result.faces().empty());
+	}
+
+	// ---- deep trees ------------------------------------------------------------
+
+	namespace {
+		// runs the function on a new thread with the given stack size; an
+		// exception thrown by it is rethrown here; a stack overflow crashes
+		void run_on_stack(size_t stack_size, std::function<void()> const& fn) {
+			struct call {
+				std::function<void()> const& fn;
+				std::exception_ptr error{};
+
+				void run() noexcept {
+					try {
+						fn();
+					} catch (...) {
+						error = std::current_exception();
+					}
+				}
+			} context{fn};
+
+#ifdef _WIN32
+			auto const thread = CreateThread(
+			    nullptr, stack_size,
+			    [](void* arg) -> DWORD {
+				    static_cast<call*>(arg)->run();
+				    return 0;
+			    },
+			    &context, STACK_SIZE_PARAM_IS_A_RESERVATION, nullptr);
+			ASSERT_NE(thread, nullptr);
+			WaitForSingleObject(thread, INFINITE);
+			CloseHandle(thread);
+#else
+			pthread_attr_t attr{};
+			ASSERT_EQ(pthread_attr_init(&attr), 0);
+			ASSERT_EQ(pthread_attr_setstacksize(&attr, stack_size), 0);
+			pthread_t thread{};
+			auto const created = pthread_create(
+			    &thread, &attr,
+			    [](void* arg) -> void* {
+				    static_cast<call*>(arg)->run();
+				    return nullptr;
+			    },
+			    &context);
+			pthread_attr_destroy(&attr);
+			ASSERT_EQ(created, 0);
+			pthread_join(thread, nullptr);
+#endif
+			if (context.error) std::rethrow_exception(context.error);
+		}
+
+		// a convex solid makes a BSP tree as deep as it has faces; with the
+		// recursive tree walks, 300 sides overflowed a 64 KiB stack
+		constexpr size_t deep_sides = 300;
+		constexpr size_t small_stack = 64 * 1024;
+	}  // namespace
+
+	TEST(gfx_csg_deep, convex_solid_on_a_small_stack) {
+		auto const dense = solid::prism(10_cm, 10_cm, deep_sides);
+		// half in, half out of the top of the prism, so the bounding boxes
+		// overlap and every operation goes through the trees
+		auto const cap = cube_at(offset::at_y(9.5_cm), 1_cm);
+		auto const dense_volume = volume_of(dense);
+		auto const half = 0.5e-6;
+
+		run_on_stack(small_stack, [&] {
+			EXPECT_NEAR(volume_of(unite(dense, cap)), dense_volume + half, 1e-9);
+			EXPECT_NEAR(volume_of(subtract(dense, cap)), dense_volume - half, 1e-9);
+			EXPECT_NEAR(volume_of(intersect(dense, cap)), half, 1e-9);
+			EXPECT_NEAR(volume_of(symmetric_difference(dense, cap)), dense_volume, 1e-9);
+		});
 	}
 }  // namespace pyxel::gfx::testing
