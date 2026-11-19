@@ -85,32 +85,6 @@ def _remove_stubs(rt: env.Runtime, root: Path, module: str):
             stub.unlink()
 
 
-def _copy_binary(rt: env.Runtime, dst: Path, so: Path):
-    if so.is_symlink():
-        real_so = (so.parent / so.readlink()).absolute()
-        real_so_name = real_so.name
-        result = rt.cp(str(real_so), str(dst / real_so_name))
-        if result:
-            return result
-
-        so_name = so.name
-        link_path = dst / so_name
-        rt.print("ln", "-s", real_so_name, str(link_path))
-        if rt.dry_run:
-            return 0
-
-        try:
-            link_path.unlink(missing_ok=True)
-            link_path.symlink_to(real_so_name)
-        except Exception as e:
-            rt.message("Error when linking:", repr(e), level=env.Msg.ALWAYS)
-            return 1
-
-        return 0
-
-    return rt.cp(str(so), str(dst))
-
-
 @step.register
 class DynModulesInstallStep:
     """
@@ -147,7 +121,7 @@ class DynModulesInstallStep:
                 result = rt.mkdirs(str(dst_dir))
                 if result:
                     return result
-                result = _copy_binary(rt, dst_dir, bin_dir / dll)
+                result = rt.cp(str(bin_dir / dll), str(dst_dir))
                 if result:
                     return result
 
