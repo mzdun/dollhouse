@@ -1,0 +1,660 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://raw.githubusercontent.com/mzdun/dollhouse/main/schemas/house.schema.json",
+  "title": "Dollhouse project file",
+  "description": "A single file of a dollhouse project, version 1. A project may be split into several files joined with `include`, so no section is required in a single file. See docs/plans-schema.md.",
+  "type": "object",
+  "properties": {
+    "$schema": {
+      "type": "string",
+      "description": "URI of this JSON Schema."
+    },
+    "version": {
+      "const": 1,
+      "default": 1,
+      "description": "Version of the format. Required in at least one file of the project, preferably the root file; optional in the others."
+    },
+    "title": {
+      "type": "string",
+      "description": "Title of the model."
+    },
+    "north": {
+      "type": "number",
+      "default": -90,
+      "description": "Direction of north on the plan, in degrees; -90 is up on the screen."
+    },
+    "defaults": { "$ref": "#/$defs/defaults" },
+    "include": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/path" },
+      "description": "Other files of the project, relative to the directory of this file."
+    },
+    "walls": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/wall" }
+    },
+    "rooms": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/room" }
+    },
+    "materials": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/material" }
+    },
+    "models": {
+      "type": "object",
+      "propertyNames": { "$ref": "#/$defs/name" },
+      "additionalProperties": { "$ref": "#/$defs/path" },
+      "description": "Map from model names to model files, relative to the directory of this file."
+    },
+    "nodes": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/topLevelNode" }
+    },
+    "cameras": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/camera" },
+      "description": "Saved points of view; the first one is the starting view."
+    },
+    "sky-box": { "$ref": "#/$defs/skyBox" }
+  },
+  "additionalProperties": false,
+
+  "$defs": {
+    "name": {
+      "type": "string",
+      "minLength": 1
+    },
+    "nodeName": {
+      "type": "string",
+      "pattern": "^[^/]+$",
+      "description": "Name of a node or an opening; it contains no slash."
+    },
+    "path": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^(?![/\\\\])(?![A-Za-z][A-Za-z0-9+.-]*:)",
+      "description": "Relative path, with `/` or `\\` as separators; not absolute and not a URL."
+    },
+    "centimeters": {
+      "type": "number",
+      "description": "Distance in centimeters."
+    },
+    "positiveCentimeters": {
+      "type": "number",
+      "exclusiveMinimum": 0,
+      "description": "Distance in centimeters, larger than zero."
+    },
+    "point": {
+      "type": "array",
+      "prefixItems": [
+        { "$ref": "#/$defs/centimeters" },
+        { "$ref": "#/$defs/centimeters" }
+      ],
+      "minItems": 2,
+      "maxItems": 2,
+      "description": "[<x>, <y>] on the plan, in centimeters."
+    },
+    "size": {
+      "type": "array",
+      "prefixItems": [
+        { "$ref": "#/$defs/positiveCentimeters" },
+        { "$ref": "#/$defs/positiveCentimeters" }
+      ],
+      "minItems": 2,
+      "maxItems": 2,
+      "description": "[<width>, <height>] in centimeters."
+    },
+    "side": {
+      "enum": ["left", "right"]
+    },
+    "unitInterval": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1
+    },
+    "color": {
+      "oneOf": [
+        {
+          "type": "string",
+          "pattern": "^#[0-9a-fA-F]{6}$"
+        },
+        {
+          "type": "array",
+          "items": { "type": "integer", "minimum": 0, "maximum": 255 },
+          "minItems": 3,
+          "maxItems": 3
+        }
+      ],
+      "description": "sRGB color, as \"#rrggbb\" or [<r>, <g>, <b>]."
+    },
+
+    "defaults": {
+      "type": "object",
+      "properties": {
+        "wall-width": {
+          "$ref": "#/$defs/positiveCentimeters",
+          "description": "Width of a wall that does not set its own. Required in the project, though not necessarily in this file."
+        },
+        "wall-height": {
+          "$ref": "#/$defs/positiveCentimeters",
+          "description": "Height of a wall that does not set its own, and the height of the ceiling. Required in the project, though not necessarily in this file."
+        },
+        "materials": {
+          "type": "object",
+          "properties": {
+            "floor": { "$ref": "#/$defs/name" },
+            "walls": { "$ref": "#/$defs/name" },
+            "ceiling": { "$ref": "#/$defs/name" }
+          },
+          "additionalProperties": false,
+          "description": "Materials of the faces that no room or override sets."
+        },
+        "plinth": { "$ref": "#/$defs/strip" },
+        "molding": { "$ref": "#/$defs/strip" }
+      },
+      "additionalProperties": false
+    },
+
+    "wallOrigin": {
+      "oneOf": [
+        { "$ref": "#/$defs/point" },
+        {
+          "type": "object",
+          "properties": {
+            "from": {
+              "$ref": "#/$defs/name",
+              "description": "Name of the referenced wall."
+            },
+            "side": {
+              "$ref": "#/$defs/side",
+              "description": "Side of the referenced wall; inferred from the directions when missing."
+            },
+            "offset": {
+              "$ref": "#/$defs/centimeters",
+              "default": 0,
+              "description": "Distance along the referenced wall from the visible start of `side`."
+            }
+          },
+          "required": ["from"],
+          "additionalProperties": false
+        }
+      ]
+    },
+
+    "wall": {
+      "type": "object",
+      "properties": {
+        "name": { "$ref": "#/$defs/name" },
+        "origin": { "$ref": "#/$defs/wallOrigin" },
+        "direction": {
+          "oneOf": [
+            { "type": "number" },
+            { "$ref": "#/$defs/side" }
+          ],
+          "description": "Angle in degrees, clockwise from the X axis, or `left`/`right` of the referenced wall."
+        },
+        "length": { "$ref": "#/$defs/positiveCentimeters" },
+        "measurement": {
+          "enum": ["inner", "left", "right"],
+          "default": "inner"
+        },
+        "width": { "$ref": "#/$defs/positiveCentimeters" },
+        "height": { "$ref": "#/$defs/positiveCentimeters" },
+        "elevation": {
+          "type": "number",
+          "minimum": 0,
+          "default": 0
+        },
+        "invisible": {
+          "type": "boolean",
+          "default": false
+        },
+        "openings": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opening" }
+        }
+      },
+      "required": ["origin", "direction", "length"],
+      "additionalProperties": false,
+      "allOf": [
+        {
+          "if": {
+            "properties": { "direction": { "type": "string" } },
+            "required": ["direction"]
+          },
+          "then": {
+            "properties": { "origin": { "type": "object" } }
+          }
+        },
+        {
+          "if": {
+            "properties": { "invisible": { "const": true } },
+            "required": ["invisible"]
+          },
+          "then": {
+            "properties": {
+              "width": false,
+              "height": false,
+              "elevation": false,
+              "openings": false
+            }
+          }
+        }
+      ]
+    },
+
+    "opening": {
+      "type": "object",
+      "properties": {
+        "name": { "$ref": "#/$defs/nodeName" },
+        "offset": { "$ref": "#/$defs/centimeters" },
+        "measured-side": {
+          "$ref": "#/$defs/side",
+          "default": "right"
+        },
+        "size": { "$ref": "#/$defs/size" },
+        "elevation": {
+          "type": "number",
+          "minimum": 0,
+          "default": 0
+        },
+        "model": { "$ref": "#/$defs/name" },
+        "side": {
+          "$ref": "#/$defs/side",
+          "default": "right"
+        },
+        "opens": {
+          "enum": ["to-left", "to-right"],
+          "default": "to-left"
+        },
+        "state": { "$ref": "#/$defs/name" },
+        "wires": { "$ref": "#/$defs/wires" }
+      },
+      "required": ["offset", "size"],
+      "additionalProperties": false
+    },
+
+    "profilePoint": {
+      "type": "array",
+      "prefixItems": [
+        { "type": "number", "minimum": 0, "description": "Distance from the wall." },
+        { "type": "number", "minimum": 0, "description": "Distance from the floor (plinth) or the ceiling (molding)." }
+      ],
+      "minItems": 2,
+      "maxItems": 2
+    },
+
+    "strip": {
+      "oneOf": [
+        { "const": "none" },
+        {
+          "type": "object",
+          "properties": {
+            "profile": {
+              "oneOf": [
+                {
+                  "type": "array",
+                  "prefixItems": [
+                    { "$ref": "#/$defs/positiveCentimeters", "description": "Depth." },
+                    { "$ref": "#/$defs/positiveCentimeters", "description": "Height." }
+                  ],
+                  "minItems": 2,
+                  "maxItems": 2
+                },
+                {
+                  "type": "array",
+                  "items": { "$ref": "#/$defs/profilePoint" },
+                  "minItems": 1
+                }
+              ]
+            },
+            "material": { "$ref": "#/$defs/name" }
+          },
+          "required": ["profile"],
+          "additionalProperties": false
+        }
+      ],
+      "description": "Plinth or molding, or `none`."
+    },
+
+    "faceOverride": {
+      "type": "object",
+      "properties": {
+        "material": { "$ref": "#/$defs/name" },
+        "plinth": { "$ref": "#/$defs/strip" },
+        "molding": { "$ref": "#/$defs/strip" }
+      },
+      "additionalProperties": false
+    },
+
+    "room": {
+      "type": "object",
+      "properties": {
+        "name": { "$ref": "#/$defs/name" },
+        "touches": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/name" },
+          "minItems": 1
+        },
+        "avoids": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/name" }
+        },
+        "materials": {
+          "type": "object",
+          "properties": {
+            "floor": { "$ref": "#/$defs/name" },
+            "walls": { "$ref": "#/$defs/name" },
+            "ceiling": { "$ref": "#/$defs/name" }
+          },
+          "additionalProperties": false,
+          "description": "Materials of the room's faces, by name."
+        },
+        "plinth": { "$ref": "#/$defs/strip" },
+        "molding": { "$ref": "#/$defs/strip" },
+        "faces": {
+          "type": "object",
+          "propertyNames": { "$ref": "#/$defs/name" },
+          "additionalProperties": { "$ref": "#/$defs/faceOverride" },
+          "description": "Overrides of single faces, by wall name."
+        }
+      },
+      "required": ["touches"],
+      "additionalProperties": false
+    },
+
+    "material": {
+      "type": "object",
+      "properties": {
+        "name": { "$ref": "#/$defs/name" },
+        "type": { "enum": ["paint", "tiles"] }
+      },
+      "required": ["name", "type"],
+      "oneOf": [
+        { "$ref": "#/$defs/paint" },
+        { "$ref": "#/$defs/tiles" }
+      ]
+    },
+
+    "paint": {
+      "type": "object",
+      "properties": {
+        "name": { "$ref": "#/$defs/name" },
+        "type": { "const": "paint" },
+        "color": { "$ref": "#/$defs/color" },
+        "alpha": { "$ref": "#/$defs/unitInterval", "default": 1 },
+        "roughness": { "$ref": "#/$defs/unitInterval", "default": 1 },
+        "metallic": { "$ref": "#/$defs/unitInterval", "default": 0 }
+      },
+      "required": ["name", "type", "color"],
+      "additionalProperties": false
+    },
+
+    "tiles": {
+      "type": "object",
+      "properties": {
+        "name": { "$ref": "#/$defs/name" },
+        "type": { "const": "tiles" },
+        "size": { "$ref": "#/$defs/size" },
+        "texture": { "$ref": "#/$defs/path" },
+        "bumps": { "$ref": "#/$defs/path" },
+        "roughness": { "$ref": "#/$defs/unitInterval", "default": 1 },
+        "metallic": { "$ref": "#/$defs/unitInterval", "default": 0 },
+        "offset.x": { "$ref": "#/$defs/centimeters" },
+        "offset.y": { "$ref": "#/$defs/centimeters" },
+        "grout": {
+          "type": "object",
+          "properties": {
+            "width": { "type": "number", "minimum": 0 },
+            "color": { "$ref": "#/$defs/color" },
+            "depth": { "type": "number", "minimum": 0, "default": 0.2 }
+          },
+          "required": ["width", "color"],
+          "additionalProperties": false
+        }
+      },
+      "required": ["name", "type", "size", "texture"],
+      "additionalProperties": false,
+      "not": { "required": ["offset.x", "offset.y"] }
+    },
+
+    "axes3": {
+      "type": "object",
+      "properties": {
+        "x": { "type": "number" },
+        "y": { "type": "number" },
+        "vert": { "type": "number" }
+      },
+      "minProperties": 1,
+      "additionalProperties": false
+    },
+
+    "transformOperation": {
+      "type": "object",
+      "minProperties": 1,
+      "maxProperties": 1,
+      "properties": {
+        "translate": {
+          "oneOf": [
+            { "$ref": "#/$defs/point" },
+            {
+              "type": "object",
+              "properties": {
+                "pos": { "$ref": "#/$defs/point" },
+                "vert": { "$ref": "#/$defs/centimeters" }
+              },
+              "minProperties": 1,
+              "additionalProperties": false
+            }
+          ]
+        },
+        "translate.x": { "$ref": "#/$defs/centimeters" },
+        "translate.y": { "$ref": "#/$defs/centimeters" },
+        "translate.vert": { "$ref": "#/$defs/centimeters" },
+        "rotate": { "$ref": "#/$defs/axes3" },
+        "rotate.x": { "type": "number" },
+        "rotate.y": { "type": "number" },
+        "rotate.vert": { "type": "number" },
+        "scale": {
+          "oneOf": [
+            { "type": "number" },
+            { "$ref": "#/$defs/axes3" },
+            {
+              "type": "array",
+              "items": { "type": "number" },
+              "minItems": 2,
+              "maxItems": 2
+            }
+          ]
+        },
+        "scale.x": { "type": "number" },
+        "scale.y": { "type": "number" },
+        "scale.vert": { "type": "number" }
+      },
+      "additionalProperties": false
+    },
+
+    "topLevelTransformOperation": {
+      "$ref": "#/$defs/transformOperation",
+      "description": "At the top level, the only rotation allowed is around the vertical axis, by a multiple of 90 degrees.",
+      "properties": {
+        "rotate": {
+          "properties": {
+            "x": false,
+            "y": false,
+            "vert": { "multipleOf": 90 }
+          }
+        },
+        "rotate.x": false,
+        "rotate.y": false,
+        "rotate.vert": { "multipleOf": 90 }
+      }
+    },
+
+    "wires": {
+      "type": "object",
+      "description": "Map from \"<object>.<slot>\" output slots to \"<node>/<object>.<slot>\" input slots; see the shorthands in the documentation.",
+      "propertyNames": {
+        "pattern": "^[^./]*(\\.[^./]+)?$",
+        "description": "\"<object>.<slot>\", \"<object>\", \".<slot>\" or \"\"; object and slot names contain no dot or slash."
+      },
+      "additionalProperties": {
+        "oneOf": [
+          { "$ref": "#/$defs/wireReference" },
+          {
+            "type": "array",
+            "items": { "$ref": "#/$defs/wireReference" },
+            "minItems": 1
+          }
+        ]
+      }
+    },
+
+    "wireReference": {
+      "type": "string",
+      "pattern": "^[^/]+(/([^./]+(\\.[^./]+)?|\\.[^./]+))?$",
+      "description": "\"<node>/<object>.<slot>\", \"<node>/<object>\", \"<node>/.<slot>\" or \"<node>\"."
+    },
+
+    "nodeBase": {
+      "type": "object",
+      "properties": {
+        "name": { "$ref": "#/$defs/nodeName" },
+        "transform": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/transformOperation" }
+        },
+        "children": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/childNode" }
+        },
+        "model": { "$ref": "#/$defs/name" },
+        "state": { "$ref": "#/$defs/name" },
+        "wires": { "$ref": "#/$defs/wires" }
+      }
+    },
+
+    "topLevelNode": {
+      "$ref": "#/$defs/nodeBase",
+      "properties": {
+        "room": { "$ref": "#/$defs/name" },
+        "transform": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/topLevelTransformOperation" }
+        },
+        "model": false,
+        "state": false,
+        "wires": false
+      },
+      "required": ["room"],
+      "unevaluatedProperties": false
+    },
+
+    "childNode": {
+      "$ref": "#/$defs/nodeBase",
+      "unevaluatedProperties": false
+    },
+
+    "camera": {
+      "type": "object",
+      "properties": {
+        "name": { "$ref": "#/$defs/name" },
+        "room": { "$ref": "#/$defs/name" },
+        "offset": { "$ref": "#/$defs/point" },
+        "elevation": {
+          "$ref": "#/$defs/centimeters",
+          "default": 160
+        },
+        "yaw": { "type": "number", "default": 0 },
+        "pitch": {
+          "type": "number",
+          "minimum": -90,
+          "maximum": 90,
+          "default": 0
+        },
+        "roll": { "type": "number", "default": 0 },
+        "fovy": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "exclusiveMaximum": 180,
+          "default": 60
+        }
+      },
+      "required": ["name", "offset"],
+      "additionalProperties": false
+    },
+
+    "compassPoint": {
+      "enum": [
+        "N", "NNE", "NE", "ENE",
+        "E", "ESE", "SE", "SSE",
+        "S", "SSW", "SW", "WSW",
+        "W", "WNW", "NW", "NNW"
+      ]
+    },
+
+    "sun": {
+      "type": "object",
+      "properties": {
+        "yaw": {
+          "oneOf": [
+            { "type": "number" },
+            { "$ref": "#/$defs/compassPoint" }
+          ],
+          "default": "SW",
+          "description": "Compass direction the sunlight comes from, in degrees clockwise from north, or a point of the compass rose."
+        },
+        "pitch": {
+          "type": "number",
+          "minimum": -90,
+          "maximum": 90,
+          "default": 45
+        },
+        "intensity": {
+          "type": "number",
+          "minimum": 0,
+          "default": 80000,
+          "description": "Illuminance of the direct sunlight, in lux."
+        },
+        "ambience": {
+          "type": "number",
+          "minimum": 0,
+          "default": 15000,
+          "description": "Illuminance of the ambient light on a horizontal surface, in lux."
+        }
+      },
+      "additionalProperties": false
+    },
+
+    "skyBox": {
+      "type": "object",
+      "properties": {
+        "cube": {
+          "type": "object",
+          "properties": {
+            "left": { "$ref": "#/$defs/path" },
+            "right": { "$ref": "#/$defs/path" },
+            "back": { "$ref": "#/$defs/path" },
+            "front": { "$ref": "#/$defs/path" },
+            "down": { "$ref": "#/$defs/path" },
+            "up": { "$ref": "#/$defs/path" }
+          },
+          "required": ["left", "right", "back", "front", "down", "up"],
+          "additionalProperties": false
+        },
+        "cross": { "$ref": "#/$defs/path" },
+        "panorama": { "$ref": "#/$defs/path" },
+        "hdri": { "$ref": "#/$defs/path" },
+        "sun": { "$ref": "#/$defs/sun" }
+      },
+      "oneOf": [
+        { "required": ["cube"] },
+        { "required": ["cross"] },
+        { "required": ["panorama"] },
+        { "required": ["hdri"] }
+      ],
+      "additionalProperties": false
+    }
+  }
+}
