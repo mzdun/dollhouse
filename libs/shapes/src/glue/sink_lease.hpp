@@ -4,7 +4,7 @@
 #pragma once
 
 #include <pybind11/pybind11.h>
-#include <cstddef>
+#include <cstdint>
 #include <pyxel/gfx/sink.hpp>
 
 namespace py = pybind11;
@@ -15,12 +15,17 @@ namespace shapes::glue {
 	//
 	// - the `sink.scope` contexts entered during the call, and still open,
 	//   are closed, so an object cannot leave its names and materials to the
-	//   objects output after it;
+	//   objects output after it; while the lease lasts, the scopes entered
+	//   during it can be exited only by it, not by the leases nested in it
+	//   (e.g. an `output` of a child, called by C++ for this one), nor by
+	//   the one it is nested in;
 	// - the Python wrapper of the sink is detached (see lifetime.hpp), unless
 	//   it existed before the lease, e.g. for an `output` called from
 	//   another `output`; a sink kept by Python raises ReferenceError then.
 	class sink_lease {
 	public:
+		using id_type = std::uint64_t;
+
 		explicit sink_lease(pyxel::gfx::sink& out);
 		~sink_lease();
 
@@ -31,8 +36,8 @@ namespace shapes::glue {
 
 	private:
 		pyxel::gfx::sink* out_;
-		std::size_t scope_depth_;
 		bool owns_wrapper_;
 		py::object py_sink_;
+		id_type previous_lease_;
 	};
 }  // namespace shapes::glue
