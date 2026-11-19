@@ -433,8 +433,8 @@ class TestSinkScope:
         """An `output` called by C++ for another one (here, through the base
         class) has a lease of its own: it can neither exit the scopes of its
         caller, nor leave its own ones open for it."""
-        errors = []
-        kept = {}
+        errors: list[str] = []
+        kept: dict[str, shapes.sink.scope_context] = {}
 
         class child(shapes.sized):
             def __init__(self):
