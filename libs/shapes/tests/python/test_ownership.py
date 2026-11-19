@@ -242,14 +242,6 @@ def test_reference_after_build(run_python: RunPython, access: str, message: str)
     assert_succeeded(proc, message)
 
 
-def test_exiting_a_stale_scope_is_harmless(run_python: RunPython):
-    proc = run_python(
-        ESCAPED.replace("ACCESS", "kept['scope'].__exit__(None, None, None)")
-        + "print('done')\n"
-    )
-    assert_succeeded(proc, "done")
-
-
 def test_group_is_gone_during_export(build_model: BuildModel):
     """Groups are lent to the model function only, not to the `output`
     calls made later, while the model is exported."""
@@ -419,6 +411,81 @@ class TestSinkScope:
             sink.add_solid(cube(), m)
 
         assert build_with_output(build_model, output) == {"outer/a/b": 12, "outer": 12}
+
+    def test_exit_without_enter(self, build_model: BuildModel):
+        def output(sink, m):
+            with pytest.raises(ValueError, match="not entered"):
+                sink.scope("a").__exit__(None, None, None)
+            sink.add_solid(cube(), m)
+
+        assert build_with_output(build_model, output) == {"outer": 12}
+
+    def test_exit_twice(self, build_model: BuildModel):
+        def output(sink, m):
+            with pytest.raises(ValueError, match="not entered"):
+                with sink.scope("a") as scope:
+                    scope.__exit__(None, None, None)
+            sink.add_solid(cube(), m)
+
+        assert build_with_output(build_model, output) == {"outer": 12}
+
+    def test_child_output_cannot_exit_callers_scope(self, build_model: BuildModel):
+        """An `output` called by C++ for another one (here, through the base
+        class) has a lease of its own: it can neither exit the scopes of its
+        caller, nor leave its own ones open for it."""
+        errors = []
+        kept = {}
+
+        class child(shapes.sized):
+            def __init__(self):
+                super().__init__(cm(1), cm(1), cm(1))
+
+            def output(self, sink, m):
+                try:
+                    kept["caller"].__exit__(None, None, None)
+                except ValueError as exc:
+                    errors.append(str(exc))
+                # never exited
+                # pylint: disable-next=unnecessary-dunder-call
+                sink.scope("child", "evil").__enter__()
+                sink.add_solid(cube(), m)
+
+        inner = child()
+
+        def output(sink, m):
+            with sink.scope("a", "red") as scope:
+                kept["caller"] = scope
+                shapes.sized.output(inner, sink, m)
+                sink.add_solid(cube(), m)
+            sink.add_solid(cube(), m)
+
+        meshes = build_with_output(build_model, output)
+        assert errors == [
+            "sink.scope_context: the scope can only be exited in the `output` "
+            "call, which entered it"
+        ]
+        assert meshes == {"outer/a/child": 12, "outer/a": 12, "outer": 12}
+
+    def test_scope_replaced_by_direct_call_fails_the_model(
+        self, build_model: BuildModel
+    ):
+        """A function called directly from an `output` shares its scopes;
+        if it exits a scope it was given and enters another one in its place,
+        the `with` of the caller cannot exit the scope it entered, and the
+        model fails, instead of being exported with the wrong material."""
+
+        def replace(scope, sink):
+            scope.__exit__(None, None, None)
+            # pylint: disable-next=unnecessary-dunder-call
+            sink.scope("evil", "evil").__enter__()
+
+        def output(sink, m):
+            with sink.scope("a", "red") as scope:
+                replace(scope, sink)
+                sink.add_solid(cube(), m)
+
+        with pytest.raises(ValueError, match="not entered"):
+            build_with_output(build_model, output)
 
     def test_open_scope_closed_after_output(self, build_model: BuildModel):
         class leaving_open(shapes.sized):
