@@ -153,6 +153,17 @@ Driven by measurements, not done up front.
 
 ## Any time
 
+- [ ] Prepare free-threaded Python module; until then, `shapes` declares itself GIL-free only with `-E freethreaded-shapes=on` (`DOLLHOUSE_FREE_THREADED`), so a free-threaded interpreter turns the GIL on when importing it
+  - [ ] Set up a version of environment with 3.14t (`uv python install`)
+  - [ ] Avoid per-thread `library`, output directory on one thread _needs_ to be used in `build_models()` on another
+  - [ ] Put a `mutable std::mutex m;` on each modifier.
+    - [ ] Release it before calling a model function: the model calls back into the module (`register_paint`, nested `library` calls)
+  - [ ] For main, prepare better library separation.
+  - [ ] Scope stack of the sinks (`python_scopes()`, with its lease ids) per thread: unlike the library, a scope belongs to an `output` call, which runs on one thread
+  - [ ] `detach_wrappers` under the locks of pybind11 (`with_instance_map`) or `py::scoped_critical_section`
+  - [ ] Check the global state of `pyxel-models` and `pyxel-io` (paint registry, exporter list, Assimp)
+  - [ ] Tests with several threads building models and outputting objects, run on 3.14t in CI
+  - [ ] Turn `DOLLHOUSE_FREE_THREADED` on by default, or drop the option
 - [ ] Bundle `shapes` binaries for Python 3.12, 3.13, 3.14 and possibly 3.15 into one archive, once `shapes` has users other than its author
 - [ ] Evaluate corefinement libraries (Manifold, CGAL, mcut) to replace the quadratic BSP in solid operations
   - [ ] Speed on dense solids
@@ -160,4 +171,12 @@ Driven by measurements, not done up front.
   - [ ] Bit-identical results across builds
   - [ ] Available in Conan
 - [ ] Python tests: add docstrings and factor the repeated model building into a `conftest.py` helper, then re-enable the `missing-*-docstring` and `duplicate-code` checks in `.github/linters/.python-lint`
+- [ ] Model names: reject `\0`, `:` and the reserved names of Windows (`CON`, `NUL`, ...), which still pass the check of the output directory
+- [ ] `python -m shapes` started in the scripts directory without `-d` still has it as `sys.path[0]` (set by Python itself); document `python -P -m shapes`, or `PYTHONSAFEPATH=1`
+- [ ] Packages and the variant file of `shapes`
+  - [ ] Install the `.pyi` stubs with the module (CPack)
+  - [ ] Leave the MSVC import library (`shapes.lib`) out of the packages
+  - [ ] `dirty` in `__init__.variant.json` ignores the untracked files (`git status --porcelain --untracked-files=no`)
+  - [ ] Expose the variant to the module users (`shapes.__variant__`)
+- [ ] Add `pyyaml` to the Python environment of the tests, so `test_listing_is_yaml` is not skipped
 - [ ] Range-checked unit conversions: `value_cast`, `round` and the converting constructor of `pyxel::math::value` have undefined behavior for NaN, infinity and out-of-range values when converting to integral storage (see the comment on [`detail::convert`](../libs/pyxel-models/include/pyxel/math/value.hpp#L65)); decide between throwing, clamping or a checked variant
