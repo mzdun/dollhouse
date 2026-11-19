@@ -93,4 +93,6 @@ Releases are cut by hand: a maintainer runs `./flow github release`, which reads
 
 Commit nothing unless asked to.
 
+Do not add attribution of any kind: no `Co-Authored-By:`, `Generated with …` or similar trailers or footers in commit messages, PR descriptions, issues or comments, and no tool names or links in their place. Commits are authored by the person running the agent.
+
 Follow [COMMITS.md](COMMITS.md): commit messages use Conventional Commits, and the commit history is the source of version bumps and the changelog. Keep one logical change per commit.
