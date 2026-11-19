@@ -79,6 +79,11 @@ namespace shapes {
 		// true, while build_models() runs; the model map is in use then
 		bool is_building() const noexcept { return building_; }
 
+		// called with the name and the path of every model build_models()
+		// writes, e.g. by the command line tool to list them
+		using export_listener = std::function<void(std::string const& name, std::filesystem::path const& path)>;
+		void set_export_listener(export_listener listener) { export_listener_ = std::move(listener); }
+
 	private:
 		std::unique_ptr<built_model> build_model(std::string const& name, model_fn const&) const;
 		std::filesystem::path export_model(built_model const& model) const;
@@ -89,5 +94,6 @@ namespace shapes {
 		pyxel::gfx::materials material_repo_{};
 		std::string exporter_id_{};
 		std::filesystem::path output_directory_{"."};
+		export_listener export_listener_{};
 	};
 }  // namespace shapes

@@ -89,8 +89,14 @@ def test_default_runs_model_scripts_only(module_env, tmp_path, scripts):
     write(scripts, "notes.py", "print('notes')\n")
     proc = run_in(module_env, tmp_path, scripts)
     assert proc.returncode == 0, proc.stderr
-    # sorted by name, the helper is never run
-    assert proc.stdout.split() == ["chair", "table"]
+    # sorted by name, the helper is never run; every model is listed, as it
+    # is written
+    assert proc.stdout.splitlines() == [
+        "chair",
+        "    chair: chair.glb",
+        "table",
+        "    table: table.glb",
+    ]
     assert sorted(p.name for p in (tmp_path / "out").iterdir()) == [
         "chair.glb",
         "table.glb",
@@ -152,7 +158,7 @@ def test_scripts_import_their_helpers(module_env, tmp_path, scripts):
     )
     proc = run_in(module_env, tmp_path, scripts)
     assert proc.returncode == 0, proc.stderr
-    assert proc.stdout.split() == ["shapes:chair", "1"]
+    assert proc.stdout.splitlines() == ["shapes:chair 1", "    chair: chair.glb"]
     assert (tmp_path / "out" / "chair.glb").is_file()
 
 
@@ -170,7 +176,7 @@ def test_search_path_is_restored(module_env, tmp_path, scripts):
     )
     proc = run_in(module_env, tmp_path, scripts)
     assert proc.returncode == 0, proc.stderr
-    directory, count = proc.stdout.split()
+    directory, _, count, _ = proc.stdout.splitlines()
     assert Path(directory) == scripts.resolve()
     assert count == "1"
 
@@ -193,3 +199,69 @@ def test_no_model_scripts(module_env, tmp_path, scripts):
     proc = run_in(module_env, tmp_path, scripts)
     assert proc.returncode == 2
     assert "no `*.model.py` scripts" in proc.stderr
+
+
+def test_models_built_by_the_script_are_listed_once(module_env, tmp_path, scripts):
+    write(
+        scripts,
+        "chair.model.py",
+        MODEL.format(name="chair") + "\n\nlibrary.build_models()\n",
+    )
+    proc = run_in(module_env, tmp_path, scripts)
+    assert proc.returncode == 0, proc.stderr
+    assert proc.stdout.splitlines() == ["    chair: chair.glb"]
+
+
+NAMED_MODELS = """\
+from shapes import cm, library, solid
+
+
+def add(name):
+    def model(root):
+        root.add(solid.cube(cm(1), cm(1), cm(1)))
+
+    model.__name__ = name
+    library.model(model)
+
+
+for name in {names!r}:
+    add(name)
+"""
+
+# model name, line listed; each line is an entry of a YAML block mapping:
+# underscores in the name read as spaces and slashes as ": ", the path is
+# relative to the output directory, and a scalar, which would not read back
+# as the same string, is double-quoted
+LISTED = [
+    ("plain_name", "    plain name: plain_name.glb"),
+    ("doors/left_ajar", '    "doors: left ajar": doors/left_ajar.glb'),
+    ("&anchor", '    "&anchor": "&anchor.glb"'),
+    ("'quote", '    "\'quote": "\'quote.glb"'),
+    ("true", '    "true": true.glb'),
+    ("x_#tag", '    "x #tag": x_#tag.glb'),
+    ("_lead", '    " lead": _lead.glb'),
+    ("tail_", '    "tail ": tail_.glb'),
+    ("1_door", '    "1 door": "1_door.glb"'),
+]
+
+
+@pytest.mark.parametrize("name, line", LISTED, ids=[name for name, _ in LISTED])
+def test_listed_line(module_env, tmp_path, scripts, name, line):
+    write(scripts, "models.model.py", NAMED_MODELS.format(names=[name]))
+    proc = run_in(module_env, tmp_path, scripts)
+    assert proc.returncode == 0, proc.stderr
+    assert proc.stdout.splitlines() == [line]
+
+
+def test_listing_is_yaml(module_env, tmp_path, scripts):
+    yaml = pytest.importorskip("yaml")
+    names = [name for name, _ in LISTED]
+    write(scripts, "models.model.py", NAMED_MODELS.format(names=names))
+    proc = run_in(module_env, tmp_path, scripts)
+    assert proc.returncode == 0, proc.stderr
+    expected = {
+        name.replace("_", " ").replace("/", ": "): f"{name}.glb" for name in names
+    }
+    assert yaml.safe_load(proc.stdout) == expected
+    for path in expected.values():
+        assert (tmp_path / "out" / path).is_file()
