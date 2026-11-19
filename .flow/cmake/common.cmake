@@ -166,3 +166,32 @@ function(dollhouse_copy_asan_runtime TARGET)
     VERBATIM
   )
 endfunction()
+
+# Describes the build of the Python module TARGET in OUTPUT, a JSON file
+# (see variant.cmake), refreshed on each build, so it follows new commits
+# and local changes even when TARGET itself is up to date.
+function(dollhouse_module_variant TARGET OUTPUT)
+  find_package(Git QUIET)
+  if(DOLLHOUSE_SANITIZE)
+    set(sanitizer ON)
+  else()
+    set(sanitizer OFF)
+  endif()
+  add_custom_target(${TARGET}-variant ALL
+    COMMAND ${CMAKE_COMMAND}
+      -DOUTPUT=${OUTPUT}
+      -DBINARY=$<TARGET_FILE_NAME:${TARGET}>
+      -DBUILD_TYPE=$<CONFIG>
+      -DSANITIZER=${sanitizer}
+      "-DCOMPILER=${CMAKE_CXX_COMPILER_ID} ${CMAKE_CXX_COMPILER_VERSION}"
+      -DSYSTEM=${CMAKE_SYSTEM_NAME}
+      -DSOURCE_DIR=${PROJECT_SOURCE_DIR}
+      -DGIT=${GIT_EXECUTABLE}
+      -P ${PROJECT_SOURCE_DIR}/.flow/cmake/variant.cmake
+    BYPRODUCTS ${OUTPUT}
+    COMMENT "Describing the build of ${TARGET}"
+    VERBATIM
+  )
+  add_dependencies(${TARGET}-variant ${TARGET})
+  set_target_properties(${TARGET}-variant PROPERTIES FOLDER apps)
+endfunction()

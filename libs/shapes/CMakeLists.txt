@@ -70,8 +70,14 @@ endif()
 
 set_target_properties(shapes PROPERTIES FOLDER apps)
 
+# The variant of the build (see .flow/cmake/variant.cmake) goes next to the
+# module, named after it, with no ABI tag
+set(SHAPES_VARIANT_FILE ${SHAPES_PACKAGE_DIR}/__init__.variant.json)
+dollhouse_module_variant(shapes ${SHAPES_VARIANT_FILE})
+
 if(DOLLHOUSE_INSTALL)
     install(TARGETS shapes DESTINATION shapes)
+    install(FILES ${SHAPES_VARIANT_FILE} DESTINATION shapes)
 endif()
 
 # Environment of the Python interpreter loading the module from this build
