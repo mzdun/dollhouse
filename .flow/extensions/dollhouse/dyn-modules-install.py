@@ -22,14 +22,21 @@ where ``<tag>`` is the OS/ABI part, e.g. ``cp312-win_amd64``; its stubs,
 as either one of::
 
     NAME.pyi                  NAME/**/*.pyi
+
+Builds with sanitizers are never installed, as a plain interpreter cannot
+load them. On Windows, Debug builds are installed only with
+``DOLLHOUSE_INSTALL_DEBUG=1`` in the environment, as they need the debug
+runtime of Visual Studio.
 """
 
+import os
 import sysconfig
 from pathlib import Path
 
 from proj_flow.api import env, step
 
 EXTENSIONS = ["pyd", "so"]
+ALLOW_DEBUG_ENV = "DOLLHOUSE_INSTALL_DEBUG"
 
 
 def _modules(rt: env.Runtime) -> list[str]:
@@ -138,6 +145,18 @@ class DynModulesInstallStep:
                 "dyn-modules-install: a sanitizer build cannot be loaded by a "
                 "plain interpreter; use `./flow test --sane`, or install "
                 "a build without sanitizers"
+            )
+
+        if (
+            config.os == "windows"
+            and config.build_type == "Debug"
+            and os.environ.get(ALLOW_DEBUG_ENV) != "1"
+        ):
+            rt.fatal(
+                "dyn-modules-install: a Debug build on Windows needs the debug "
+                "runtime (ucrtbased.dll, msvcp140d.dll, vcruntime140d.dll), "
+                "which only Visual Studio installs; set "
+                f"{ALLOW_DEBUG_ENV}=1 to install it anyway"
             )
 
         site_packages = _site_packages()
