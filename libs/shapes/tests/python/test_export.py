@@ -94,3 +94,40 @@ def test_box_normals_are_flat_and_outwards(tmp_path: Path, matrix):
         assert dot(winding, sub(face_centre, centre)) > 0, "face wound inwards"
         for _, normal in face:
             assert dot(winding, unit(normal)) == pytest.approx(1.0, abs=1e-5)
+
+
+def _named_model(name: str):
+    def model(root: shapes.group):
+        root.add(solid.cube(cm(1), cm(1), cm(1)))
+        return "obj"
+
+    model.__name__ = name
+    return model
+
+
+@pytest.mark.parametrize(
+    "name,expected",
+    [
+        ("group/chair", "group/chair.obj"),
+        ("group\\chair", "group/chair.obj"),
+        ("a/b\\c", "a/b/c.obj"),
+        ("a/../chair", "chair.obj"),
+        ("./chair", "chair.obj"),
+    ],
+)
+def test_model_name_creates_subdirectories(tmp_path: Path, name: str, expected: str):
+    out = tmp_path / "out"
+    shapes.library.model(_named_model(name))
+    shapes.library.output_directory = out
+    (path,) = shapes.library.build_models()
+    assert Path(path).resolve() == (out / expected).resolve()
+    assert (out / expected).is_file()
+
+
+@pytest.mark.parametrize(
+    "name",
+    ["../escaped", "..\\escaped", "a/../../escaped", "a\\..\\..\\escaped", "/absolute", "\\absolute"],
+)
+def test_model_name_cannot_leave_output_directory(name: str):
+    with pytest.raises(ValueError, match="leaves the output directory"):
+        shapes.library.model(_named_model(name))

@@ -7,6 +7,7 @@
 #include <filesystem>
 #include <format>
 #include <iostream>
+#include <pyxel/base/str.hpp>
 #include <pyxel/io/export.hpp>
 #include <pyxel/version.hpp>
 #include <string>
@@ -17,8 +18,8 @@
 template <>
 struct args::converter<std::filesystem::path> {
 	static std::filesystem::path value(args::parser&, std::string const& arg, std::string const&) {
-		// std::string c-tor uses OS code page, u8string c-tor used UTF-8 characters
-		return std::u8string{arg.begin(), arg.end()};
+		// std::string c-tor uses OS code page, u8string_view c-tor uses UTF-8 characters
+		return std::filesystem::path{pyxel::as_u8v(arg)};
 	}
 };
 
@@ -64,10 +65,7 @@ namespace shapes::__main__ {
 
 		// UTF-8, whatever the code page; path::string() would use the ANSI
 		// one on Windows, and may throw
-		std::string as_text(std::filesystem::path const& path) {
-			auto const utf8 = path.u8string();
-			return {utf8.begin(), utf8.end()};
-		}
+		std::string as_text(std::filesystem::path const& path) { return pyxel::as_str(path.u8string()); }
 
 		bool is_known_format(std::string_view id) {
 			return std::ranges::any_of(export_formats(), [id](auto const& format) { return format.id == id; });
@@ -168,7 +166,8 @@ namespace shapes::__main__ {
 				auto const dir = result.input.empty() ? std::filesystem::path{"."} : result.input;
 				std::filesystem::directory_iterator it{dir, ec};
 				if (ec) {
-					usage_error(parser, std::format("cannot list the scripts in `{}`: {}", as_text(dir), ec.message()));
+					usage_error(parser, std::format("cannot list the scripts in `{}`: {}", as_text(dir),
+					                                pyxel::message_u8(ec)));
 				}
 
 				for (auto const& entry : it) {
@@ -177,7 +176,7 @@ namespace shapes::__main__ {
 					auto const stem = entry.path().stem().u8string();
 					if (stem.starts_with(u8"__"sv) || stem.ends_with(u8"__"sv)) continue;
 
-					result.modules.emplace_back(stem.begin(), stem.end());
+					result.modules.emplace_back(pyxel::as_sv(stem));
 				}
 			}
 		} catch (exit_request const& request) {
