@@ -68,9 +68,6 @@ if(SHAPES_NOTIFIER_SRC)
     target_compile_definitions(shapes PRIVATE SHAPES_HAS_NOTIFIER)
 endif()
 
-set_target_properties(shapes PROPERTIES
-    VERSION ${PROJECT_VERSION_MAJOR}.${PROJECT_VERSION_MINOR}
-)
 set_target_properties(shapes PROPERTIES FOLDER apps)
 
 if(DOLLHOUSE_INSTALL)
