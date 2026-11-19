@@ -9,6 +9,7 @@
 #include <optional>
 #include <shapes/glue/glue.hpp>
 #include <string>
+#include "finite.hpp"
 #include "length.hpp"
 
 namespace shapes::glue {
@@ -33,12 +34,13 @@ namespace shapes::glue {
 		auto const symbol = std::string{names.cm_symbol};
 
 		py::class_<Measure> cls(m, names.name, names.doc);
-		cls.def(py::init([cm_arg, mm_arg](std::optional<double> in_cm, std::optional<double> in_mm) {
+		cls.def(py::init([cm_arg, mm_arg, name = std::string{names.name}](std::optional<double> in_cm,
+		                                                                  std::optional<double> in_mm) {
 			        if (in_cm && in_mm) {
 				        throw py::value_error(std::format("use either `{}` or `{}`, not both", cm_arg, mm_arg));
 			        }
-			        if (in_cm) return Measure{InCm{*in_cm}};
-			        if (in_mm) return Measure{InMm{*in_mm}};
+			        if (in_cm) return Measure{InCm{finite(*in_cm, std::format("{}: {}", name, cm_arg))}};
+			        if (in_mm) return Measure{InMm{finite(*in_mm, std::format("{}: {}", name, mm_arg))}};
 			        return Measure{};
 		        }),
 		        py::kw_only(), py::arg(names.cm_arg) = py::none(), py::arg(names.mm_arg) = py::none(),
@@ -48,11 +50,6 @@ namespace shapes::glue {
 		    .def(("to_" + mm_arg).c_str(), to_mm)
 
 		    .def(-py::self)
-		    .def(py::self + py::self)
-		    .def(py::self - py::self)
-		    .def(py::self * double())
-		    .def(double() * py::self)
-		    .def(py::self / double())
 		    .def("__hash__", [](Measure const& self) { return py::hash(py::float_(self.count())); })
 
 		    .def(py::self == py::self)
@@ -68,6 +65,8 @@ namespace shapes::glue {
 		    .def("__repr__", [to_cm, name = std::string{names.name}, cm_arg](Measure const& self) {
 			    return std::format("{}({}={})", name, cm_arg, number_repr(to_cm(self)));
 		    });
+		def_checked_sums<Measure>(cls, names.name);
+		def_checked_scaling<Measure>(cls, names.name);
 		return cls;
 	}
 }  // namespace shapes::glue

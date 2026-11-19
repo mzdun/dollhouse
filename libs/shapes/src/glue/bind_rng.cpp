@@ -1,11 +1,13 @@
 // Copyright (c) 2026 Marcin Zdun
 // This code is licensed under MIT license (see LICENSE for details)
 
+#include <cmath>
 #include <cstdint>
 #include <format>
 #include <pyxel/rng/engine.hpp>
 #include <shapes/glue/glue.hpp>
 #include <string>
+#include "finite.hpp"
 
 namespace shapes::glue {
 	namespace {
@@ -64,9 +66,19 @@ namespace shapes::glue {
 		         "Returns a dice rolling `min` to `max`, both included; the ends are swapped, "
 		         "if `min` is greater than `max`.")
 		    .def(
-		        "spinner", [](engine& self, double min, double max) { return self.spinner(min, max); }, "min"_a = 0.0,
-		        "max"_a = 1.0, py::keep_alive<0, 1>(),
+		        "spinner",
+		        [](engine& self, double min, double max) {
+			        finite(min, "spinner: min");
+			        finite(max, "spinner: max");
+			        // the spin is min + (max - min) * fraction
+			        if (!std::isfinite(max - min)) {
+				        throw py::value_error(std::format("spinner: the range from {} to {} is too wide", min, max));
+			        }
+			        return self.spinner(min, max);
+		        },
+		        "min"_a = 0.0, "max"_a = 1.0, py::keep_alive<0, 1>(),
 		        "Returns a spinner landing from `min` (included) to `max` (excluded), with the full precision of a "
-		        "float; the ends are swapped, if `min` is greater than `max`.");
+		        "float; the ends are swapped, if `min` is greater than `max`. Both ends must be finite, and so must "
+		        "the distance between them.");
 	}
 }  // namespace shapes::glue

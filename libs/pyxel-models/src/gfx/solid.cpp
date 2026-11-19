@@ -2,13 +2,26 @@
 // This code is licensed under MIT license (see LICENSE for details)
 
 #include <algorithm>
+#include <cmath>
 #include <pyxel/gfx/solid.hpp>
+#include <stdexcept>
 #include <utility>
 #include <vector>
 
 namespace pyxel::gfx {
+	namespace {
+		// NaN breaks the ordering of the lookup map, and infinite
+		// coordinates are no geometry
+		void require_finite(offset const& v) {
+			if (!std::isfinite(v.x.count()) || !std::isfinite(v.y.count()) || !std::isfinite(v.z.count()))
+				throw std::invalid_argument("solid: vertex coordinates must be finite");
+		}
+	}  // namespace
+
 	solid::solid(std::vector<offset> vertices, std::vector<std::vector<size_t>> faces)
 	    : vertices_{std::move(vertices)}, faces_{std::move(faces)} {
+		for (auto const& vertex : vertices_)
+			require_finite(vertex);
 		// the first of equal vertices is the one add_vert returns
 		for (size_t index = 0; index < vertices_.size(); ++index)
 			lookup_.try_emplace(vertices_[index], index);
@@ -20,6 +33,7 @@ namespace pyxel::gfx {
 	}
 
 	size_t solid::add_vert(offset const& v) {
+		require_finite(v);
 		auto const [it, inserted] = lookup_.try_emplace(v, vertices_.size());
 		if (inserted) vertices_.push_back(v);
 		return it->second;

@@ -3,6 +3,7 @@
 
 #include <gtest/gtest.h>
 #include <format>
+#include <limits>
 #include <numbers>
 #include <optional>
 #include <pyxel/math/format.hpp>
@@ -58,6 +59,22 @@ namespace pyxel::math::testing {
 		EXPECT_EQ(std::format("{}", dyn(-15_mm)), "-1.5 cm");
 		EXPECT_EQ(std::format("{}", dyn(-2_cm)), "-2 cm");
 		EXPECT_EQ(std::format("{}", dyn(-5_um)), "-0.0005 cm");
+	}
+
+	TEST(math_format, dyn_not_finite) {
+		EXPECT_EQ(std::format("{}", dyn(metres_f{std::numeric_limits<double>::quiet_NaN()})), "nan cm");
+		EXPECT_EQ(std::format("{}", dyn(metres_f{std::numeric_limits<double>::infinity()})), "inf cm");
+		EXPECT_EQ(std::format("{}", dyn(metres_f{-std::numeric_limits<double>::infinity()})), "-inf cm");
+	}
+
+	TEST(math_format, dyn_past_micrometers) {
+		// 2^63 um is about 9.2e12 m; below, the micrometers are exact
+		EXPECT_EQ(std::format("{}", dyn(metres_f{9e12})), "900000000000000 cm");
+		EXPECT_EQ(std::format("{}", dyn(metres_f{-9e12})), "-900000000000000 cm");
+		EXPECT_EQ(std::format("{}", dyn(metres_f{1e18})), "1e+20 cm");
+		EXPECT_EQ(std::format("{}", dyn(metres_f{-1e18})), "-1e+20 cm");
+		// integral storage overflowed in the conversion itself
+		EXPECT_EQ(std::format("{}", dyn(metres{10'000'000'000'000})), "1e+15 cm");
 	}
 
 	TEST(math_format, ostream_matches_format) {

@@ -29,6 +29,8 @@ namespace pyxel::gfx {
 	solid solid::revolve(std::span<profile_point const> profile, size_t sides) {
 		if (sides < 3) throw std::invalid_argument("revolve: at least 3 sides are needed");
 		for (auto const& [x, y] : profile) {
+			if (!std::isfinite(x.count()) || !std::isfinite(y.count()))
+				throw std::invalid_argument("revolve: the profile points must be finite");
 			if (x < length{}) throw std::invalid_argument("revolve: the profile must not cross the Y axis");
 		}
 		auto const area = signed_area(profile);

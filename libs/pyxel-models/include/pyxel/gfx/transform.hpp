@@ -24,15 +24,16 @@ namespace pyxel::gfx {
 	glm::dmat4 translate(glm::dmat4 const& matrix, offset const& delta);
 	glm::dmat4 translate(glm::dmat4 const& matrix, length x, length y = {}, length z = {});
 
-	// missing factors are equal to `x`, so `scale(m, 2)` scales uniformly
+	// missing factors are equal to `x`, so `scale(m, 2)` scales uniformly;
+	// throws std::invalid_argument for factors, which are not finite
 	glm::dmat4 scale(glm::dmat4 const& matrix,
 	                 double x,
 	                 std::optional<double> y = std::nullopt,
 	                 std::optional<double> z = std::nullopt);
 
 	// counter-clockwise, when looking from the tip of `axis` towards the
-	// pivot; the axis needs not be normalized, but must not be zero, or
-	// std::invalid_argument is thrown
+	// pivot; the axis needs not be normalized, but must be finite and not
+	// zero, and the angle must be finite, or std::invalid_argument is thrown
 	glm::dmat4 rotate(glm::dmat4 const& matrix, angle by, glm::dvec3 const& axis, offset const& pivot = {});
 
 	glm::dmat4 rotate_x(glm::dmat4 const& matrix, angle by, offset const& pivot = {});

@@ -7,6 +7,7 @@
 #include <optional>
 #include <pyxel/gfx.hpp>
 #include <shapes/glue/glue.hpp>
+#include "finite.hpp"
 #include "length.hpp"
 
 namespace shapes::glue {
@@ -15,46 +16,38 @@ namespace shapes::glue {
 	using pyxel::gfx::offset;
 
 	void bind_offset(py::module_& m) {
-		py::class_<offset>(m, "offset", "Point, or a displacement, in the model space.")
-		    .def(py::init([](length x, length y, length z) { return offset{x, y, z}; }), "x"_a = length{},
-		         "y"_a = length{}, "z"_a = length{})
-		    .def_readwrite("x", &offset::x)
-		    .def_readwrite("y", &offset::y)
-		    .def_readwrite("z", &offset::z)
+		auto cls = py::class_<offset>(m, "offset", "Point, or a displacement, in the model space.")
+		               .def(py::init([](length x, length y, length z) { return offset{x, y, z}; }), "x"_a = length{},
+		                    "y"_a = length{}, "z"_a = length{})
+		               .def_readwrite("x", &offset::x)
+		               .def_readwrite("y", &offset::y)
+		               .def_readwrite("z", &offset::z)
 
-		    .def(
-		        "replace",
-		        [](offset const& self, std::optional<length> x, std::optional<length> y, std::optional<length> z) {
-			        return self.replace({.x = x, .y = y, .z = z});
-		        },
-		        py::kw_only(), "x"_a = py::none(), "y"_a = py::none(), "z"_a = py::none(),
-		        "Copy of this offset, with the given coordinates replaced.")
-		    .def("apply", &offset::apply, "transform"_a,
-		         "Transforms this offset as a point, so it is affected by translation.")
-		    .def("apply_direction", &offset::apply_direction, "transform"_a,
-		         "Transforms this offset as a direction, so it is not affected by translation.")
+		               .def(
+		                   "replace",
+		                   [](offset const& self, std::optional<length> x, std::optional<length> y,
+		                      std::optional<length> z) { return self.replace({.x = x, .y = y, .z = z}); },
+		                   py::kw_only(), "x"_a = py::none(), "y"_a = py::none(), "z"_a = py::none(),
+		                   "Copy of this offset, with the given coordinates replaced.")
+		               .def("apply", &offset::apply, "transform"_a,
+		                    "Transforms this offset as a point, so it is affected by translation.")
+		               .def("apply_direction", &offset::apply_direction, "transform"_a,
+		                    "Transforms this offset as a direction, so it is not affected by translation.")
 
-		    .def("__getitem__", [](offset const& self, axis a) { return self[a]; })
-		    .def("__setitem__", [](offset& self, axis a, length value) { self[a] = value; })
+		               .def("__getitem__", [](offset const& self, axis a) { return self[a]; })
+		               .def("__setitem__", [](offset& self, axis a, length value) { self[a] = value; })
 
-		    .def(py::self == py::self)
-		    .def(-py::self)
-		    .def(py::self + py::self)
-		    .def(py::self - py::self)
-		    .def(py::self += py::self)
-		    .def(py::self -= py::self)
-		    .def(py::self * double())
-		    .def(double() * py::self)
-		    .def(py::self / double())
-		    .def(py::self *= double())
-		    .def(py::self /= double())
+		               .def(py::self == py::self)
+		               .def(-py::self)
 
-		    .def("__repr__",
-		         [](offset const& self) {
-			         return std::format("offset(x={}, y={}, z={})", length_repr(self.x), length_repr(self.y),
-			                            length_repr(self.z));
-		         })
-		    .def("__str__", [](offset const& self) { return std::format("{}", dyn(self)); });
+		               .def("__repr__",
+		                    [](offset const& self) {
+			                    return std::format("offset(x={}, y={}, z={})", length_repr(self.x), length_repr(self.y),
+			                                       length_repr(self.z));
+		                    })
+		               .def("__str__", [](offset const& self) { return std::format("{}", dyn(self)); });
+		def_checked_sums<offset>(cls, "offset", true);
+		def_checked_scaling<offset>(cls, "offset", true);
 
 		m.def("at_x", &offset::at_x, "x"_a, "Offset along the x axis only.");
 		m.def("at_y", &offset::at_y, "y"_a, "Offset along the y axis only.");
@@ -66,8 +59,12 @@ namespace shapes::glue {
 		    "distance_squared", [](offset const& lhs, offset const& rhs) { return distance_squared(lhs, rhs); },
 		    "lhs"_a, "rhs"_a, "Squared distance between two points.");
 		m.def(
-		    "lerp", [](offset const& from, offset const& to, double t) { return lerp(from, to, t); }, "start"_a,
-		    "end"_a, "t"_a, "Point at `t` of the way from `start` to `end`; `t` outside [0, 1] extrapolates.");
+		    "lerp",
+		    [](offset const& from, offset const& to, double t) {
+			    return checked(lerp(from, to, finite(t, "lerp: t")), "lerp");
+		    },
+		    "start"_a, "end"_a, "t"_a,
+		    "Point at `t` of the way from `start` to `end`; `t` outside [0, 1] extrapolates.");
 		m.def(
 		    "midpoint", [](offset const& lhs, offset const& rhs) { return midpoint(lhs, rhs); }, "lhs"_a, "rhs"_a,
 		    "Point halfway between the two points.");

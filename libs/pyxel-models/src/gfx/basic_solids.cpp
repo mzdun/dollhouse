@@ -4,6 +4,7 @@
 #include <algorithm>
 #include <array>
 #include <cmath>
+#include <format>
 #include <numbers>
 #include <pyxel/gfx/solid.hpp>
 #include <pyxel/gfx/transform.hpp>
@@ -12,8 +13,15 @@
 
 namespace pyxel::gfx {
 	namespace {
-		void require_positive(length value, char const* message) {
-			if (!(value > length{})) throw std::invalid_argument(message);
+		// `what` names the argument, e.g. "cube: the width"; NaN fails both checks
+		void require_positive(length value, char const* what) {
+			if (!(value > length{})) throw std::invalid_argument(std::format("{} must be larger than zero", what));
+			if (!std::isfinite(value.count())) throw std::invalid_argument(std::format("{} must be finite", what));
+		}
+
+		void require_not_negative(length value, char const* what) {
+			if (!(value >= length{})) throw std::invalid_argument(std::format("{} must not be negative", what));
+			if (!std::isfinite(value.count())) throw std::invalid_argument(std::format("{} must be finite", what));
 		}
 
 		// adds the face with its points; repeated neighbours are merged, and
@@ -31,9 +39,9 @@ namespace pyxel::gfx {
 	}  // namespace
 
 	solid solid::cube(length width, length height, length depth) {
-		require_positive(width, "cube: the width must be larger than zero");
-		require_positive(height, "cube: the height must be larger than zero");
-		require_positive(depth, "cube: the depth must be larger than zero");
+		require_positive(width, "cube: the width");
+		require_positive(height, "cube: the height");
+		require_positive(depth, "cube: the depth");
 
 		solid result{};
 		result.reserve(8, 6);
@@ -53,22 +61,22 @@ namespace pyxel::gfx {
 	}
 
 	solid solid::prism(length height, length radius, size_t sides) {
-		require_positive(height, "prism: the height must be larger than zero");
-		require_positive(radius, "prism: the radius must be larger than zero");
+		require_positive(height, "prism: the height");
+		require_positive(radius, "prism: the radius");
 		std::array<profile_point, 4> const profile{
 		    {{length{}, length{}}, {radius, length{}}, {radius, height}, {length{}, height}}};
 		return revolve(profile, sides);
 	}
 
 	solid solid::pyramid(length height, length radius, size_t sides) {
-		require_positive(height, "pyramid: the height must be larger than zero");
-		require_positive(radius, "pyramid: the radius must be larger than zero");
+		require_positive(height, "pyramid: the height");
+		require_positive(radius, "pyramid: the radius");
 		std::array<profile_point, 3> const profile{{{length{}, length{}}, {radius, length{}}, {length{}, height}}};
 		return revolve(profile, sides);
 	}
 
 	solid solid::sphere(length radius, size_t longitudes) {
-		require_positive(radius, "sphere: the radius must be larger than zero");
+		require_positive(radius, "sphere: the radius");
 		if (longitudes < 4) throw std::invalid_argument("sphere: at least 4 longitudes are needed");
 
 		// a half circle from the south pole to the north one; the poles are
@@ -89,9 +97,9 @@ namespace pyxel::gfx {
 	solid solid::oval_sphere(length rx, std::optional<length> ry, std::optional<length> rz, size_t longitudes) {
 		auto const radius_y = ry.value_or(rx);
 		auto const radius_z = rz.value_or(rx);
-		require_positive(rx, "oval_sphere: the radius along x must be larger than zero");
-		require_positive(radius_y, "oval_sphere: the radius along y must be larger than zero");
-		require_positive(radius_z, "oval_sphere: the radius along z must be larger than zero");
+		require_positive(rx, "oval_sphere: the radius along x");
+		require_positive(radius_y, "oval_sphere: the radius along y");
+		require_positive(radius_z, "oval_sphere: the radius along z");
 
 		auto const circular = sphere(rx, longitudes);
 		if (radius_y == rx && radius_z == rx) return circular;
@@ -100,10 +108,10 @@ namespace pyxel::gfx {
 	}
 
 	solid solid::rounded_cube(length width, length height, length depth, length radius, size_t segments) {
-		require_positive(width, "rounded_cube: the width must be larger than zero");
-		require_positive(height, "rounded_cube: the height must be larger than zero");
-		require_positive(depth, "rounded_cube: the depth must be larger than zero");
-		if (radius < length{}) throw std::invalid_argument("rounded_cube: the radius must not be negative");
+		require_positive(width, "rounded_cube: the width");
+		require_positive(height, "rounded_cube: the height");
+		require_positive(depth, "rounded_cube: the depth");
+		require_not_negative(radius, "rounded_cube: the radius");
 		if (segments < 1) throw std::invalid_argument("rounded_cube: at least 1 segment is needed");
 
 		// one radius for all the axes keeps the rounding circular
@@ -122,13 +130,14 @@ namespace pyxel::gfx {
 	                               std::optional<length> ry,
 	                               std::optional<length> rz,
 	                               size_t segments) {
-		require_positive(width, "oval_rounded_cube: the width must be larger than zero");
-		require_positive(height, "oval_rounded_cube: the height must be larger than zero");
-		require_positive(depth, "oval_rounded_cube: the depth must be larger than zero");
+		require_positive(width, "oval_rounded_cube: the width");
+		require_positive(height, "oval_rounded_cube: the height");
+		require_positive(depth, "oval_rounded_cube: the depth");
 		auto const radius_y = ry.value_or(rx);
 		auto const radius_z = rz.value_or(rx);
-		if (rx < length{} || radius_y < length{} || radius_z < length{})
-			throw std::invalid_argument("oval_rounded_cube: the radii must not be negative");
+		require_not_negative(rx, "oval_rounded_cube: the radius along x");
+		require_not_negative(radius_y, "oval_rounded_cube: the radius along y");
+		require_not_negative(radius_z, "oval_rounded_cube: the radius along z");
 		if (segments < 1) throw std::invalid_argument("oval_rounded_cube: at least 1 segment is needed");
 
 		// every radius stops at half of its own dimension

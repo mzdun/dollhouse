@@ -3,6 +3,7 @@
 
 #pragma once
 
+#include <cmath>
 #include <concepts>
 #include <cstddef>
 #include <format>
@@ -57,8 +58,16 @@ namespace pyxel::math {
 		inline std::string format_dyn(distance<Storage, Ratio> value) {
 			static constexpr unsigned long long um_per_cm = 10'000;
 			static constexpr int max_digits = 4;
+			// 2^63, the first double too large for long long
+			static constexpr double past_long_long = 0x1p63;
 
-			auto const count = round<micrometers>(value).count();
+			// converting NaN, infinity or anything past long long into
+			// micrometers is UB; these fall back to plain centimeters
+			auto const exact = micrometers_f{value};
+			if (!(std::abs(exact.count()) < past_long_long))
+				return std::format("{:g} cm", centimeters_f{exact}.count());
+
+			auto const count = round<micrometers>(exact).count();
 			auto const magnitude =
 			    count < 0 ? 0ull - static_cast<unsigned long long>(count) : static_cast<unsigned long long>(count);
 			std::string_view const sign = count < 0 ? "-" : "";

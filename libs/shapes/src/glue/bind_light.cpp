@@ -90,9 +90,9 @@ namespace shapes::glue {
 		}
 
 		std::optional<length> checked_range(std::optional<length> value) {
-			if (value && !(value->count() > 0.0)) {
+			if (value && !(value->count() > 0.0 && std::isfinite(value->count()))) {
 				throw py::value_error(
-				    std::format("light: range must be positive or None, not {}", length_repr(*value)));
+				    std::format("light: range must be finite and positive, or None, not {}", length_repr(*value)));
 			}
 			return value;
 		}

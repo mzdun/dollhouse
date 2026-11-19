@@ -28,6 +28,7 @@ set(SRCS
     src/glue/bind_size.cpp
     src/glue/bind_solid.cpp
     src/glue/bind_volume.cpp
+    src/glue/finite.hpp
     src/glue/length.hpp
     src/glue/lifetime.cpp
     src/glue/lifetime.hpp

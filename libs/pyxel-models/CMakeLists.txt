@@ -94,6 +94,7 @@ if(DOLLHOUSE_TESTING)
         tests/base/str.test.cpp
         tests/gfx/basic_solids.test.cpp
         tests/gfx/csg.test.cpp
+        tests/gfx/finite.test.cpp
         tests/gfx/format.test.cpp
         tests/gfx/group.test.cpp
         tests/gfx/light.test.cpp
