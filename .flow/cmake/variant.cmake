@@ -6,14 +6,19 @@
 # installs, can be told apart from the other builds.
 #
 #     cmake -DOUTPUT=<file> -DBINARY=<name> -DBUILD_TYPE=<config>
-#           -DSANITIZER=<ON|OFF> -DCOMPILER=<id version> -DSYSTEM=<name>
+#           -DSANITIZER=<ON|OFF> -DFREE_THREADED=<ON|OFF>
+#           -DCOMPILER=<id version> -DSYSTEM=<name>
 #           -DSOURCE_DIR=<dir> [-DGIT=<git>] -P variant.cmake
+#
+# FREE_THREADED tells, if the module is declared safe to run without the GIL
+# (DOLLHOUSE_FREE_THREADED); without it, a free-threaded interpreter turns the
+# GIL on, when importing the module.
 #
 # The commit is read at build time, not at configure time, so the file
 # follows commits made without reconfiguring. The file is written only when
 # its content changes.
 
-foreach(var OUTPUT BINARY BUILD_TYPE SANITIZER COMPILER SYSTEM SOURCE_DIR)
+foreach(var OUTPUT BINARY BUILD_TYPE SANITIZER FREE_THREADED COMPILER SYSTEM SOURCE_DIR)
   if(NOT DEFINED ${var})
     message(FATAL_ERROR "variant: ${var} is not set")
   endif()
@@ -55,10 +60,17 @@ else()
   set(sanitizer false)
 endif()
 
+if(FREE_THREADED)
+  set(free_threaded true)
+else()
+  set(free_threaded false)
+endif()
+
 set(content "{
   \"binary\": \"${BINARY}\",
   \"build_type\": \"${BUILD_TYPE}\",
   \"sanitizer\": ${sanitizer},
+  \"free_threaded\": ${free_threaded},
   \"compiler\": \"${COMPILER}\",
   \"system\": \"${SYSTEM}\",
   \"commit\": ${commit},

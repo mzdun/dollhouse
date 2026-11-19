@@ -213,12 +213,18 @@ function(dollhouse_module_variant TARGET OUTPUT)
   else()
     set(sanitizer OFF)
   endif()
+  if(DOLLHOUSE_FREE_THREADED)
+    set(free_threaded ON)
+  else()
+    set(free_threaded OFF)
+  endif()
   add_custom_target(${TARGET}-variant ALL
     COMMAND ${CMAKE_COMMAND}
       -DOUTPUT=${OUTPUT}
       -DBINARY=$<TARGET_FILE_NAME:${TARGET}>
       -DBUILD_TYPE=$<CONFIG>
       -DSANITIZER=${sanitizer}
+      -DFREE_THREADED=${free_threaded}
       "-DCOMPILER=${CMAKE_CXX_COMPILER_ID} ${CMAKE_CXX_COMPILER_VERSION}"
       -DSYSTEM=${CMAKE_SYSTEM_NAME}
       -DSOURCE_DIR=${PROJECT_SOURCE_DIR}
