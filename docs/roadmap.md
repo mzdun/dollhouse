@@ -159,3 +159,4 @@ Driven by measurements, not done up front.
   - [ ] Licence compatible with MIT
   - [ ] Bit-identical results across builds
   - [ ] Available in Conan
+- [ ] Python tests: add docstrings and factor the repeated model building into a `conftest.py` helper, then re-enable the `missing-*-docstring` and `duplicate-code` checks in `.github/linters/.python-lint`
