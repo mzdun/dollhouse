@@ -313,7 +313,7 @@ def test_each_model_gets_a_new_root(build_model: BuildModel):
         build_model(roots.append)
     assert len({id(root) for root in roots}) == len(roots)
     with pytest.raises(ReferenceError):
-        roots[0].name
+        _ = roots[0].name
 
 
 # ---------------------------------------------------------------------------
@@ -358,6 +358,7 @@ class TestSinkScope:
             scope = sink.scope("a")
             with scope:
                 with pytest.raises(ValueError, match="already entered"):
+                    # pylint: disable-next=unnecessary-dunder-call
                     scope.__enter__()
                 sink.add_solid(cube(), m)
 
@@ -406,7 +407,9 @@ class TestSinkScope:
         def output(sink, m):
             outer = sink.scope("a")
             inner = sink.scope("b")
+            # pylint: disable-next=unnecessary-dunder-call
             outer.__enter__()
+            # pylint: disable-next=unnecessary-dunder-call
             inner.__enter__()
             with pytest.raises(ValueError, match="entered later must be exited first"):
                 outer.__exit__(None, None, None)
@@ -424,7 +427,9 @@ class TestSinkScope:
                 self.name = name
 
             def output(self, sink, m):
-                sink.scope(self.name).__enter__()  # never exited
+                # never exited
+                # pylint: disable-next=unnecessary-dunder-call
+                sink.scope(self.name).__enter__()
                 sink.add_solid(cube(), m)
 
         class plain(leaving_open):
@@ -449,20 +454,22 @@ class TestSinkScope:
                 super().__init__(cm(1), cm(1), cm(1))
 
             def output(self, sink, m):
+                # pylint: disable-next=unnecessary-dunder-call
                 kept["scope"] = sink.scope("open").__enter__()
                 sink.add_solid(cube(), m)
 
         build_model(lambda root: root.add(leaving_open()))
         kept["scope"].__exit__(None, None, None)  # already closed: no-op
         with pytest.raises(ReferenceError):
-            kept["scope"].__enter__()  # its sink is gone
+            # its sink is gone
+            # pylint: disable-next=unnecessary-dunder-call
+            kept["scope"].__enter__()
 
     def test_exception_in_output_closes_scopes(self, run_python: RunPython):
         """A scope left open by a failing `output` must be closed with the
         failed export, not stay behind for the next one (its sink is gone by
         then)."""
-        proc = run_python(
-            """
+        proc = run_python("""
             failures = []
 
             class flaky(shapes.sized):
@@ -494,8 +501,7 @@ class TestSinkScope:
                 for line in obj:
                     if line.startswith("# Mesh"):
                         print(line.strip())
-            """
-        )
+            """)
         assert_succeeded(
             proc,
             "failed once\n# Mesh 'flaky' with 12 faces\n# Mesh 'g' with 12 faces",
@@ -523,7 +529,7 @@ class TestLibraryModel:
             shapes.library.model(no_root)  # type: ignore[arg-type]
 
     def test_returns_the_function(self):
-        def fn(root):
+        def fn(_root):
             pass
 
         assert shapes.library.model(fn) is fn
@@ -575,7 +581,7 @@ class TestLibraryModel:
         self.register("failing", failing)
         with pytest.raises(KeyError):
             shapes.library.build_models()
-        assert list(tmp_path.iterdir()) == []
+        assert not list(tmp_path.iterdir())
 
     def test_failed_model_runs_again(self, tmp_path):
         shapes.library.output_directory = tmp_path
@@ -607,8 +613,7 @@ class TestLibraryModel:
     def test_root_is_borrowed(self, run_python: RunPython):
         """The host frees the root, while Python still holds the model's
         frame; nothing may be freed twice."""
-        proc = run_python(
-            """
+        proc = run_python("""
             frames = []
             def keeps_frame(root):
                 import sys
@@ -619,6 +624,5 @@ class TestLibraryModel:
             del frames
             gc.collect()
             print("done")
-            """
-        )
+            """)
         assert_succeeded(proc, "done")

@@ -11,6 +11,7 @@
 #include <pyxel/math/format.hpp>
 #include <shapes/glue/glue.hpp>
 #include <string>
+#include <utility>
 #include "length.hpp"
 
 namespace shapes::glue {

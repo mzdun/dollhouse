@@ -26,7 +26,7 @@ if _MODULE_DIR:
     _module_dir = Path(_MODULE_DIR).resolve()
     sys.path.insert(0, str(_module_dir))
 
-import shapes  # noqa: E402
+import shapes  # noqa: E402  # pylint: disable=wrong-import-position
 
 if _MODULE_DIR:
     _loaded_from = Path(shapes.__file__).resolve()
@@ -36,7 +36,9 @@ if _MODULE_DIR:
         )
 
 
-def pytest_report_header(config: pytest.Config) -> list[str]:
+def pytest_report_header(
+    config: pytest.Config,  # pylint: disable=unused-argument
+) -> list[str]:
     return [f"shapes {shapes.__version__}: {shapes.__file__}"]
 
 
@@ -149,6 +151,7 @@ def run_python(module_env: dict[str, str], tmp_path: Path) -> RunPython:
             capture_output=True,
             text=True,
             timeout=60,
+            check=False,
         )
 
     return run

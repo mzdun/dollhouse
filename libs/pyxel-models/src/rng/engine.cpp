@@ -6,6 +6,7 @@
 #include <limits>
 #include <pyxel/rng/engine.hpp>
 #include <random>
+#include <string>
 
 namespace pyxel::rng {
 	namespace {

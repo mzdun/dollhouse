@@ -3,6 +3,7 @@
 
 #include <format>
 #include <pyxel/gfx/materials.hpp>
+#include <string>
 
 namespace pyxel::gfx {
 	std::string materials::register_paint(std::string const& name, paint_opts const& opts) {

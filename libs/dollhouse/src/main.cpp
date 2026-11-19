@@ -3,7 +3,9 @@
 
 #include <fmt/format.h>
 #include <args/parser.hpp>
+#include <cstdio>
 #include <pyxel/version.hpp>
+#include <string>
 
 int main(int argc, char* argv[]) {
 	std::string path;

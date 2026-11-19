@@ -4,6 +4,7 @@
 #include <algorithm>
 #include <pyxel/gfx/solid.hpp>
 #include <utility>
+#include <vector>
 
 namespace pyxel::gfx {
 	solid::solid(std::vector<offset> vertices, std::vector<std::vector<size_t>> faces)

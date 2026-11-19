@@ -87,10 +87,9 @@ namespace pyxel::gfx {
 				result.points.push_back(point);
 			}
 
+			auto const past_the_end = [&](size_t index) { return index >= vertices.size(); };
 			for (auto const& face : obj.faces()) {
-				if (std::ranges::any_of(face, [&](size_t index) { return index >= vertices.size(); })) {
-					continue;
-				}
+				if (std::ranges::any_of(face, past_the_end)) continue;
 				face_t mapped{};
 				mapped.reserve(face.size());
 				for (auto const index : face)
