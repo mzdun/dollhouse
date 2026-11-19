@@ -68,8 +68,11 @@ namespace shapes::glue {
 		static library top_level{};
 
 		// stored models hold Python callables; release them while the
-		// interpreter is still alive, not when the static is destroyed
-		py::module_::import("atexit").attr("register")(py::cpp_function([] { top_level.clear_models(); }));
+		// interpreter is still alive, not when the static is destroyed; the
+		// atexit hooks run last to first, so the hooks registered before this
+		// one, and the finalizers run after them, would add the models back,
+		// if the library was not closed for good
+		py::module_::import("atexit").attr("register")(py::cpp_function([] { top_level.close(); }));
 
 		py::class_<library>(m, "library",
 		                    "Models of the script, reached only through the static members of this class; models are "
@@ -111,6 +114,12 @@ namespace shapes::glue {
 		        "model",
 		        [](py::function fn) -> py::function {
 			        auto const name = fn.attr("__name__").cast<std::string>();
+
+			        // before inspect: during the finalization imports fail too
+			        if (library::python_instance().is_closed()) {
+				        throw std::logic_error(std::format(
+				            "@library.model: `{}` is not registered, the interpreter is shutting down", name));
+			        }
 
 			        try {
 				        py::module_::import("inspect").attr("signature")(fn).attr("bind")(py::none());
