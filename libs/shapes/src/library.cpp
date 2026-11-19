@@ -96,6 +96,7 @@ namespace shapes {
 			if (entry.ran) continue;
 			written.push_back(export_model(*build_model(name, entry.fn)));
 			entry.ran = true;
+			if (export_listener_) export_listener_(name, written.back());
 		}
 		return written;
 	}
