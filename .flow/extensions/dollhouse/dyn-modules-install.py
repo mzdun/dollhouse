@@ -133,6 +133,13 @@ class DynModulesInstallStep:
         return len(_modules(rt)) > 0
 
     def run(self, config: env.Config, rt: env.Runtime) -> int:
+        if config.items.get("sanitizer"):
+            rt.fatal(
+                "dyn-modules-install: a sanitizer build cannot be loaded by a "
+                "plain interpreter; use `./flow test --sane`, or install "
+                "a build without sanitizers"
+            )
+
         site_packages = _site_packages()
         bin_dir = _bin_dir(config)
 
