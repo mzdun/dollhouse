@@ -149,6 +149,16 @@ endif()
 # #  TESTING
 # #################################################################
 if(DOLLHOUSE_TESTING)
+    set(TEST_SRCS
+        tests/cpp/library_mt.test.cpp
+    )
+    source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR}/tests FILES ${TEST_SRCS})
+
+    add_project_test(shapes ${TEST_SRCS})
+    target_link_libraries(shapes-test PRIVATE shapes-core GTest::gmock_main)
+
+    add_test(NAME shapes COMMAND shapes-test "--gtest_output=xml:${TEST_REPORT_DIR}/shapes/${TEST_REPORT_FILE}")
+
     # pytest suite for the bindings, run against the module in this build
     # tree (not the copy `flow dyn-install` puts into site-packages)
     set(SHAPES_PYTEST_DIR ${CMAKE_CURRENT_SOURCE_DIR}/tests/python)
