@@ -9,10 +9,15 @@ jobs:
     runs-on: ubuntu-latest
 
     permissions:
+      # checkout reads the repository; super-linter reads its git history
+      # to find the files changed in the PR (VALIDATE_ALL_CODEBASE: false)
       contents: read
+      # super-linter runs as a container image pulled from ghcr.io
       packages: read
       # super-linter reports a status check for each linter
       statuses: write
+      # super-linter posts its summary as a PR comment
+      pull-requests: write
 
     steps:
       - name: Checkout Code
@@ -26,6 +31,7 @@ jobs:
           VALIDATE_ALL_CODEBASE: false
           DEFAULT_BRANCH: main
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ENABLE_GITHUB_PULL_REQUEST_SUMMARY_COMMENT: true
           LOG_LEVEL: ERROR
           SUPPRESS_POSSUM: true
 

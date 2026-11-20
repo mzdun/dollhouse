@@ -10,7 +10,10 @@
 #include <pyxel/gfx/solid_object.hpp>
 #include <set>
 #include <shapes/library.hpp>
+#include <string>
 #include <thread>
+#include <utility>
+#include <vector>
 
 // The Python module is free-threading ready (py::mod_gil_not_used), so
 // scripts may register and build models on one library from many threads.
