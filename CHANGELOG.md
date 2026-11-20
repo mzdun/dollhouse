@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file. See [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) and [COMMITS.md](COMMITS.md) for commit guidelines.
 
+## [0.2.1](https://github.com/mzdun/dollhouse/compare/v0.2.0...v0.2.1) (2026-11-20)
+
+### Bug Fixes
+
+- guard the paints during export ([70ff873](https://github.com/mzdun/dollhouse/commit/70ff873515fb92d29c3da31b13f04dea13963d78))
+- refuse configuration changes while building ([9af2627](https://github.com/mzdun/dollhouse/commit/9af262751344227bd61aa09b6bab6300385736fc))
+- let models be added and built from many threads ([c532073](https://github.com/mzdun/dollhouse/commit/c5320737c4f3c3364d9204db9e90be9126e39c80))
+
 ## [0.2.0](https://github.com/mzdun/dollhouse/compare/v0.1.0...v0.2.0) (2026-11-20)
 
 ### New Features
