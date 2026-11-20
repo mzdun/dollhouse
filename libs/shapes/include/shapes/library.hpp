@@ -3,10 +3,12 @@
 
 #pragma once
 
+#include <atomic>
 #include <filesystem>
 #include <functional>
 #include <map>
 #include <memory>
+#include <mutex>
 #include <optional>
 #include <pyxel/gfx/group.hpp>
 #include <pyxel/gfx/materials.hpp>
@@ -26,7 +28,11 @@ namespace shapes {
 	};
 	using model_map = std::map<std::string, model_entry, std::less<>>;
 
-	// This class is not re-entrant, do not use in parallel
+	// The model registry (add_model, models, clear_models, close,
+	// build_models) may be used from many threads; build_models runs the
+	// models without holding the registry lock, so the models may register
+	// other models. The configuration (exporter, output directory, paints,
+	// export listener) is not synchronized, set it up before building.
 	class library {
 	public:
 		static library& python_instance();
@@ -65,29 +71,32 @@ namespace shapes {
 			return material_repo_.register_paint(name, opts);
 		}
 
-		// returns false, if a model with this name is already registered;
-		// throws std::logic_error, once the library is closed
+		// returns false, if a model with this name is already registered,
+		// built or not; a model added while building waits for the next
+		// build_models(); throws std::logic_error, once the library is closed
 		bool add_model(std::string name, model_fn fn);
-		model_map const& models() const noexcept { return models_; }
-		// must not be called while building, see is_building()
-		void clear_models() noexcept { models_.clear(); }
+		// a copy of the registry; copies the model functions, so for Python
+		// models, call it with the GIL held
+		model_map models() const;
+		// forgets every model, built or not; throws std::logic_error, if
+		// called while building, see is_building()
+		void clear_models();
 
 		// forgets the models and refuses the new ones, for a host about to go
 		// away: the models of the Python module hold Python callables, which
-		// must be released while the interpreter is still alive
-		void close() noexcept {
-			clear_models();
-			closed_ = true;
-		}
-		bool is_closed() const noexcept { return closed_; }
+		// must be released while the interpreter is still alive; while
+		// building, the models are forgotten, once the build is over
+		void close() noexcept;
+		bool is_closed() const;
 
-		// builds the models, which did not run yet, and marks them as ran;
-		// a model, which failed, stays unmarked; throws std::logic_error,
-		// if called while building (e.g. from a model)
+		// builds the models, which did not run yet when it was called, and
+		// marks them as ran; a model, which failed, stays unmarked; throws
+		// std::logic_error, if called while building (e.g. from a model, or
+		// from another thread)
 		std::vector<std::filesystem::path> build_models();
 
-		// true, while build_models() runs; the model map is in use then
-		bool is_building() const noexcept { return building_; }
+		// true, while build_models() runs
+		bool is_building() const noexcept { return building_.load(); }
 
 		// called with the name and the path of every model build_models()
 		// writes, e.g. by the command line tool to list them
@@ -99,7 +108,11 @@ namespace shapes {
 		std::filesystem::path export_model(built_model const& model) const;
 
 		library* previous_{nullptr};
-		bool building_{false};
+		std::atomic<bool> building_{false};
+		// guards models_ (including model_entry::ran) and closed_; the model
+		// nodes stay put while building, as clear_models() is refused and
+		// close() leaves them to the build then
+		mutable std::mutex models_mutex_{};
 		bool closed_{false};
 		model_map models_{};
 		pyxel::gfx::materials material_repo_{};

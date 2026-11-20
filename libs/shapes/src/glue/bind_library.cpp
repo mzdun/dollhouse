@@ -100,14 +100,7 @@ namespace shapes::glue {
 		        "Builds every model and writes it to `output_directory`, named after the model, with the "
 		        "extension of its export format; returns the paths written. Stops at the first failure.")
 		    .def_static(
-		        "clear_models",
-		        [] {
-			        auto& lib = library::python_instance();
-			        if (lib.is_building()) {
-				        throw std::logic_error("library.clear_models: cannot clear the models while building them");
-			        }
-			        lib.clear_models();
-		        },
+		        "clear_models", [] { library::python_instance().clear_models(); },
 		        "Forgets every registered model, built or not, so the names can be registered again. Cannot be "
 		        "called while the models are being built.")
 		    .def_static(

@@ -78,6 +78,7 @@ namespace shapes {
 	}
 
 	bool library::add_model(std::string name, model_fn fn) {
+		std::lock_guard const lock{models_mutex_};
 		if (closed_) {
 			throw std::logic_error(std::format("model `{}`: the library is closed", name));
 		}
@@ -86,20 +87,67 @@ namespace shapes {
 		return models_.try_emplace(std::move(name), model_entry{.fn = std::move(fn)}).second;
 	}
 
+	model_map library::models() const {
+		std::lock_guard const lock{models_mutex_};
+		return models_;
+	}
+
+	void library::clear_models() {
+		std::lock_guard const lock{models_mutex_};
+		// checked under the lock: a build, which starts later, snapshots
+		// the cleared map; one, which started earlier, keeps us out
+		if (building_.load()) {
+			throw std::logic_error("library.clear_models: cannot clear the models while building them");
+		}
+		models_.clear();
+	}
+
+	void library::close() noexcept {
+		std::lock_guard const lock{models_mutex_};
+		closed_ = true;
+		// a running build still walks the models; it forgets them, when done
+		if (!building_.load()) models_.clear();
+	}
+
+	bool library::is_closed() const {
+		std::lock_guard const lock{models_mutex_};
+		return closed_;
+	}
+
 	std::vector<std::filesystem::path> library::build_models() {
-		if (building_) throw std::logic_error("library.build_models: already building the models");
+		if (building_.exchange(true)) throw std::logic_error("library.build_models: already building the models");
 		struct building_guard {
-			bool& flag;
-			explicit building_guard(bool& flag) : flag{flag} { flag = true; }
-			~building_guard() { flag = false; }
-		} const guard{building_};
+			library& self;
+			~building_guard() {
+				std::lock_guard const lock{self.models_mutex_};
+				// close() was called while building and left the models to us
+				if (self.closed_) self.models_.clear();
+				self.building_.store(false);
+			}
+		} const guard{*this};
+
+		// the models to build in this run; the map nodes do not move on
+		// insertion, and nothing erases them while building_ is set, so the
+		// iterators outlive the lock. Keys and functions are never written
+		// after insertion, so they are read without the lock below
+		std::vector<model_map::iterator> pending{};
+		{
+			std::lock_guard const lock{models_mutex_};
+			pending.reserve(models_.size());
+			for (auto it = models_.begin(); it != models_.end(); ++it) {
+				if (!it->second.ran) pending.push_back(it);
+			}
+		}
 
 		std::vector<std::filesystem::path> written{};
-		for (auto& [name, entry] : models_) {
-			if (entry.ran) continue;
-			written.push_back(export_model(*build_model(name, entry.fn)));
-			entry.ran = true;
-			if (export_listener_) export_listener_(name, written.back());
+		written.reserve(pending.size());
+		for (auto const it : pending) {
+			written.push_back(export_model(*build_model(it->first, it->second.fn)));
+			{
+				std::lock_guard const lock{models_mutex_};
+				it->second.ran = true;
+			}
+			if (export_listener_) export_listener_(it->first, written.back());
 		}
 		return written;
 	}
