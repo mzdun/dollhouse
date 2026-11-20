@@ -72,9 +72,39 @@ namespace shapes {
 		return ids;
 	}
 
+	void library::refuse_while_building(std::string_view what) const {
+		// checked under models_mutex_: a build, which starts later, sees the
+		// change in its snapshot; one, which started earlier, keeps us out
+		if (building_.load()) throw std::logic_error(std::format("library.{} while building the models", what));
+	}
+
+	std::string library::exporter_id() const {
+		std::lock_guard const lock{models_mutex_};
+		return exporter_id_;
+	}
+
 	void library::set_exporter_id(std::string id) {
 		if (!find_format(id)) throw std::invalid_argument(std::format("unknown exporter `{}`", id));
+		std::lock_guard const lock{models_mutex_};
+		refuse_while_building("exporter_id: cannot change the exporter");
 		exporter_id_ = std::move(id);
+	}
+
+	std::filesystem::path library::output_directory() const {
+		std::lock_guard const lock{models_mutex_};
+		return output_directory_;
+	}
+
+	void library::set_output_directory(std::filesystem::path dir) {
+		std::lock_guard const lock{models_mutex_};
+		refuse_while_building("output_directory: cannot change the output directory");
+		output_directory_ = std::move(dir);
+	}
+
+	void library::set_export_listener(export_listener listener) {
+		std::lock_guard const lock{models_mutex_};
+		refuse_while_building("set_export_listener: cannot change the listener");
+		export_listener_ = std::move(listener);
 	}
 
 	bool library::add_model(std::string name, model_fn fn) {
@@ -94,11 +124,7 @@ namespace shapes {
 
 	void library::clear_models() {
 		std::lock_guard const lock{models_mutex_};
-		// checked under the lock: a build, which starts later, snapshots
-		// the cleared map; one, which started earlier, keeps us out
-		if (building_.load()) {
-			throw std::logic_error("library.clear_models: cannot clear the models while building them");
-		}
+		refuse_while_building("clear_models: cannot clear the models");
 		models_.clear();
 	}
 
@@ -131,8 +157,10 @@ namespace shapes {
 		// iterators outlive the lock. Keys and functions are never written
 		// after insertion, so they are read without the lock below
 		std::vector<model_map::iterator> pending{};
+		build_config config{};
 		{
 			std::lock_guard const lock{models_mutex_};
+			config = {.exporter_id = exporter_id_, .output_directory = output_directory_, .listener = export_listener_};
 			pending.reserve(models_.size());
 			for (auto it = models_.begin(); it != models_.end(); ++it) {
 				if (!it->second.ran) pending.push_back(it);
@@ -142,29 +170,31 @@ namespace shapes {
 		std::vector<std::filesystem::path> written{};
 		written.reserve(pending.size());
 		for (auto const it : pending) {
-			written.push_back(export_model(*build_model(it->first, it->second.fn)));
+			written.push_back(export_model(*build_model(it->first, it->second.fn, config), config));
 			{
 				std::lock_guard const lock{models_mutex_};
 				it->second.ran = true;
 			}
-			if (export_listener_) export_listener_(it->first, written.back());
+			if (config.listener) config.listener(it->first, written.back());
 		}
 		return written;
 	}
 
-	std::unique_ptr<library::built_model> library::build_model(std::string const& name, model_fn const& fn) const {
+	std::unique_ptr<library::built_model> library::build_model(std::string const& name,
+	                                                           model_fn const& fn,
+	                                                           build_config const& config) {
 		auto model = std::make_unique<built_model>();
 		model->name = name;
-		model->exporter = fn(model->root).value_or(exporter_id_);
+		model->exporter = fn(model->root).value_or(config.exporter_id);
 		if (!find_format(model->exporter)) {
 			throw std::invalid_argument(std::format("model `{}`: unknown exporter `{}`", name, model->exporter));
 		}
 		return model;
 	}
 
-	std::filesystem::path library::export_model(built_model const& model) const {
+	std::filesystem::path library::export_model(built_model const& model, build_config const& config) const {
 		auto const* format = find_format(model.exporter);
-		auto path = output_directory_ / model_file(model.name, format->extension);
+		auto path = config.output_directory / model_file(model.name, format->extension);
 		std::filesystem::create_directories(path.parent_path());
 
 		pyxel::gfx::sink out{};
