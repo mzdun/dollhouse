@@ -64,6 +64,9 @@ if (MSVC)
       /D_DISABLE_OPTIONAL_ANNOTATION
     )
   endif()
+  if (DOLLHOUSE_SANITIZE_THREAD)
+    message(FATAL_ERROR "DOLLHOUSE_SANITIZE_THREAD: MSVC has no ThreadSanitizer")
+  endif()
   if (DOLLHOUSE_W_ERROR)
     list(APPEND DOLLHOUSE_ADDITIONAL_COMPILE_FLAGS /WX)
   endif()
@@ -109,6 +112,10 @@ else()
       -fsanitize=undefined
     )
   endif()
+  if (DOLLHOUSE_SANITIZE_THREAD)
+    list(APPEND DOLLHOUSE_ADDITIONAL_COMPILE_FLAGS -fsanitize=thread)
+    list(APPEND DOLLHOUSE_ADDITIONAL_LINK_FLAGS -fsanitize=thread)
+  endif()
   if (DOLLHOUSE_W_ERROR)
     list(APPEND DOLLHOUSE_ADDITIONAL_COMPILE_FLAGS -Werror)
   endif()
@@ -134,10 +141,10 @@ else()
     list(APPEND DOLLHOUSE_ADDITIONAL_COMPILE_FLAGS -fstack-clash-protection)
   endif()
   if (CMAKE_SYSTEM_NAME STREQUAL "Linux")
-    # needs optimizations, and gets in the way of the ASan interceptors; the
-    # toolchain may define it already (Ubuntu does), hence -U first, or the
-    # redefinition warns
-    if (NOT DOLLHOUSE_SANITIZE)
+    # needs optimizations, and gets in the way of the sanitizer interceptors;
+    # the toolchain may define it already (Ubuntu does), hence -U first, or
+    # the redefinition warns
+    if (NOT (DOLLHOUSE_SANITIZE OR DOLLHOUSE_SANITIZE_THREAD))
       list(APPEND DOLLHOUSE_ADDITIONAL_COMPILE_FLAGS
         "$<${_dollhouse_optimized}:-U_FORTIFY_SOURCE>"
         "$<${_dollhouse_optimized}:-D_FORTIFY_SOURCE=3>"
@@ -163,8 +170,21 @@ unset(_dollhouse_optimized)
 # interceptor stays unresolved in the (C-only) interpreter and the first C++
 # exception aborts the process. Leak detection is off, as CPython does not
 # free everything at exit.
+#
+# With ThreadSanitizer, the TSan runtime has to be preloaded the same way,
+# or the module fails to load ("cannot allocate memory in static TLS
+# block"); it needs no libstdc++ next to it. Run the interpreter through
+# DOLLHOUSE_LAUNCHER: the launcher must not get the preload itself.
 function(dollhouse_python_env OUT_VAR)
   set(result)
+  if(DOLLHOUSE_SANITIZE_THREAD AND CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+    execute_process(
+      COMMAND ${CMAKE_CXX_COMPILER} -print-file-name=libtsan.so
+      OUTPUT_VARIABLE lib_path
+      OUTPUT_STRIP_TRAILING_WHITESPACE
+    )
+    list(APPEND result "LD_PRELOAD=${lib_path}")
+  endif()
   if(DOLLHOUSE_SANITIZE AND CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
     set(preload)
     foreach(lib libasan.so libstdc++.so)
@@ -180,6 +200,21 @@ function(dollhouse_python_env OUT_VAR)
   endif()
   set(${OUT_VAR} ${result} PARENT_SCOPE)
 endfunction()
+
+# Command prefix for the processes running the code of this build: the tests
+# (through CMAKE_TEST_LAUNCHER) and the Python interpreters loading a module.
+#
+# The ThreadSanitizer of GCC 14 cannot start with the high-entropy ASLR of
+# newer kernels (vm.mmap_rnd_bits=32): it stops with "unexpected memory
+# mapping". `setarch -R` turns ASLR off for the process it starts, without
+# root. Newer TSan runtimes re-exec themselves the same way; for them the
+# launcher changes nothing.
+set(DOLLHOUSE_LAUNCHER)
+if (DOLLHOUSE_SANITIZE_THREAD AND CMAKE_SYSTEM_NAME STREQUAL "Linux")
+  find_program(DOLLHOUSE_SETARCH setarch REQUIRED)
+  set(DOLLHOUSE_LAUNCHER ${DOLLHOUSE_SETARCH} -R)
+  set(CMAKE_TEST_LAUNCHER ${DOLLHOUSE_LAUNCHER})
+endif()
 
 # Copies the ASan runtime next to the binary of TARGET after each build.
 #
@@ -208,7 +243,8 @@ endfunction()
 # and local changes even when TARGET itself is up to date.
 function(dollhouse_module_variant TARGET OUTPUT)
   find_package(Git QUIET)
-  if(DOLLHOUSE_SANITIZE)
+  # any sanitizer: a plain interpreter loads neither of them
+  if(DOLLHOUSE_SANITIZE OR DOLLHOUSE_SANITIZE_THREAD)
     set(sanitizer ON)
   else()
     set(sanitizer OFF)
