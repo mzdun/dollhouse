@@ -87,14 +87,16 @@ namespace shapes::glue {
 			        library::python_instance().set_exporter_id(std::move(id));
 		        }),
 		        "Export format for the models returning None; one of `exporters`, glTF 2 binary (\"glb2\") by "
-		        "default.")
+		        "default. Cannot be changed while the models are being built; a build uses the value from its "
+		        "start.")
 		    .def_property_static("output_directory", py::cpp_function([](py::object const&) {
 			                         return library::python_instance().output_directory();
 		                         }),
 		                         py::cpp_function([](py::object const&, std::filesystem::path dir) {
 			                         library::python_instance().set_output_directory(std::move(dir));
 		                         }),
-		                         "Where `build_models` writes the files; the current directory by default.")
+		                         "Where `build_models` writes the files; the current directory by default. Cannot be "
+		                         "changed while the models are being built; a build uses the value from its start.")
 		    .def_static(
 		        "build_models", [] { return library::python_instance().build_models(); },
 		        "Builds every model and writes it to `output_directory`, named after the model, with the "
