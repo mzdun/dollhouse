@@ -32,6 +32,12 @@ list(APPEND CMAKE_PREFIX_PATH "${PROJECT_BINARY_DIR}/conan")
 include(common)
 
 set(CONAN_CMAKE_SILENT_OUTPUT ON)
+# Accept free-threaded (python3.Xt) interpreters as well as regular ones;
+# by default FindPython skips them. The fourth ABI element is the
+# free-threading flag (CMake 3.30+). Override with -DPython3_FIND_ABI=...
+if (NOT DEFINED Python3_FIND_ABI)
+  set(Python3_FIND_ABI "ANY" "ANY" "ANY" "ANY")
+endif()
 find_package(Python3 COMPONENTS Interpreter Development REQUIRED)
 find_package(fmt REQUIRED)
 find_package(mbits-args REQUIRED)
