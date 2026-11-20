@@ -14,6 +14,9 @@ jobs:
   M:
     name: Prepare builds
     runs-on: ubuntu-latest
+    permissions:
+      # checkout reads the repository
+      contents: read
     outputs:
       release: ${{fromJson(env.RELEASE)}}
       matrix: ${{steps.flow.outputs.matrix}}
@@ -41,6 +44,9 @@ jobs:
 
     runs-on: ${{ matrix.github_os }}
     name: ${{ matrix.build_name }}
+    permissions:
+      # checkout reads the repository and its submodules
+      contents: read
     outputs:
       release: ${{fromJson(env.RELEASE)}}
 
@@ -141,6 +147,8 @@ jobs:
     name: Merge artifacts
     runs-on: ubuntu-latest
     needs: build
+    # artifacts are merged with the runner's own token, not GITHUB_TOKEN
+    permissions: {}
     env:
       RELEASE: ${{needs.build.outputs.release}}
     outputs:
@@ -168,8 +176,10 @@ jobs:
     needs: merge
     runs-on: ubuntu-latest
     permissions:
+      # checkout reads the repository; "flow github publish" uploads the
+      # packages to the draft release and publishes it (releases need
+      # contents: write)
       contents: write
-      packages: write
 
     env:
       RELEASE: ${{needs.merge.outputs.release}}
