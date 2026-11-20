@@ -170,6 +170,22 @@ jobs:
           pattern: _tests-*
           delete-merged: true
 
+  # The single check to require in the branch rules: the build job names
+  # come from the matrix, and a job skipped after a failed dependency would
+  # count as passing.
+  checks:
+    name: All builds passed
+    if: always()
+    needs: [M, build]
+    runs-on: ubuntu-latest
+    # only reads the results of the needed jobs
+    permissions: {}
+
+    steps:
+      - name: Check build results
+        if: ${{ contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled') || contains(needs.*.result, 'skipped') }}
+        run: exit 1
+
   publish:
     name: Upload packages
     if: ${{ fromJson(needs.merge.outputs.release) }}
