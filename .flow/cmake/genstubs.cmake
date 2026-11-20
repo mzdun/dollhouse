@@ -5,10 +5,13 @@
 # importing the module from OUTPUT_DIR, and writes them next to the binary.
 #
 #     cmake -DPYTHON=<python> -DMODULE=<name> -DOUTPUT_DIR=<dir>
-#           [-DPYTHON_ENV=NAME=value|NAME=value...] -P genstubs.cmake
+#           [-DPYTHON_ENV=NAME=value|NAME=value...]
+#           [-DLAUNCHER=command|arg...] -P genstubs.cmake
 #
 # PYTHON_ENV is extra environment for the interpreter (see
-# dollhouse_python_env()), with entries separated by `|`.
+# dollhouse_python_env()), with entries separated by `|`. LAUNCHER is the
+# command prefix (see DOLLHOUSE_LAUNCHER), with arguments separated by `|`;
+# it runs before the environment is set, so it never gets PYTHON_ENV.
 
 foreach(var PYTHON MODULE OUTPUT_DIR)
   if(NOT DEFINED ${var})
@@ -17,10 +20,12 @@ foreach(var PYTHON MODULE OUTPUT_DIR)
 endforeach()
 
 string(REPLACE "|" ";" PYTHON_ENV "${PYTHON_ENV}")
+string(REPLACE "|" ";" LAUNCHER "${LAUNCHER}")
 file(REAL_PATH "${OUTPUT_DIR}" OUTPUT_DIR)
 
 # the module comes from OUTPUT_DIR, never from site-packages
 set(run_python
+  ${LAUNCHER}
   ${CMAKE_COMMAND} -E env
     --modify "PYTHONPATH=path_list_prepend:${OUTPUT_DIR}"
     ${PYTHON_ENV}

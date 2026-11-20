@@ -112,7 +112,9 @@ if(DOLLHOUSE_INSTALL)
 endif()
 
 # Environment of the Python interpreter loading the module from this build
-# tree (on sanitized builds: the ASan preload, see dollhouse_python_env)
+# tree (on sanitized builds: the sanitizer preload, see dollhouse_python_env);
+# set by `cmake -E env` behind DOLLHOUSE_LAUNCHER, so the launcher does not
+# get the preload
 dollhouse_python_env(SHAPES_PYTHON_ENV)
 
 # On sanitized MSVC builds, the module needs the ASan runtime next to it
@@ -133,12 +135,14 @@ if(SHAPES_STUBGEN_MISSING)
     message(WARNING "pybind11-stubgen not found for ${Python3_EXECUTABLE}; stubs of `shapes` will not be generated")
 else()
     list(JOIN SHAPES_PYTHON_ENV "|" SHAPES_PYTHON_ENV_ARG)
+    list(JOIN DOLLHOUSE_LAUNCHER "|" SHAPES_LAUNCHER_ARG)
     add_custom_command(TARGET shapes POST_BUILD
         COMMAND ${CMAKE_COMMAND}
             -DPYTHON=${Python3_EXECUTABLE}
             -DMODULE=shapes
             -DOUTPUT_DIR=${PROJECT_BINARY_DIR}/bin
             "-DPYTHON_ENV=${SHAPES_PYTHON_ENV_ARG}"
+            "-DLAUNCHER=${SHAPES_LAUNCHER_ARG}"
             -P ${PROJECT_SOURCE_DIR}/.flow/cmake/genstubs.cmake
         COMMENT "Generating stubs of the shapes module"
         VERBATIM
@@ -165,7 +169,8 @@ if(DOLLHOUSE_TESTING)
 
     add_test(
         NAME shapes-python
-        COMMAND ${Python3_EXECUTABLE} -m pytest
+        COMMAND ${DOLLHOUSE_LAUNCHER} ${CMAKE_COMMAND} -E env ${SHAPES_PYTHON_ENV}
+            ${Python3_EXECUTABLE} -m pytest
             -c ${SHAPES_PYTEST_DIR}/pytest.ini
             --rootdir ${SHAPES_PYTEST_DIR}
             -o cache_dir=${CMAKE_CURRENT_BINARY_DIR}/.pytest_cache
@@ -176,7 +181,6 @@ if(DOLLHOUSE_TESTING)
     set(SHAPES_PYTEST_ENV
         "SHAPES_MODULE_DIR=${PROJECT_BINARY_DIR}/bin"
         "PYTHONPYCACHEPREFIX=${CMAKE_CURRENT_BINARY_DIR}/pycache"
-        ${SHAPES_PYTHON_ENV}
     )
     set_tests_properties(shapes-python PROPERTIES
         LABELS python
