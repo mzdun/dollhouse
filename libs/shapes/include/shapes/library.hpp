@@ -13,6 +13,7 @@
 #include <pyxel/gfx/group.hpp>
 #include <pyxel/gfx/materials.hpp>
 #include <string>
+#include <string_view>
 #include <utility>
 #include <vector>
 
@@ -28,11 +29,13 @@ namespace shapes {
 	};
 	using model_map = std::map<std::string, model_entry, std::less<>>;
 
-	// The model registry (add_model, models, clear_models, close,
-	// build_models) may be used from many threads; build_models runs the
-	// models without holding the registry lock, so the models may register
-	// other models. The configuration (exporter, output directory, paints,
-	// export listener) is not synchronized, set it up before building.
+	// The models and the configuration may be used from many threads.
+	// build_models() runs the models without holding any lock, so a model
+	// may register other models. The paints are not synchronized, register
+	// them before building or from the models. Changing the configuration
+	// (exporter, output directory, export listener) or clearing the models
+	// is refused while building; a build uses the configuration from the
+	// moment it started.
 	class library {
 	public:
 		static library& python_instance();
@@ -56,13 +59,15 @@ namespace shapes {
 
 		// used for the models returning no exporter id; defaults to glTF 2
 		// binary ("glb2"), if available, else glTF 1 binary ("glb")
-		std::string const& exporter_id() const noexcept { return exporter_id_; }
-		// throws std::invalid_argument for ids not listed in exporters()
+		std::string exporter_id() const;
+		// throws std::invalid_argument for ids not listed in exporters() and
+		// std::logic_error, if called while building
 		void set_exporter_id(std::string id);
 
 		// where build_models() writes the files; current directory by default
-		std::filesystem::path const& output_directory() const noexcept { return output_directory_; }
-		void set_output_directory(std::filesystem::path dir) { output_directory_ = std::move(dir); }
+		std::filesystem::path output_directory() const;
+		// throws std::logic_error, if called while building
+		void set_output_directory(std::filesystem::path dir);
 
 		std::string register_paint(pyxel::gfx::materials::paint_opts const& opts) {
 			return material_repo_.register_paint(opts);
@@ -99,25 +104,39 @@ namespace shapes {
 		bool is_building() const noexcept { return building_.load(); }
 
 		// called with the name and the path of every model build_models()
-		// writes, e.g. by the command line tool to list them
+		// writes, e.g. by the command line tool to list them; called on the
+		// building thread, without any lock held
 		using export_listener = std::function<void(std::string const& name, std::filesystem::path const& path)>;
-		void set_export_listener(export_listener listener) { export_listener_ = std::move(listener); }
+		// throws std::logic_error, if called while building
+		void set_export_listener(export_listener listener);
 
 	private:
-		std::unique_ptr<built_model> build_model(std::string const& name, model_fn const&) const;
-		std::filesystem::path export_model(built_model const& model) const;
+		// the configuration of one build, copied when it starts
+		struct build_config {
+			std::string exporter_id{};
+			std::filesystem::path output_directory{};
+			export_listener listener{};
+		};
+
+		static std::unique_ptr<built_model> build_model(std::string const& name,
+		                                                model_fn const&,
+		                                                build_config const& config);
+		std::filesystem::path export_model(built_model const& model, build_config const& config) const;
+		// throws std::logic_error naming `what`, if building; call with
+		// models_mutex_ held
+		void refuse_while_building(std::string_view what) const;
 
 		library* previous_{nullptr};
 		std::atomic<bool> building_{false};
-		// guards models_ (including model_entry::ran) and closed_; the model
-		// nodes stay put while building, as clear_models() is refused and
-		// close() leaves them to the build then
+		// guards models_ (including model_entry::ran), closed_ and the
+		// configuration; the model nodes stay put while building, as
+		// clear_models() is refused and close() leaves them to the build then
 		mutable std::mutex models_mutex_{};
 		bool closed_{false};
 		model_map models_{};
-		pyxel::gfx::materials material_repo_{};
 		std::string exporter_id_{};
 		std::filesystem::path output_directory_{"."};
 		export_listener export_listener_{};
+		pyxel::gfx::materials material_repo_{};
 	};
 }  // namespace shapes

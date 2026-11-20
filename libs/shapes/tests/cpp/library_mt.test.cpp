@@ -13,8 +13,9 @@
 
 // The Python module is free-threading ready (py::mod_gil_not_used), so
 // scripts may register and build models on one library from many threads.
-// These tests pin down how add_model, build_models and clear_models are
-// expected to interact then.
+// These tests pin down how the registry (add_model, build_models,
+// clear_models, close) and the configuration (exporter, output directory,
+// export listener) are expected to interact then.
 
 namespace shapes::testing {
 	namespace fs = std::filesystem;
@@ -169,5 +170,91 @@ namespace shapes::testing {
 		auto const all = stems(built);
 		EXPECT_EQ(all.size(), std::size_t{adders * per_adder});
 		EXPECT_EQ(std::set(all.begin(), all.end()).size(), all.size());  // each written exactly once
+	}
+
+	TEST_F(library_mt, configuration_is_refused_while_building) {
+		add_blocking("m");
+		auto builder = start_blocked_build();
+
+		// the getters do not wait for the build
+		auto const exporter = lib_.exporter_id();
+		EXPECT_EQ(lib_.output_directory(), dir_);
+
+		EXPECT_THROW(lib_.set_exporter_id("obj"), std::logic_error);
+		EXPECT_THROW(lib_.set_output_directory(dir_ / "elsewhere"), std::logic_error);
+		EXPECT_THROW(lib_.set_export_listener({}), std::logic_error);
+		EXPECT_EQ(lib_.exporter_id(), exporter);
+		EXPECT_EQ(lib_.output_directory(), dir_);
+		release_.count_down();
+		builder.join();
+
+		ASSERT_FALSE(error_);
+		ASSERT_EQ(first_.size(), 1u);
+		EXPECT_EQ(first_.front().parent_path(), dir_);
+
+		// allowed again, once the build is over
+		EXPECT_NO_THROW(lib_.set_exporter_id("obj"));
+		EXPECT_NO_THROW(lib_.set_output_directory(dir_ / "elsewhere"));
+	}
+
+	TEST_F(library_mt, configuration_is_refused_from_a_model) {
+		lib_.add_model("m", [this](pyxel::gfx::group&) -> std::optional<std::string> {
+			EXPECT_THROW(lib_.set_exporter_id("obj"), std::logic_error);
+			EXPECT_THROW(lib_.set_output_directory(dir_ / "elsewhere"), std::logic_error);
+			EXPECT_THROW(lib_.set_export_listener({}), std::logic_error);
+			return std::nullopt;
+		});
+
+		auto const paths = lib_.build_models();
+		ASSERT_EQ(paths.size(), 1u);
+		EXPECT_EQ(paths.front().parent_path(), dir_);
+		EXPECT_NE(paths.front().extension(), ".obj");
+	}
+
+	// no synchronization between the threads; meant to be run under TSan
+	TEST_F(library_mt, stress_getters_while_setting) {
+		constexpr int readers = 4;
+		constexpr int rounds = 200;
+
+		std::string const exporters[] = {lib_.exporter_id(), "obj"};
+		fs::path const dirs[] = {dir_ / "even", dir_ / "odd"};
+		std::atomic<bool> done{false};
+
+		std::vector<std::jthread> threads{};
+		threads.reserve(readers + 1);
+		for (int i = 0; i < readers; ++i) {
+			threads.emplace_back([&] {
+				while (!done.load()) {
+					auto const exporter = lib_.exporter_id();
+					auto const dir = lib_.output_directory();
+					EXPECT_TRUE(exporter == exporters[0] || exporter == exporters[1]) << exporter;
+					EXPECT_TRUE(dir == dir_ || dir == dirs[0] || dir == dirs[1]) << dir;
+				}
+			});
+		}
+		threads.emplace_back([&] {
+			for (int i = 0; i < rounds; ++i) {
+				lib_.set_exporter_id(exporters[i % 2]);
+				lib_.set_output_directory(dirs[i % 2]);
+			}
+			done.store(true);
+		});
+	}
+	// the listener is called on the building thread, with every model written
+	TEST_F(library_mt, export_listener_sees_every_model) {
+		lib_.add_model("a", empty());
+		lib_.add_model("b", empty());
+		std::vector<std::pair<std::string, fs::path>> seen{};
+		auto const builder_id = std::this_thread::get_id();
+		lib_.set_export_listener([&](std::string const& name, fs::path const& path) {
+			EXPECT_EQ(std::this_thread::get_id(), builder_id);
+			EXPECT_FALSE(lib_.is_closed());  // no lock is held during the call
+			seen.emplace_back(name, path);
+		});
+
+		auto const paths = lib_.build_models();
+		ASSERT_EQ(seen.size(), 2u);
+		EXPECT_EQ(seen[0], (std::pair<std::string, fs::path>{"a", paths[0]}));
+		EXPECT_EQ(seen[1], (std::pair<std::string, fs::path>{"b", paths[1]}));
 	}
 }  // namespace shapes::testing
