@@ -74,6 +74,22 @@ namespace shapes::testing {
 		std::exception_ptr error_{};
 	};
 
+	// a model added while building is left for the next build, wherever its
+	// name sorts relative to the model being built
+	TEST_F(library_mt, model_added_mid_build_waits_for_next_build) {
+		add_blocking("m");
+		auto builder = start_blocked_build();
+
+		EXPECT_TRUE(lib_.add_model("a_late", empty()));  // sorts before the running model
+		EXPECT_TRUE(lib_.add_model("z_late", empty()));  // sorts after it
+		release_.count_down();
+		builder.join();
+
+		ASSERT_FALSE(error_);
+		EXPECT_EQ(stems(first_), names{"m"});
+		EXPECT_EQ(stems(lib_.build_models()), (names{"a_late", "z_late"}));
+	}
+
 	TEST_F(library_mt, second_build_is_refused_while_building) {
 		add_blocking("m");
 		auto builder = start_blocked_build();
@@ -84,5 +100,74 @@ namespace shapes::testing {
 
 		ASSERT_FALSE(error_);
 		EXPECT_EQ(stems(first_), names{"m"});
+	}
+
+	TEST_F(library_mt, clear_is_refused_while_building) {
+		add_blocking("m");
+		lib_.add_model("n", empty());  // the builder has to step onto this one after "m"
+		auto builder = start_blocked_build();
+
+		EXPECT_THROW(lib_.clear_models(), std::logic_error);
+		release_.count_down();
+		builder.join();
+
+		ASSERT_FALSE(error_);
+		EXPECT_EQ(stems(first_), (names{"m", "n"}));
+	}
+
+	// the host goes away while another thread builds: new models are refused
+	// at once, the registered ones are forgotten after the build
+	TEST_F(library_mt, close_while_building_forgets_the_models_after_the_build) {
+		add_blocking("m");
+		lib_.add_model("n", empty());
+		auto builder = start_blocked_build();
+
+		lib_.close();
+		EXPECT_TRUE(lib_.is_closed());
+		EXPECT_THROW(lib_.add_model("late", empty()), std::logic_error);
+		EXPECT_EQ(lib_.models().size(), 2u);  // still in use by the build
+		release_.count_down();
+		builder.join();
+
+		ASSERT_FALSE(error_);
+		EXPECT_EQ(stems(first_), (names{"m", "n"}));
+		EXPECT_TRUE(lib_.models().empty());
+	}
+
+	// no synchronization between the threads; meant to be run under TSan
+	TEST_F(library_mt, stress_add_while_building) {
+		constexpr int adders = 4;
+		constexpr int per_adder = 50;
+		std::atomic<int> adders_left{adders};
+		std::vector<fs::path> built{};
+
+		std::jthread builder{[&] {
+			while (adders_left.load() > 0) {
+				auto paths = lib_.build_models();
+				built.insert(built.end(), paths.begin(), paths.end());
+			}
+		}};
+		{
+			std::vector<std::jthread> threads{};
+			threads.reserve(adders);
+			for (int i = 0; i < adders; ++i) {
+				threads.emplace_back([&, i] {
+					for (int j = 0; j < per_adder; ++j) {
+						auto const name = std::format("t{}_{:03}", i, j);
+						EXPECT_TRUE(lib_.add_model(name, empty()));
+						EXPECT_FALSE(lib_.add_model(name, empty()));  // duplicates are still rejected
+					}
+					adders_left.fetch_sub(1);
+				});
+			}
+		}  // joins the adders
+		builder.join();
+
+		auto const rest = lib_.build_models();
+		built.insert(built.end(), rest.begin(), rest.end());
+
+		auto const all = stems(built);
+		EXPECT_EQ(all.size(), std::size_t{adders * per_adder});
+		EXPECT_EQ(std::set(all.begin(), all.end()).size(), all.size());  // each written exactly once
 	}
 }  // namespace shapes::testing
