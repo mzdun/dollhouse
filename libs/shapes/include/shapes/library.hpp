@@ -29,10 +29,9 @@ namespace shapes {
 	};
 	using model_map = std::map<std::string, model_entry, std::less<>>;
 
-	// The models and the configuration may be used from many threads.
-	// build_models() runs the models without holding any lock, so a model
-	// may register other models. The paints are not synchronized, register
-	// them before building or from the models. Changing the configuration
+	// Every member may be called from many threads. build_models() runs the
+	// models without holding any lock, so a model may register other models
+	// and paints. Changing the configuration
 	// (exporter, output directory, export listener) or clearing the models
 	// is refused while building; a build uses the configuration from the
 	// moment it started.
@@ -69,12 +68,9 @@ namespace shapes {
 		// throws std::logic_error, if called while building
 		void set_output_directory(std::filesystem::path dir);
 
-		std::string register_paint(pyxel::gfx::materials::paint_opts const& opts) {
-			return material_repo_.register_paint(opts);
-		}
-		std::string register_paint(std::string const& name, pyxel::gfx::materials::paint_opts const& opts) {
-			return material_repo_.register_paint(name, opts);
-		}
+		// allowed while building, e.g. from a model
+		std::string register_paint(pyxel::gfx::materials::paint_opts const& opts) { return register_paint({}, opts); }
+		std::string register_paint(std::string const& name, pyxel::gfx::materials::paint_opts const& opts);
 
 		// returns false, if a model with this name is already registered,
 		// built or not; a model added while building waits for the next
@@ -137,6 +133,9 @@ namespace shapes {
 		std::string exporter_id_{};
 		std::filesystem::path output_directory_{"."};
 		export_listener export_listener_{};
+		// separate from models_mutex_, so add_model() does not wait for an
+		// export; held for the whole export_scene(), which reads the paints
+		mutable std::mutex paints_mutex_{};
 		pyxel::gfx::materials material_repo_{};
 	};
 }  // namespace shapes
