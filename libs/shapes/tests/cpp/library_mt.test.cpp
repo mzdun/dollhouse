@@ -7,6 +7,7 @@
 #include <exception>
 #include <format>
 #include <latch>
+#include <pyxel/gfx/solid_object.hpp>
 #include <set>
 #include <shapes/library.hpp>
 #include <thread>
@@ -14,8 +15,8 @@
 // The Python module is free-threading ready (py::mod_gil_not_used), so
 // scripts may register and build models on one library from many threads.
 // These tests pin down how the registry (add_model, build_models,
-// clear_models, close) and the configuration (exporter, output directory,
-// export listener) are expected to interact then.
+// clear_models, close), the configuration (exporter, output directory,
+// export listener) and the paints are expected to interact then.
 
 namespace shapes::testing {
 	namespace fs = std::filesystem;
@@ -33,6 +34,21 @@ namespace shapes::testing {
 
 		static model_fn empty() {
 			return [](pyxel::gfx::group&) -> std::optional<std::string> { return std::nullopt; };
+		}
+
+		// a unit cube painted with `paint`; unlike empty(), it makes the
+		// export look the paint up
+		static void add_cube(pyxel::gfx::group& root, std::string paint) {
+			using namespace pyxel::math::literals;
+			root.set_material(std::move(paint));
+			root.add<pyxel::gfx::solid_object>(pyxel::gfx::solid::cube(1_m, 1_m, 1_m));
+		}
+
+		static model_fn cube(std::string paint) {
+			return [paint = std::move(paint)](pyxel::gfx::group& root) -> std::optional<std::string> {
+				add_cube(root, paint);
+				return std::nullopt;
+			};
 		}
 
 		// registers `name`, which signals `entered_` and waits for `release_`
@@ -209,6 +225,55 @@ namespace shapes::testing {
 		ASSERT_EQ(paths.size(), 1u);
 		EXPECT_EQ(paths.front().parent_path(), dir_);
 		EXPECT_NE(paths.front().extension(), ".obj");
+	}
+
+	// the paints are not locked while the model runs, only while it exports
+	TEST_F(library_mt, model_registers_its_own_paint) {
+		lib_.add_model("m", [this](pyxel::gfx::group& root) -> std::optional<std::string> {
+			add_cube(root, lib_.register_paint("wood", {.color = pyxel::gfx::rgb(0x80, 0x50, 0x20)}));
+			return std::nullopt;
+		});
+
+		EXPECT_EQ(stems(lib_.build_models()), names{"m"});
+	}
+
+	// no synchronization between the threads; meant to be run under TSan
+	TEST_F(library_mt, stress_register_paint_while_building) {
+		constexpr std::size_t painters = 4;
+		constexpr std::size_t per_painter = 50;
+		constexpr int models = 20;
+
+		auto const base = lib_.register_paint("base", {.color = pyxel::gfx::rgb(0x80, 0x80, 0x80)});
+		for (int i = 0; i < models; ++i)
+			lib_.add_model(std::format("m{:02}", i), cube(base));
+
+		std::latch start{static_cast<std::ptrdiff_t>(painters) + 1};
+		std::vector<fs::path> built{};
+		std::vector<names> registered(painters);
+		{
+			std::jthread builder{[&] {
+				start.arrive_and_wait();
+				built = lib_.build_models();
+			}};
+			std::vector<std::jthread> threads{};
+			threads.reserve(painters);
+			for (std::size_t i = 0; i < painters; ++i) {
+				threads.emplace_back([&, i] {
+					start.arrive_and_wait();
+					for (std::size_t j = 0; j < per_painter; ++j) {
+						auto const color = pyxel::gfx::rgb(static_cast<uint8_t>(i), static_cast<uint8_t>(j), 0);
+						registered[i].push_back(lib_.register_paint(std::format("p{}_{:03}", i, j), {.color = color}));
+					}
+				});
+			}
+		}  // joins everyone
+
+		EXPECT_EQ(built.size(), std::size_t{models});
+		for (std::size_t i = 0; i < painters; ++i) {
+			ASSERT_EQ(registered[i].size(), per_painter);
+			for (std::size_t j = 0; j < per_painter; ++j)
+				EXPECT_EQ(registered[i][j], std::format("p{}_{:03}", i, j));
+		}
 	}
 
 	// no synchronization between the threads; meant to be run under TSan
