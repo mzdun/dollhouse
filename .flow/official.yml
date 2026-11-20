@@ -1,4 +1,5 @@
 exclude:
   - compiler: clang
   - build_type: Debug
-  - sanitizer: true
+  - sanitizer: address
+  - sanitizer: thread

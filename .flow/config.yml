@@ -34,12 +34,17 @@ compiler:
 
 postproc:
   exclude:
-    - { github_os: ubuntu-24.04, sanitizer: true }
+    - { github_os: ubuntu-24.04, sanitizer: address }
+    # one ThreadSanitizer job is enough: the races do not depend on the
+    # runner, so it runs on the newest one only
+    - { github_os: ubuntu-22.04, sanitizer: thread }
+    - { github_os: ubuntu-24.04, sanitizer: thread }
 
 cmake:
   vars:
     DOLLHOUSE_COVERAGE: "?config:coverage"
-    DOLLHOUSE_SANITIZE: "?config:sanitizer"
+    DOLLHOUSE_SANITIZE: "?config:sanitizer=address"
+    DOLLHOUSE_SANITIZE_THREAD: "?config:sanitizer=thread"
     # Treats warnings as errors (/WX, -Werror). Not a matrix key, so it is
     # always OFF, unless added to the configs with -E, as in
     #   ./flow run -E w-error=on
@@ -58,4 +63,5 @@ shortcuts:
   nfo: { build_type: RelWithDebInfo, sanitizer: false }
   both: { build_type: [Debug, Release], sanitizer: false }
   all: { build_type: [Debug, Release, RelWithDebInfo], sanitizer: false }
-  sane: { build_type: Debug, sanitizer: true }
+  sane: { build_type: Debug, sanitizer: address }
+  tsan: { build_type: Debug, sanitizer: thread }
