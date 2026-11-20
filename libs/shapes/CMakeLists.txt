@@ -3,10 +3,32 @@
 
 set(SHAPES_PACKAGE_DIR ${PROJECT_BINARY_DIR}/bin/shapes)
 
+# the model library, free of Python, so the C++ tests can link it without
+# the module
+set(CORE_SRCS
+    include/shapes/library.hpp
+    src/library.cpp
+)
+
+source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR} FILES ${CORE_SRCS})
+
+add_library(shapes-core STATIC ${CORE_SRCS})
+target_compile_options(shapes-core PRIVATE ${DOLLHOUSE_ADDITIONAL_COMPILE_FLAGS})
+target_link_options(shapes-core PUBLIC ${DOLLHOUSE_ADDITIONAL_LINK_FLAGS})
+target_include_directories(shapes-core
+    PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include
+    PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src
+)
+target_link_libraries(shapes-core PUBLIC pyxel-models pyxel-io)
+set_target_properties(shapes-core PROPERTIES
+    FOLDER libs
+    # linked into the `shapes` Python module, a shared library
+    POSITION_INDEPENDENT_CODE ON
+)
+
 set(SRCS
     include/shapes/__main__/main.hpp
     include/shapes/glue/glue.hpp
-    include/shapes/library.hpp
     src/__init__.cpp
     src/__main__/config.cpp
     src/__main__/config.hpp
@@ -34,7 +56,6 @@ set(SRCS
     src/glue/lifetime.hpp
     src/glue/measure.hpp
     src/glue/sink_lease.hpp
-    src/library.cpp
 )
 
 source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR} FILES ${SRCS})
@@ -72,7 +93,7 @@ target_include_directories(shapes
     PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include
     PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src
 )
-target_link_libraries(shapes PRIVATE pyxel-models pyxel-io mbits::args)
+target_link_libraries(shapes PRIVATE shapes-core mbits::args)
 
 if(SHAPES_NOTIFIER_SRC)
     target_compile_definitions(shapes PRIVATE SHAPES_HAS_NOTIFIER)
