@@ -29,14 +29,17 @@ On Windows use `flow` (or `flow.cmd`) instead of `./flow`.
 ./flow build --dbg         # build Debug
 ./flow test --dbg          # build and run tests, Debug
 ./flow test --both         # same, for Debug and Release
-./flow test --sane         # Debug with sanitizers
+./flow test --sane         # Debug with AddressSanitizer and UBSan
+./flow test --tsan         # Debug with ThreadSanitizer (GCC and Clang only)
 ./flow verify --rel        # build, test, sign, pack and install-check, Release
 ./flow run -s Build,Test -D build_type=Debug compiler=clang
 ./flow run --dry-run --dbg # print what would run, do nothing
 ```
 
 - `config`, `build`, `test` and `verify` are aliases defined in `entry` of `.flow/config.yml`; each runs a fixed list of steps.
-- `-D key=value` filters the build matrix in `.flow/matrix.yml` (keys: `compiler`, `build_type`, `sanitizer`, `os`). `--dbg`, `--rel`, `--both` and `--sane` are shortcuts for common `-D` sets.
+- `-D key=value` filters the build matrix in `.flow/matrix.yml` (keys: `compiler`, `build_type`, `sanitizer`, `os`). `sanitizer` is `address`, `thread` or `off`. `--dbg`, `--rel`, `--both`, `--sane` and `--tsan` are shortcuts for common `-D` sets.
+- The sanitizer builds share `build/debug` with the plain Debug build. After switching between them, run `config` again (e.g. `./flow run -s Conan,CMake,Build --tsan`): `build` alone keeps the previous configuration.
+- On Linux, the tests and the Python runs of a ThreadSanitizer build go through `setarch -R`: GCC's TSan does not start with the full ASLR of newer kernels. Run its binaries by hand the same way, e.g. `setarch -R build/debug/bin/shapes-test`.
 - `-E w-error=on` turns warnings into errors.
 - `-E freethreaded-shapes=on` declares the `shapes` module safe to run without the GIL on the free-threaded CPython. The module is not thread-safe yet, so use it for experiments only; without it, importing `shapes` turns the GIL on.
 - `--official` limits the matrix to the release builds listed in `.flow/official.yml`.
@@ -46,9 +49,9 @@ Build trees go to `build/debug` and `build/release`. Test reports (JUnit XML) ar
 ## Layout
 
 - `.flow/`
-  - `flow.py` bootstraps the project: pins proj-flow to 0.37.1 and installs it into `.venv/`
+  - `flow.py` bootstraps the project: pins proj-flow to 0.38.0 and installs it into `.venv/`
   - `config.yml` lists extensions, run aliases (`entry`), compiler names, CMake variables and shortcuts
-  - `matrix.yml` is the build matrix: compiler x build_type x sanitizer x os
+  - `matrix.yml` is the build matrix: compiler x build_type x sanitizer x os; `postproc` in `config.yml` trims it further for CI, e.g. ThreadSanitizer runs on one Ubuntu runner only
   - `official.yml` filters the matrix down to release builds (`--official`)
   - `cmake/` holds CMake modules; `common.cmake` has `add_project_test()` and `add_win32_icon()`
   - `packages/` holds the CPack setup (TGZ/DEB on Linux, ZIP/WiX on Windows)

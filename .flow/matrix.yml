@@ -1,14 +1,18 @@
 matrix:
   compiler: [gcc, msvc]
   build_type: [Release, Debug]
-  sanitizer: [true, false]
+  # `off` reads as false, so `-D sanitizer=off` selects the plain builds
+  sanitizer: [address, thread, off]
   os: [ubuntu, windows]
 
 exclude:
   - { os: windows, compiler: clang }
   - { os: windows, compiler: gcc }
   - { os: ubuntu, compiler: msvc }
-  - { build_type: Release, sanitizer: true }
+  - { build_type: Release, sanitizer: address }
+  - { build_type: Release, sanitizer: thread }
+  # MSVC has no ThreadSanitizer
+  - { os: windows, sanitizer: thread }
 
 include:
   - build_type: Debug
