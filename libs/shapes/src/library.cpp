@@ -107,6 +107,11 @@ namespace shapes {
 		export_listener_ = std::move(listener);
 	}
 
+	std::string library::register_paint(std::string const& name, pyxel::gfx::materials::paint_opts const& opts) {
+		std::lock_guard const lock{paints_mutex_};
+		return material_repo_.register_paint(name, opts);
+	}
+
 	bool library::add_model(std::string name, model_fn fn) {
 		std::lock_guard const lock{models_mutex_};
 		if (closed_) {
@@ -199,6 +204,7 @@ namespace shapes {
 
 		pyxel::gfx::sink out{};
 		model.root.output(out, glm::dmat4{1});
+		std::lock_guard const lock{paints_mutex_};
 		export_scene(model.name, out, material_repo_, model.exporter, path);
 		return path;
 	}
