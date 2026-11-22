@@ -6,6 +6,7 @@
 #include <algorithm>
 #include <memory>
 #include <optional>
+#include <pyxel/gfx/interactions.hpp>
 #include <pyxel/gfx/light_object.hpp>
 #include <pyxel/gfx/object.hpp>
 #include <pyxel/gfx/transform.hpp>
@@ -81,6 +82,40 @@ namespace pyxel::gfx {
 
 		std::vector<std::unique_ptr<object>> const& children() const noexcept { return children_; }
 
+		// active objects (see docs/model-interactions.md)
+
+		// Keeps a copy of the declaration of a geometry-based object; nothing
+		// is checked here, as the groups it names may be added later.
+		group& add_active_object(interactions::geo_active_object declaration) {
+			active_objects_.emplace_back(std::move(declaration));
+			return *this;
+		}
+
+		// The same, with the members of the declaration as arguments, in the
+		// order of the structure.
+		group& add_active_object(std::string name,
+		                         std::vector<interactions::slot> slots = {},
+		                         interactions::states states = {},
+		                         std::vector<interactions::action> actions = {},
+		                         interactions::transitions transitions = {}) {
+			return add_active_object(interactions::geo_active_object{
+			    .name = std::move(name),
+			    .slots = std::move(slots),
+			    .states = std::move(states),
+			    .actions = std::move(actions),
+			    .transitions = std::move(transitions),
+			});
+		}
+
+		// Declares the transition of the intensity factor of the light
+		// `name`, adding an interactions::light_active_object to the list of
+		// active objects, or replacing the transition of the one of the same
+		// name already declared on this group.
+		group& set_light_transition(std::string name, interactions::transition rule);
+
+		// Both kinds of objects, in the order they were added.
+		std::vector<interactions::active_object> const& active_objects() const noexcept { return active_objects_; }
+
 		void output(sink&, glm::dmat4 const& current) const override;
 
 	private:
@@ -89,6 +124,7 @@ namespace pyxel::gfx {
 		offset position_{};
 		glm::dmat4 transform_{1};
 		std::vector<std::unique_ptr<object>> children_{};
+		std::vector<interactions::active_object> active_objects_{};
 	};
 
 }  // namespace pyxel::gfx
