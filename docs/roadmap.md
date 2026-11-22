@@ -17,18 +17,22 @@ Each stage ends with something that runs. Stage 3 (Plans) does not depend on the
 
 ## Stage 0: interactions in models
 
-- [ ] Write the spec of the model extension for interactions
-  - [ ] Active objects and their names
-  - [ ] States and the starting state
-  - [ ] Actions and what triggers them
-  - [ ] Input and output slots, with their types
-  - [ ] Variables
-  - [ ] How states drive the meshes (transforms, visibility, materials)
-  - [ ] Storage of the glTF extension, next to `PYXEL_lights_*`
-- [ ] Update [plans-schema.md](plans-schema.md) to link the new spec instead of the "draft available soon" note
+- [x] Write the [spec](model-interactions.md) of the model extension for interactions
+  - [x] Active objects and their names
+  - [x] States and the starting state
+  - [x] Actions and what triggers them
+  - [x] Input and output slots, with their types
+  - [x] Variables
+  - [x] How states drive the meshes: transforms; visibility (the reserved `visible`) and materials are left to a later version
+  - [x] Storage in the glTF file: the `PYXEL_interactions` extra of the root node, written after Assimp, next to `PYXEL_lights_area`
+  - [x] JSON Schema of the extra: [interactions.schema.json](../schemas/interactions.schema.json)
+- [x] Update [plans-schema.md](plans-schema.md) to link the new spec instead of the "draft available soon" note
+- [ ] Post-process every glTF 2 export, not only the binary one, with what Assimp cannot write
+  - [ ] `gltf2-lights`: the lights for `gltf2`, as `glb2-lights` adds them for `glb2`; today a `gltf2` export has no lights
+  - [ ] Rename both to `glb2-pyxel` and `gltf2-pyxel`, taking the place of `glb2` and `gltf2`; each adds everything of ours to the glTF document: `KHR_lights_punctual`, `PYXEL_lights_area` and the `PYXEL_interactions` extra
 - [ ] Declare active objects, states, actions, slots and variables in `pyxel-models`
 - [ ] Expose them in the `shapes` Python module
-- [ ] Export them to glb in `pyxel-io`
+- [ ] Export them to glb and glTF in `pyxel-io`, through `glb2-pyxel` and `gltf2-pyxel`
 - [ ] Sample models: a door, a light switch, a lamp
 
 ## Stage 1: Inspector as a viewer
