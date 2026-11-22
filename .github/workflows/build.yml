@@ -81,7 +81,8 @@ jobs:
         if: ${{ matrix.windows }}
         uses: proj-flow-actions/setup-windows@v1
         with:
-          install-occ: false
+          # OpenCppCoverage, for the coverage of the Debug builds
+          install-occ: ${{ matrix.build_type == 'Debug' }}
 
       - name: Setup Ubuntu
         if: ${{ matrix.ubuntu }}
@@ -113,6 +114,9 @@ jobs:
 
       - name: Test
         run: ${{ env.FLOW_COMMAND }} -s Test,StoreTests
+        env:
+          # the builds with coverage upload their part of the report
+          COVERALLS_REPO_TOKEN: ${{ secrets.COVERALLS_REPO_TOKEN }}
 
       - name: Pack
         id: artifacts
@@ -142,6 +146,61 @@ jobs:
         with:
           name: _tests-${{ env.ARTIFACT_SUFFIX }}
           path: ${{github.workspace}}/build/artifacts/test-results/
+
+      - name: Upload coverage
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: _coverage-${{ env.ARTIFACT_SUFFIX }}
+          path: ${{github.workspace}}/build/artifacts/coverage/
+          if-no-files-found: ignore
+
+  coveralls-done:
+    name: Finalize coverage reporting
+    if: always()
+    runs-on: ubuntu-latest
+    needs: build
+    permissions:
+      # checkout reads the repository; the coverage summary is posted as
+      # (and the older ones are removed from) the comments of the PR
+      contents: read
+      pull-requests: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Bootstrap Flow
+        uses: proj-flow-actions/bootstrap@v1
+        with:
+          python-version: "3.14"
+          cache-prefix: flow-${{ runner.os }}-${{ runner.arch }}-3.12
+
+      - name: Download coverage
+        uses: actions/download-artifact@v4
+        with:
+          pattern: _coverage-*
+          path: ${{github.workspace}}/build/artifacts/coverage/
+
+      - name: Finalize Coveralls
+        id: finalize
+        run: python ./.flow/flow.py coveralls --done "${{ github.run_id }}"
+        env:
+          COVERALLS_REPO_TOKEN: ${{ secrets.COVERALLS_REPO_TOKEN }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Cleanup comments
+        run: python ./.flow/flow.py github comments --current-run "${{ github.run_number }}"
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Merge coverage
+        uses: actions/upload-artifact/merge@v4
+        if: ${{ fromJson(steps.finalize.outputs.has_coverage || 'false') }}
+        with:
+          name: Coverage
+          pattern: _coverage-*
+          delete-merged: true
 
   merge:
     name: Merge artifacts
