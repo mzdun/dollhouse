@@ -14,6 +14,7 @@
 #include <optional>
 #include <pyxel/base/str.hpp>
 #include <pyxel/io/export.hpp>
+#include <pyxel/io/interactions.hpp>
 #include <set>
 #include <stdexcept>
 #include <string>
@@ -86,23 +87,25 @@ namespace pyxel::io {
 
 		// The nodes of the sink, with the indices of their meshes in the scene,
 		// and the nodes made for their lights; a node is exported, if it has
-		// a mesh or a light, or a descendant with one (the root always is,
-		// Assimp needs it)
+		// a mesh or a light, or a descendant with one, or if an active object
+		// names it (the root always is, Assimp needs it)
 		struct node_tree {
 			// in the order of declaration: the public members come first
-			node_tree(sink const& out, bool tag_lights)
+			node_tree(sink const& out, bool tag_lights, std::set<std::string, std::less<>> const& moved)
 			    : meshes(out.nodes().size())
 			    , light_leaves(out.nodes().size())
 			    , own_lights(out.nodes().size())
 			    , out_{out}
-			    , tag_lights_{tag_lights} {}
+			    , tag_lights_{tag_lights}
+			    , moved_{moved} {}
 
 			aiNode* to_ai() {
 				auto const& nodes = out_.nodes();
 				keep_.assign(nodes.size(), false);
 				// children are opened after their parents, so they come later
 				for (auto id = nodes.size(); id-- > 0;) {
-					if (meshes[id].empty() && nodes[id].lights.empty() && !keep_[id]) continue;
+					auto const named = !nodes[id].name.empty() && moved_.contains(nodes[id].name);
+					if (meshes[id].empty() && nodes[id].lights.empty() && !named && !keep_[id]) continue;
 					keep_[id] = true;
 					if (auto const parent = nodes[id].parent) keep_[*parent] = true;
 				}
@@ -153,6 +156,7 @@ namespace pyxel::io {
 
 			sink const& out_;
 			bool tag_lights_;
+			std::set<std::string, std::less<>> const& moved_;
 			std::vector<bool> keep_{};
 		};
 
@@ -444,10 +448,13 @@ namespace pyxel::io {
 			return result;
 		}
 
-		std::unique_ptr<aiScene> make_scene(sink const& out, materials const& repo, bool tag_lights) {
+		std::unique_ptr<aiScene> make_scene(sink const& out,
+		                                    materials const& repo,
+		                                    bool tag_lights,
+		                                    std::set<std::string, std::less<>> const& moved) {
 			material_table table{repo};
 			std::vector<aiMesh*> meshes{};
-			node_tree tree{out, tag_lights};
+			node_tree tree{out, tag_lights, moved};
 
 			for (sink::node_id id = 0; id < out.nodes().size(); ++id) {
 				for (auto const& [material, solid] : out.at(id).meshes) {
@@ -490,6 +497,40 @@ namespace pyxel::io {
 			}
 			return scene;
 		}
+		namespace decl = gfx::interactions;
+
+		// the declarations of every node, in the order of the tree: a node
+		// is opened after its parent and its earlier siblings
+		decl::active_objects collect_active_objects(sink const& out) {
+			decl::active_objects result{};
+			for (auto const& node : out.nodes())
+				result.insert(result.end(), node.active_objects.begin(), node.active_objects.end());
+			return result;
+		}
+
+		// The rules of docs/model-interactions.md (see Rules there), checked
+		// on the whole model; a violation throws std::runtime_error, naming
+		// the model and the object. Not implemented yet: every list passes.
+		void check_active_objects(std::string const& /*name*/,
+		                          decl::active_objects const& /*objects*/,
+		                          sink const& /*out*/) {}
+
+		// the groups the geometry-based objects name, in their states and
+		// transitions; their nodes are kept, even with nothing in them
+		std::set<std::string, std::less<>> moved_groups(decl::active_objects const& objects) {
+			std::set<std::string, std::less<>> result{};
+			for (auto const& item : objects) {
+				auto const* geo = std::get_if<decl::geo_active_object>(&item);
+				if (!geo) continue;
+				for (auto const& state : geo->states) {
+					for (auto const& [group, changes] : state.groups)
+						result.insert(group);
+				}
+				for (auto const& [group, rule] : geo->transitions.groups)
+					result.insert(group);
+			}
+			return result;
+		}
 	}  // namespace
 
 	std::vector<export_format> const& export_formats() {
@@ -518,14 +559,29 @@ namespace pyxel::io {
 		// glTF 2, binary or text, with the lights added; the light nodes are
 		// tagged for them, the other formats do not need the tags
 		std::string const actual_format{gltf2::exporter_for(format_id)};
-		auto const scene = make_scene(out, repo, actual_format != format_id);
+		auto const is_gltf2 = actual_format == gltf2::bin_format_id || actual_format == gltf2::text_format_id;
+
+		// only the glTF 2 exporters can carry the interactions
+		auto const objects = collect_active_objects(out);
+		Assimp::ExportProperties properties{};
+		if (!objects.empty()) {
+			if (!is_gltf2) {
+				throw std::runtime_error(
+				    std::format("cannot export `{}` to {}: a model with interactions needs {} or {}", name, format_id,
+				                gltf2::bin_base_format_id, gltf2::text_base_format_id));
+			}
+			check_active_objects(name, objects, out);
+			properties.SetPropertyString(gltf2::interactions_property, interactions::serialize(objects));
+		}
+
+		auto const scene = make_scene(out, repo, is_gltf2, moved_groups(objects));
 
 		// the meshes come with flat normals already (see make_mesh); the
 		// n-gons are split into triangles, which keep the normals
 		// Assimp takes the path as UTF-8 (on Windows, it converts it to
 		// UTF-16); path::string() would use the ANSI code page there
 		auto const path_u8 = as_str(path.u8string());
-		auto const result = exporter.Export(scene.get(), actual_format, path_u8, aiProcess_Triangulate);
+		auto const result = exporter.Export(scene.get(), actual_format, path_u8, aiProcess_Triangulate, &properties);
 		if (result != aiReturn_SUCCESS) {
 			throw std::runtime_error(
 			    std::format("cannot export `{}` to {}: {}", name, path_u8, exporter.GetErrorString()));
