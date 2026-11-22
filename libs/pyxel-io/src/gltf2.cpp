@@ -2,20 +2,25 @@
 // This code is licensed under MIT license (see LICENSE for details)
 
 #include "gltf2.hpp"
+#include <assimp/BaseImporter.h>
 #include <assimp/Exceptional.h>
+#include <assimp/importerdesc.h>
 #include <assimp/scene.h>
 #include <rapidjson/document.h>
 #include <rapidjson/prettywriter.h>
 #include <rapidjson/stringbuffer.h>
 #include <rapidjson/writer.h>
 #include <algorithm>
+#include <assimp/DefaultLogger.hpp>
 #include <assimp/IOStream.hpp>
 #include <assimp/IOSystem.hpp>
 #include <bit>
+#include <cmath>
 #include <cstddef>
 #include <cstdint>
 #include <cstring>
 #include <format>
+#include <memory>
 #include <numbers>
 #include <optional>
 #include <span>
@@ -460,6 +465,288 @@ namespace pyxel::io::gltf2 {
 			doc.Accept(writer);
 			write_file(text_format_id, *io, path, "wt", text.GetString(), text.GetSize());
 		}
+
+		// ---- importer ----
+
+		void warn(std::string const& message) {
+			Assimp::DefaultLogger::get()->warn(std::format("{}: {}", importer_name, message).c_str());
+		}
+
+		struct stream_closer {
+			Assimp::IOSystem* io;
+			void operator()(Assimp::IOStream* stream) const { io->Close(stream); }
+		};
+
+		bool read_exactly(Assimp::IOStream& stream, void* buffer, size_t size) {
+			return size == 0 || stream.Read(buffer, 1, size) == size;
+		}
+
+		// the JSON document of a glTF 2 file: the `.gltf` file itself, or
+		// the first chunk of a `.glb`
+		std::optional<std::string> read_json(Assimp::IOSystem& io, std::string const& path) {
+			std::unique_ptr<Assimp::IOStream, stream_closer> stream{io.Open(path, "rb"), stream_closer{&io}};
+			if (!stream) return std::nullopt;
+			auto const size = stream->FileSize();
+
+			std::uint32_t header[3]{};
+			if (size >= header_size && read_exactly(*stream, header, header_size) && header[0] == glb_magic) {
+				std::uint32_t chunk[2]{};
+				if (size < header_size + chunk_header_size || !read_exactly(*stream, chunk, chunk_header_size) ||
+				    chunk[1] != chunk_json || chunk[0] > size - header_size - chunk_header_size) {
+					return std::nullopt;
+				}
+				std::string result(chunk[0], '\0');
+				if (!read_exactly(*stream, result.data(), result.size())) return std::nullopt;
+				return result;
+			}
+
+			std::string result(size, '\0');
+			if (stream->Seek(0, aiOrigin_SET) != aiReturn_SUCCESS || !read_exactly(*stream, result.data(), size)) {
+				return std::nullopt;
+			}
+			// a byte order mark, which RapidJSON does not skip
+			if (result.starts_with("\xEF\xBB\xBF")) result.erase(0, 3);
+			return result;
+		}
+
+		rapidjson::Value const* member(rapidjson::Value const& parent, char const* name) {
+			if (!parent.IsObject()) return nullptr;
+			auto const it = parent.FindMember(name);
+			return it == parent.MemberEnd() ? nullptr : &it->value;
+		}
+
+		rapidjson::Value const* extension_of(rapidjson::Value const& object, char const* name) {
+			auto const* extensions = member(object, "extensions");
+			return extensions ? member(*extensions, name) : nullptr;
+		}
+
+		std::optional<double> finite_number(rapidjson::Value const& object, char const* name) {
+			auto const* value = member(object, name);
+			if (!value || !value->IsNumber()) return std::nullopt;
+			auto const result = value->GetDouble();
+			if (!std::isfinite(result)) return std::nullopt;
+			return result;
+		}
+
+		// an area light of PYXEL_lights_area, as read from the document
+		struct area_source {
+			int shape{area_rectangle};
+			float width{};
+			float height{};
+			aiColor3D color{1.0f, 1.0f, 1.0f};
+			float spread{std::numbers::pi_v<float>};
+			std::optional<float> range{};
+		};
+
+		// the light, if it has a shape and a size; the rest has defaults
+		std::optional<area_source> read_area(rapidjson::Value const& light, size_t index) {
+			auto const failed = [index](std::string_view why) {
+				warn(std::format("area light {} {}; left out", index, why));
+				return std::nullopt;
+			};
+
+			if (!light.IsObject()) return failed("is not an object");
+
+			area_source result{};
+			auto const* shape = member(light, "shape");
+			if (!shape || !shape->IsString()) return failed("has no shape");
+			std::string_view const shape_name{shape->GetString(), shape->GetStringLength()};
+			if (shape_name == "rectangle") {
+				result.shape = area_rectangle;
+			} else if (shape_name == "ellipse") {
+				result.shape = area_ellipse;
+			} else {
+				return failed(std::format("has an unknown shape, \"{}\"", shape_name));
+			}
+
+			auto const width = finite_number(light, "width");
+			auto const height = finite_number(light, "height");
+			if (!width || !height || *width < 0.0 || *height < 0.0) return failed("has no size");
+			result.width = static_cast<float>(*width);
+			result.height = static_cast<float>(*height);
+
+			// as in KHR_lights_punctual: white, of intensity 1, by default
+			auto color = aiColor3D{1.0f, 1.0f, 1.0f};
+			if (auto const* rgb = member(light, "color");
+			    rgb && rgb->IsArray() && rgb->Size() == 3 &&
+			    std::ranges::all_of(rgb->GetArray(), [](auto const& channel) { return channel.IsNumber(); })) {
+				color = {(*rgb)[0].GetFloat(), (*rgb)[1].GetFloat(), (*rgb)[2].GetFloat()};
+			}
+			auto const intensity = static_cast<float>(finite_number(light, "intensity").value_or(1.0));
+			result.color = color * intensity;
+
+			if (auto const spread = finite_number(light, "spread")) {
+				result.spread = static_cast<float>(std::clamp(*spread, 0.0, std::numbers::pi));
+			}
+			if (auto const range = finite_number(light, "range"); range && *range > 0.0) {
+				result.range = static_cast<float>(*range);
+			}
+			return result;
+		}
+
+		// The area lights found in the nodes, with the aiNodes they belong
+		// to. Assimp makes one aiNode of every glTF node of the scene, in
+		// the same order, so both trees are walked together; the names are
+		// not unique, and cannot be used for this
+		class area_lights {
+		public:
+			explicit area_lights(rapidjson::Value const& doc) : doc_{doc} {
+				if (auto const* ext = extension_of(doc, area_extension)) {
+					if (auto const* lights = member(*ext, "lights"); lights && lights->IsArray()) lights_ = lights;
+				}
+				if (auto const* nodes = member(doc, "nodes"); nodes && nodes->IsArray()) nodes_ = nodes;
+			}
+
+			void add_to(aiScene& scene) {
+				if (!lights_ || !nodes_ || !scene.mRootNode) return;
+
+				auto const roots = indices(scene_roots());
+				if (roots.size() == 1) {
+					visit(roots.front(), *scene.mRootNode, 0);
+				} else if (!roots.empty()) {
+					visit_children(roots, *scene.mRootNode, 0);
+				}
+				if (found_.empty()) return;
+
+				auto const count = scene.mNumLights + found_.size();
+				auto* list = new aiLight*[count];
+				std::copy(scene.mLights, scene.mLights + scene.mNumLights, list);
+				for (size_t index = 0; index < found_.size(); ++index)
+					list[scene.mNumLights + index] = found_[index].release();
+				delete[] scene.mLights;
+				scene.mLights = list;
+				scene.mNumLights = static_cast<unsigned>(count);
+			}
+
+		private:
+			// Assimp's limit is the stack; this one only keeps a document
+			// with a cycle from overflowing it, should it get here
+			static constexpr size_t max_depth = 1024;
+
+			rapidjson::Value const* scene_roots() const {
+				size_t index = 0;
+				if (auto const* chosen = member(doc_, "scene"); chosen && chosen->IsUint()) index = chosen->GetUint();
+				auto const* scenes = member(doc_, "scenes");
+				if (!scenes || !scenes->IsArray() || index >= scenes->Size()) return nullptr;
+				return member((*scenes)[static_cast<rapidjson::SizeType>(index)], "nodes");
+			}
+
+			// the node indices of the array, as Assimp reads them: only the
+			// unsigned integers count; Assimp fails on the ones out of range
+			std::vector<unsigned> indices(rapidjson::Value const* array) const {
+				std::vector<unsigned> result{};
+				if (!array || !array->IsArray()) return result;
+				for (auto const& item : array->GetArray()) {
+					if (item.IsUint() && item.GetUint() < nodes_->Size()) result.push_back(item.GetUint());
+				}
+				return result;
+			}
+
+			void visit_children(std::vector<unsigned> const& children, aiNode& parent, size_t depth) {
+				if (children.size() != parent.mNumChildren) {
+					warn(
+					    std::format("the children of node `{}` do not match the document; their area lights are "
+					                "left out",
+					                parent.mName.C_Str()));
+					return;
+				}
+				for (size_t index = 0; index < children.size(); ++index)
+					visit(children[index], *parent.mChildren[index], depth + 1);
+			}
+
+			void visit(unsigned index, aiNode& target, size_t depth) {
+				if (depth > max_depth) return;
+				auto const& node = (*nodes_)[index];
+				if (auto const* ext = extension_of(node, area_extension)) add_light(node, *ext, target);
+				visit_children(indices(member(node, "children")), target, depth);
+			}
+
+			void add_light(rapidjson::Value const& node, rapidjson::Value const& ext, aiNode& target) {
+				auto const* ref = member(ext, "light");
+				if (!ref || !ref->IsUint() || ref->GetUint() >= lights_->Size()) {
+					warn(std::format("node `{}` refers to no area light", target.mName.C_Str()));
+					return;
+				}
+				auto const index = ref->GetUint();
+				if (extension_of(node, punctual_extension)) {
+					warn(std::format("node `{}` has a punctual light already; area light {} left out",
+					                 target.mName.C_Str(), index));
+					return;
+				}
+				auto const source = read_area((*lights_)[index], index);
+				if (!source) return;
+
+				auto light = std::make_unique<aiLight>();
+				light->mName = target.mName;
+				light->mType = aiLightSource_AREA;
+				light->mPosition = {0, 0, 0};
+				light->mDirection = {0, 0, -1};
+				light->mUp = {0, 1, 0};
+				light->mColorDiffuse = source->color;
+				light->mColorSpecular = source->color;
+				light->mColorAmbient = source->color;
+				light->mAttenuationConstant = 0;
+				light->mAttenuationLinear = 0;
+				light->mAttenuationQuadratic = 1;
+				light->mSize = {source->width, source->height};
+
+				if (!target.mMetaData) target.mMetaData = new aiMetadata{};
+				target.mMetaData->Add(area_shape_key, static_cast<int32_t>(source->shape));
+				target.mMetaData->Add(area_spread_key, source->spread);
+				if (source->range) target.mMetaData->Add(range_key, *source->range);
+
+				found_.push_back(std::move(light));
+			}
+
+			rapidjson::Value const& doc_;
+			rapidjson::Value const* lights_{};
+			rapidjson::Value const* nodes_{};
+			std::vector<std::unique_ptr<aiLight>> found_{};
+		};
+
+		// makes InternReadFile() of any importer callable
+		struct intern_access : Assimp::BaseImporter {
+			using Assimp::BaseImporter::InternReadFile;
+		};
+
+		class pyxel_importer final : public Assimp::BaseImporter {
+		public:
+			explicit pyxel_importer(std::unique_ptr<Assimp::BaseImporter> base) : base_{std::move(base)} {
+				desc_ = *base_->GetInfo();
+				desc_.mName = importer_name;
+			}
+
+			bool CanRead(std::string const& file, Assimp::IOSystem* io, bool check_signature) const override {
+				return base_->CanRead(file, io, check_signature);
+			}
+
+			aiImporterDesc const* GetInfo() const override { return &desc_; }
+
+			void SetupProperties(Assimp::Importer const* importer) override { base_->SetupProperties(importer); }
+
+		protected:
+			void InternReadFile(std::string const& file, aiScene* scene, Assimp::IOSystem* io) override {
+				auto const read = &intern_access::InternReadFile;
+				((*base_).*read)(file, scene, io);
+
+				auto const json = read_json(*io, file);
+				if (!json) {
+					warn(std::format("cannot read the JSON document of {}; area lights left out", file));
+					return;
+				}
+				rapidjson::Document doc{};
+				doc.Parse(json->data(), json->size());
+				if (doc.HasParseError() || !doc.IsObject()) {
+					warn(std::format("cannot parse the JSON document of {}; area lights left out", file));
+					return;
+				}
+				area_lights{doc}.add_to(*scene);
+			}
+
+		private:
+			std::unique_ptr<Assimp::BaseImporter> base_;
+			aiImporterDesc desc_{};
+		};
 	}  // namespace
 
 	std::string_view exporter_for(std::string_view format_id) noexcept {
@@ -473,5 +760,19 @@ namespace pyxel::io::gltf2 {
 		                           "glb", &export_glb_pyxel});
 		exporter.RegisterExporter(
 		    {text_format_id, "glTF 2.0, with KHR_lights_punctual and PYXEL_lights_area", "gltf", &export_gltf_pyxel});
+	}
+
+	void register_importer(Assimp::Importer& importer) {
+		for (size_t index = 0; index < importer.GetImporterCount(); ++index) {
+			auto* base = importer.GetImporter(index);
+			if (!base || std::string_view{base->GetInfo()->mName} != base_importer_name) continue;
+
+			// unregistered loaders are not deleted by the importer
+			importer.UnregisterLoader(base);
+			std::unique_ptr<Assimp::BaseImporter> owned{base};
+			auto replacement = std::make_unique<pyxel_importer>(std::move(owned));
+			importer.RegisterLoader(replacement.release());
+			return;
+		}
 	}
 }  // namespace pyxel::io::gltf2
