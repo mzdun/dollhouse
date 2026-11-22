@@ -28,8 +28,10 @@
 #include <string>
 #include <string_view>
 #include <utility>
+#include <variant>
 #include <vector>
 #include "interactions_json.hpp"
+#include "interactions_rules.hpp"
 
 namespace pyxel::io::gltf2 {
 	namespace {
@@ -764,11 +766,54 @@ namespace pyxel::io::gltf2 {
 
 		// The rules of docs/model-interactions.md marked for import (see Rules
 		// there), checked on the whole model: each faulty active object is
-		// removed from `result.objects`, with a `dropped` note telling why.
-		// Not implemented yet: every object passes.
-		void check_imported(interactions::parsed& /*result*/,
-		                    rapidjson::Value const& /*doc*/,
-		                    aiScene const& /*scene*/) {}
+		// removed from `result.objects`, with a `dropped` note telling all
+		// its problems. The names of the groups are the ones of the nodes of
+		// the document, as Assimp may add a node of its own; the names of the
+		// lights are the ones of the scene, which are named after their
+		// nodes. The problems of the model alone, which leave no object to
+		// drop, are only logged.
+		void check_imported(interactions::parsed& result, rapidjson::Value const& doc, aiScene const& scene) {
+			if (result.objects.empty()) return;
+
+			interactions::model_names model{};
+			if (auto const* nodes = member(doc, "nodes"); nodes && nodes->IsArray()) {
+				for (auto const& node : nodes->GetArray()) {
+					if (auto const* name = member(node, "name"); name && name->IsString())
+						model.add_node({name->GetString(), name->GetStringLength()});
+				}
+			}
+			for (unsigned index = 0; index < scene.mNumLights; ++index)
+				model.add_light(scene.mLights[index]->mName.C_Str());
+
+			auto const problems = interactions::check(result.objects, model);
+			if (problems.empty()) return;
+
+			std::vector<std::string> reasons(result.objects.size());
+			for (auto const& [object, reason] : problems) {
+				if (!object) {
+					warn(std::format("{}: {}", interactions_extra, reason));
+					continue;
+				}
+				auto& joined = reasons[*object];
+				if (!joined.empty()) joined.append("; ");
+				joined.append(reason);
+			}
+
+			gfx::interactions::active_objects kept{};
+			kept.reserve(result.objects.size());
+			for (size_t index = 0; index < result.objects.size(); ++index) {
+				auto& object = result.objects[index];
+				if (reasons[index].empty()) {
+					kept.push_back(std::move(object));
+					continue;
+				}
+				auto name = std::visit([](auto const& item) { return item.name; }, object);
+				result.notes.push_back({.object = std::move(name),
+				                        .what = interactions::note::dropped,
+				                        .reason = std::move(reasons[index])});
+			}
+			result.objects = std::move(kept);
+		}
 
 		// the PYXEL_interactions extras of every node, in the order of the
 		// `nodes` array

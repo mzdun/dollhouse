@@ -520,6 +520,57 @@ namespace pyxel::io::testing {
 		                   }));
 	}
 
+	// Two nodes, both `lamp`, hold a light each, so the lights share a
+	// name; the other objects break one rule or two, but `door`
+	TEST(interactions_import, faulty_objects_are_dropped) {
+		auto const path = temp_file("faulty.gltf");
+		write_text(path, R"({
+	"asset": {"version": "2.0"},
+	"extensionsUsed": ["KHR_lights_punctual"],
+	"extensions": {"KHR_lights_punctual": {"lights": [{"type": "point"}, {"type": "point"}]}},
+	"scenes": [{"nodes": [0]}],
+	"nodes": [
+		{"name": "root", "children": [1, 2, 3], "extras": {"PYXEL_interactions": [
+			{"name": "door", "version": "1.0",
+			 "states": {"closed": {}, "opened": {"hinge": [{"rotate.y": 1}]}},
+			 "actions": [{"label": "Open", "when": "closed", "then": "opened"}]},
+			{"name": "broken", "version": "1.0",
+			 "states": {"s": {"nowhere": [{"rotate.y": 1}]}},
+			 "actions": [{"label": "Go", "when": "s", "then": "lost"}]},
+			{"name": "lamp", "version": "1.0", "transitions": {"light": "1s"}},
+			{"name": "slow", "version": "1.0", "transitions": {"*": "forever"}}
+		]}},
+		{"name": "hinge"},
+		{"name": "lamp", "extensions": {"KHR_lights_punctual": {"light": 0}}},
+		{"name": "lamp", "extensions": {"KHR_lights_punctual": {"light": 1}}}
+	]
+})");
+
+		Assimp::Importer importer{};
+		gltf2::register_importer(importer);
+		auto const* scene = importer.ReadFile(as_str(path.u8string()), 0u);
+		ASSERT_NE(scene, nullptr) << importer.GetErrorString();
+
+		auto const* result = gltf2::interactions_of(importer, scene);
+		ASSERT_NE(result, nullptr);
+		EXPECT_EQ(result->objects,
+		          (active_objects{geo_active_object{
+		              .name = "door",
+		              .states = {state("closed"), state("opened").transform("hinge", channel::rotate_y(rad(1)))},
+		              .actions = {{"Open", "closed", "opened"}},
+		          }}));
+		EXPECT_EQ(result->notes,
+		          (std::vector<note>{
+		              dropped("broken",
+		                      "names group `nowhere` in state `s`, which is not a node of the model; has action `Go` "
+		                      "leading to state `lost`, which it does not declare"),
+		              dropped("lamp", "describes a light, whose name is not unique"),
+		              dropped("slow",
+		                      "has a default transition, which has `forever`, which is not a channel, a "
+		                      "timing function or a time"),
+		          }));
+	}
+
 	TEST(interactions_import, other_scenes_have_none) {
 		auto const path = temp_file("door.obj");
 		export_scene("door", door_sink(false), gfx::materials{}, "obj", path);
