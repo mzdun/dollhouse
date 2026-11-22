@@ -18,6 +18,13 @@ include:
   - build_type: Debug
     preset: debug
     coverage: true
+    upload_to_coveralls: true
+
+  # the gcov counters are not atomic, so ThreadSanitizer would report races
+  # inside the instrumentation
+  - sanitizer: thread
+    coverage: false
+    upload_to_coveralls: false
 
   - build_type: Release
     preset: release

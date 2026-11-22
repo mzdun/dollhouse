@@ -1,0 +1,6 @@
+[module "Models"]
+	path = libs/pyxel-models
+[module "IO"]
+	path = libs/pyxel-io
+[module "Shapes"]
+	path = libs/shapes

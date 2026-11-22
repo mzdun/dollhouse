@@ -43,6 +43,7 @@ On Windows use `flow` (or `flow.cmd`) instead of `./flow`.
 - `-E w-error=on` turns warnings into errors.
 - `-E freethreaded-shapes=on` declares the `shapes` module safe to run without the GIL on the free-threaded CPython. The module is not thread-safe yet, so use it for experiments only; without it, importing `shapes` turns the GIL on.
 - `--official` limits the matrix to the release builds listed in `.flow/official.yml`.
+- Debug builds measure code coverage (except the ThreadSanitizer one): `DOLLHOUSE_COVERALLS` adds the coverage flags (GCC/Clang) or runs the tests under OpenCppCoverage (MSVC), and the `Test` step builds `DOLLHOUSE_coveralls` instead of running ctest. The pytest suite of `shapes` counts towards the coverage of the module. The report goes to `build/artifacts/coverage/coveralls_<os>-<build_type>-<compiler>.json`. With `NO_COVERAGE` set in the environment (any value), flow drops the coverage from every build; switching it on or off needs a new `config`.
 
 Build trees go to `build/debug` and `build/release`. Test reports (JUnit XML) are written under `build/<config>/test-results/`.
 
@@ -53,7 +54,7 @@ Build trees go to `build/debug` and `build/release`. Test reports (JUnit XML) ar
   - `config.yml` lists extensions, run aliases (`entry`), compiler names, CMake variables and shortcuts
   - `matrix.yml` is the build matrix: compiler x build_type x sanitizer x os; `postproc` in `config.yml` trims it further for CI, e.g. ThreadSanitizer runs on one Ubuntu runner only
   - `official.yml` filters the matrix down to release builds (`--official`)
-  - `cmake/` holds CMake modules; `common.cmake` has `add_project_test()` and `add_win32_icon()`
+  - `cmake/` holds CMake modules; `common.cmake` has `add_project_test()` and `add_win32_icon()`; `coverage.cmake` has `add_to_coverage()`, used in `libs/CMakeLists.txt` to list the libraries measured
   - `packages/` holds the CPack setup (TGZ/DEB on Linux, ZIP/WiX on Windows)
   - `extensions/dollhouse/` holds project-local proj-flow extensions (Python), e.g. the Icons step
 - `flow`, `flow.cmd` are wrappers calling `.flow/flow.py`
@@ -66,6 +67,8 @@ Build trees go to `build/debug` and `build/release`. Test reports (JUnit XML) ar
     - `src/` sources, private headers and `version.hpp.in`
     - `tests/` GoogleTest sources, listed in `TEST_SRCS` of `libdollhouse-test`
   - `app/src/main.cpp` is the entry point, linking `libdollhouse`
+- `tools/coveralls/` submodule ([mbits-libs/coveralls](https://github.com/mbits-libs/coveralls), branch `coverage-tests`) turning gcov/llvm-cov/OpenCppCoverage results into Coveralls reports
+- `.covcollect.in`, `.covmodules` configure the local [`cov`](https://github.com/mzdun/cov) tool; the first one is filled in by CMake as `build/<config>/.covcollect`
 - `data/icons/` SVG sources of the application icon; `data/assets/` generated icons and installer artwork
 - `.github/workflows/` `build.yml` (matrix build) and `linter.yml`; `.github/linters/` configs used by super-linter
 - `.github/ISSUE_TEMPLATE/` bug report and feature request forms; `CONTRIBUTING.md`, `CODE_OF_CONDUCT.md`
@@ -90,6 +93,8 @@ Build trees go to `build/debug` and `build/release`. Test reports (JUnit XML) ar
 ## Continuous integration
 
 `build.yml` asks `./flow github matrix` for the list of builds and runs `./flow run` on each of them. Keep the local matrix in `.flow/matrix.yml` and the CI matrix in sync by changing the matrix, not the workflow.
+
+Each Debug build uploads its part of the coverage to Coveralls as a parallel job, and the `coveralls-done` job closes the Coveralls build and comments the summary on the PR. Both need the `COVERALLS_REPO_TOKEN` secret; without it, nothing is sent and the reports are only kept as the `Coverage` artifact.
 
 Releases are cut by hand: a maintainer runs `./flow github release`, which reads the commits since the last tag, bumps the version, updates the changelog and drafts a GitHub release. Pushing its `v*` tag starts `build.yml`, which attaches the packages and publishes the release. Do not bump versions or edit the changelog by hand.
 

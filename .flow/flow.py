@@ -30,6 +30,7 @@ REQUIREMENTS: dict[str, tuple[str, bool]] = {
     # place additional packages here: mod("0.1.1"),
     "pybind11-stubgen": mod("3.0.0"),
     "pytest": mod("9.0.0"),
+    "proj-flow-test-coverage": mod("0.1.1"),
 }
 PROJECT_ROOT = Path(__file__).parent.parent
 VER_REGEX = re.compile(r"((?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*))")
