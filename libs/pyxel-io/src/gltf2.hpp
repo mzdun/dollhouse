@@ -6,8 +6,8 @@
 #include <assimp/Exporter.hpp>
 #include <string_view>
 
-// Assimp's glTF 2 exporter writes no lights. The `glb2-lights` and
-// `gltf2-lights` exporters run it (as `glb2` and `gltf2`) into memory, add
+// Assimp's glTF 2 exporter writes no lights. The `glb2-pyxel` and
+// `gltf2-pyxel` exporters run it (as `glb2` and `gltf2`) into memory, add
 // KHR_lights_punctual to its JSON document, and write the file out. For the
 // binary, the JSON is the first chunk; for the text, it is the `.gltf` file,
 // while the buffers go to their `.bin` files, as Assimp writes them.
@@ -33,10 +33,10 @@
 // - `spread`: the full angle of the emission around -z, in radians, up to pi
 //   (the whole front half-space)
 // - `range`, optional, as in KHR_lights_punctual
-namespace pyxel::io::glb_lights {
-	inline constexpr auto bin_format_id = "glb2-lights";
+namespace pyxel::io::gltf2 {
+	inline constexpr auto bin_format_id = "glb2-pyxel";
 	inline constexpr auto bin_base_format_id = "glb2";
-	inline constexpr auto text_format_id = "gltf2-lights";
+	inline constexpr auto text_format_id = "gltf2-pyxel";
 	inline constexpr auto text_base_format_id = "gltf2";
 
 	inline constexpr auto light_key = "pyxel_light";
@@ -50,13 +50,13 @@ namespace pyxel::io::glb_lights {
 	inline constexpr int area_rectangle = 0;
 	inline constexpr int area_ellipse = 1;
 
-	// the format to export to, when `format_id` was asked for: `glb2-lights`
-	// for `glb2`, `gltf2-lights` for `gltf2`, `format_id` itself for the
+	// the format to export to, when `format_id` was asked for: `glb2-pyxel`
+	// for `glb2`, `gltf2-pyxel` for `gltf2`, `format_id` itself for the
 	// others
 	std::string_view exporter_for(std::string_view format_id) noexcept;
 
-	// registers `glb2-lights` and `gltf2-lights` with the exporter; they are
+	// registers `glb2-pyxel` and `gltf2-pyxel` with the exporter; they are
 	// not listed by export_formats(), as they take the place of `glb2` and
 	// `gltf2`
 	void register_exporters(Assimp::Exporter& exporter);
-}  // namespace pyxel::io::glb_lights
+}  // namespace pyxel::io::gltf2

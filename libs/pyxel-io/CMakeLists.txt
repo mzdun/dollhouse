@@ -5,8 +5,8 @@ set(SRCS
     include/pyxel/io/export.hpp
 
     src/export.cpp
-    src/glb_lights.cpp
-    src/glb_lights.hpp
+    src/gltf2.cpp
+    src/gltf2.hpp
 )
 
 source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR} FILES ${SRCS})

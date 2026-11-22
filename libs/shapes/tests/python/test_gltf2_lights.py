@@ -2,7 +2,7 @@
 # This code is licensed under MIT license (see LICENSE for details)
 
 """Lights in glTF 2 files: `glb2` and `gltf2` are exported through
-`glb2-lights` and `gltf2-lights`, which add KHR_lights_punctual and
+`glb2-pyxel` and `gltf2-pyxel`, which add KHR_lights_punctual and
 PYXEL_lights_area to what Assimp writes."""
 
 import json
@@ -128,8 +128,8 @@ class TestFormat:
     def test_lights_exporters_are_not_listed(self):
         assert "glb2" in shapes.library.exporters
         assert "gltf2" in shapes.library.exporters
-        assert "glb2-lights" not in shapes.library.exporters
-        assert "gltf2-lights" not in shapes.library.exporters
+        assert "glb2-pyxel" not in shapes.library.exporters
+        assert "gltf2-pyxel" not in shapes.library.exporters
 
     def test_no_lights_no_extension(self, export_model):
         doc = export_model(lambda root: root.add(cube()))
