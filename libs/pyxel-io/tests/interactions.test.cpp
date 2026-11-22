@@ -115,7 +115,7 @@ namespace pyxel::io::testing {
 			frame.add<gfx::solid_object>(gfx::solid::cube(gfx::cm(10), gfx::cm(200), gfx::cm(10)));
 			auto& hinge = frame.add_group({.name = "hinge"});
 			hinge.add_group({.name = "unused"});
-			frame.add_group({.name = "lamp"}).add(gfx::light{});
+			frame.add_group({.name = "lamp"}).add(gfx::light{.name = "lamp"});
 			if (with_interactions) frame.add_active_object(door()).set_light_transition("lamp", "150ms");
 
 			gfx::sink out{};

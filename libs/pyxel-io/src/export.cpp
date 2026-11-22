@@ -18,10 +18,12 @@
 #include <set>
 #include <stdexcept>
 #include <string>
+#include <string_view>
 #include <utility>
 #include <variant>
 #include <vector>
 #include "gltf2.hpp"
+#include "interactions_rules.hpp"
 
 namespace pyxel::io {
 	namespace {
@@ -508,12 +510,34 @@ namespace pyxel::io {
 			return result;
 		}
 
+		std::string_view name_of(decl::active_object const& item) {
+			return std::visit([](auto const& object) -> std::string_view { return object.name; }, item);
+		}
+
 		// The rules of docs/model-interactions.md (see Rules there), checked
-		// on the whole model; a violation throws std::runtime_error, naming
-		// the model and the object. Not implemented yet: every list passes.
-		void check_active_objects(std::string const& /*name*/,
-		                          decl::active_objects const& /*objects*/,
-		                          sink const& /*out*/) {}
+		// on the whole model; any violation throws std::runtime_error, naming
+		// the model, and every problem found, with its object.
+		void check_active_objects(std::string const& name, decl::active_objects const& objects, sink const& out) {
+			interactions::model_names model{};
+			for (auto const& node : out.nodes()) {
+				model.add_node(node.name);
+				for (auto const& placed : node.lights)
+					model.add_light(placed.light.name);
+			}
+
+			auto const problems = interactions::check(objects, model);
+			if (problems.empty()) return;
+
+			std::string message = std::format("cannot export `{}`:", name);
+			for (auto const& [object, reason] : problems) {
+				if (object) {
+					message += std::format("\n- active object `{}` {}", name_of(objects[*object]), reason);
+				} else {
+					message += std::format("\n- {}", reason);
+				}
+			}
+			throw std::runtime_error(message);
+		}
 
 		// the groups the geometry-based objects name, in their states and
 		// transitions; their nodes are kept, even with nothing in them
