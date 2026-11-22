@@ -21,6 +21,13 @@ namespace pyxel::gfx {
 		return *this;
 	}
 
+	void group::add_active_objects(sink& out) const {
+		// the current node is the one of this group, if it is named, or of
+		// the nearest named group above it
+		for (auto const& declaration : active_objects_)
+			out.add_active_object(declaration);
+	}
+
 	void group::output(sink& out, glm::dmat4 const& current) const {
 		auto const matrix = current_matrix(current);
 
@@ -28,6 +35,7 @@ namespace pyxel::gfx {
 			// no node of its own: the matrix keeps composing, to be baked
 			// into the vertices of the nearest named group
 			auto const guard = out.scope({}, material_);
+			add_active_objects(out);
 			for (auto const& child : children_)
 				child->output(out, matrix);
 			return;
@@ -36,6 +44,7 @@ namespace pyxel::gfx {
 		// a node of its own, with everything since the nearest named group;
 		// the children start over, relative to the new node
 		auto const guard = out.scope(name_, material_, matrix);
+		add_active_objects(out);
 		for (auto const& child : children_)
 			child->output(out, identity_matrix);
 	}

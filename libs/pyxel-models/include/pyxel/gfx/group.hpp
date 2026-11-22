@@ -119,6 +119,8 @@ namespace pyxel::gfx {
 		void output(sink&, glm::dmat4 const& current) const override;
 
 	private:
+		void add_active_objects(sink& out) const;
+
 		std::string name_{};
 		std::string material_{};
 		offset position_{};

@@ -330,4 +330,25 @@ namespace pyxel::gfx::testing {
 		out.add_solid(square(), identity);
 		EXPECT_EQ(out.at(sink::root).meshes.at("").faces().size(), 1u);
 	}
+
+	TEST(gfx_sink, active_objects_go_to_current_node) {
+		using interactions::light_active_object;
+
+		sink out{};
+		out.add_active_object(light_active_object{.name = "first"});
+		{
+			auto const named = out.scope("door");
+			auto const unnamed = out.scope({}, "wood");
+			out.add_active_object(light_active_object{.name = "second"});
+			out.add_active_object(light_active_object{.name = "third"});
+		}
+
+		ASSERT_EQ(out.nodes().size(), 2u);
+		EXPECT_EQ(out.at(sink::root).active_objects,
+		          (interactions::active_objects{light_active_object{.name = "first"}}));
+		EXPECT_EQ(out.at(1).active_objects, (interactions::active_objects{
+		                                        light_active_object{.name = "second"},
+		                                        light_active_object{.name = "third"},
+		                                    }));
+	}
 }  // namespace pyxel::gfx::testing
