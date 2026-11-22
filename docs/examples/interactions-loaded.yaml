@@ -1,0 +1,155 @@
+# Loaded form of interaction-stored.yaml: what the importer holds once it has
+# read the PYXEL_interactions extra and checked the rules, for each active
+# object of the model. Nothing here is stored in the file; it is derived:
+#
+# - start, actions, machine and state highlights as in "Actions" of the
+#   specification; -1 is the default interaction, the first action of
+#   the list available in the state;
+# - channels: every channel any state sets, per group in the order its
+#   channels first appear, going through the states in declared order;
+#   slots under their declared names, without the "$" of the JSON;
+# - states: the future value of every channel in each state, the ones the
+#   state does not set filled with the default value of the channel;
+# - transitions: resolved per channel, "*" first, then the target entry,
+#   a later item winning; a channel with no transition is "none", that is
+#   0s ease 0s;
+# - storage: the template a placement starts from (see "Instantiation"):
+#   settled in start, progress 1, previous = current = future;
+# - angles in radians (degrees in the comments), times in seconds.
+
+- name: tilt-and-turn
+  kind: geometry
+  slots: []
+  start: closed
+  actions: [Tilt, Open one, Open both, Close, Close left]
+  machine:
+    closed: { -1: tilted, 0: tilted, 1: opened }
+    tilted: { -1: closed, 3: closed }
+    opened: { -1: opened-wide, 2: opened-wide, 3: closed }
+    opened-wide: { -1: opened, 4: opened }
+  state highlights:
+    closed: [tilt-hinge, right-hinge]
+    tilted: [tilt-hinge]
+    opened: [right-hinge, left-hinge]
+    opened-wide: [left-hinge]
+  channels:
+    tilt-hinge: [rotate.x]
+    right-hinge: [rotate.y]
+    left-hinge: [rotate.y]
+  states:
+    closed:
+      tilt-hinge: { rotate.x: 0 }
+      right-hinge: { rotate.y: 0 }
+      left-hinge: { rotate.y: 0 }
+    tilted:
+      tilt-hinge: { rotate.x: 0.0873 } # 5°
+      right-hinge: { rotate.y: 0 }
+      left-hinge: { rotate.y: 0 }
+    opened:
+      tilt-hinge: { rotate.x: 0 }
+      right-hinge: { rotate.y: 1.3963 } # 80°
+      left-hinge: { rotate.y: 0 }
+    opened-wide:
+      tilt-hinge: { rotate.x: 0 }
+      right-hinge: { rotate.y: 1.3963 } # 80°
+      left-hinge: { rotate.y: -1.3963 } # -80°
+  transitions:
+    # rotate.x 300ms from the "tilt-hinge" entry overrides "*"
+    tilt-hinge: { rotate.x: { duration: 0.3, timing: ease-in, delay: 0 } }
+    right-hinge: { rotate.y: { duration: 0.2, timing: ease-in, delay: 0 } }
+    left-hinge: { rotate.y: { duration: 0.2, timing: ease-in, delay: 0 } }
+  storage:
+    state: closed
+    progress: 1
+    channels:
+      tilt-hinge: { rotate.x: 0 }
+      right-hinge: { rotate.y: 0 }
+      left-hinge: { rotate.y: 0 }
+    slots: {}
+
+- name: door
+  kind: geometry
+  slots: []
+  start: closed
+  actions: [Open door, Close]
+  machine:
+    closed: { -1: opened, 0: opened }
+    opened: { -1: closed, 1: closed }
+  state highlights:
+    closed: [hinge]
+    opened: [hinge]
+  channels:
+    hinge: [rotate.y]
+  states:
+    closed:
+      hinge: { rotate.y: 0 }
+    opened:
+      hinge: { rotate.y: 1.3963 } # 80°
+  transitions:
+    hinge: { rotate.y: { duration: 0.2, timing: ease-in, delay: 0 } }
+  storage:
+    state: closed
+    progress: 1
+    channels:
+      hinge: { rotate.y: 0 }
+    slots: {}
+
+- name: switch
+  kind: geometry
+  slots:
+    - { name: enabled, type: boolean, direction: output, default: false }
+  start: switched-off
+  actions: [Turn on, Turn off]
+  machine:
+    switched-off: { -1: switched-on, 0: switched-on }
+    switched-on: { -1: switched-off, 1: switched-off }
+  state highlights:
+    # the slot changes too, but only groups are highlighted
+    switched-off: [rocker]
+    switched-on: [rocker]
+  channels:
+    rocker: [rotate.x]
+    slots: [enabled]
+  states:
+    switched-off:
+      rocker: { rotate.x: 0 }
+      slots: { enabled: false } # the slot's default value
+    switched-on:
+      rocker: { rotate.x: 0.1745 } # 10°
+      slots: { enabled: true }
+  transitions:
+    rocker: { rotate.x: { duration: 0.05, timing: ease-in, delay: 0 } }
+    # a boolean is never interpolated: it flips once 45 ms have passed
+    slots: { enabled: { duration: 0, timing: linear, delay: 0.045 } }
+  storage:
+    state: switched-off
+    progress: 1
+    channels:
+      rocker: { rotate.x: 0 }
+    slots: { enabled: false }
+
+# a light source: the importer synthesizes its slots and its update
+# expression, "enabled ? intensity : 0"; the object in the file only
+# brings the transition of the intensity factor
+- name: light-bulb
+  kind: light
+  slots:
+    - { name: enabled, type: boolean, direction: input, default: true }
+    - { name: intensity, type: factor, direction: input, default: 1 }
+  # no states and no actions of its own: every change of the future value
+  # of the factor requests a synthesized state setting it
+  start: null
+  actions: []
+  machine: {}
+  state highlights: {}
+  channels:
+    light: [intensity factor] # unnamed, cannot be wired
+  transitions:
+    light: { intensity factor: { duration: 0.05, timing: ease-out, delay: 0 } }
+  storage:
+    state: null
+    progress: 1
+    channels:
+      # the update expression for the default values of the slots
+      light: { intensity factor: 1 }
+    slots: { enabled: true, intensity: 1 }

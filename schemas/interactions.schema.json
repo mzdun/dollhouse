@@ -1,0 +1,187 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://raw.githubusercontent.com/mzdun/dollhouse/main/schemas/interactions.schema.json",
+  "title": "PYXEL_interactions",
+  "description": "The PYXEL_interactions extra of a glTF 2 node: the list of active objects of a model. Objects of version 1.0 are checked in full; objects of other versions only for `name` and `version`, as the importer decides what to do with them. Rules that need the whole model, such as which names are groups and which are lights, are not checked here. See docs/model-interactions.md.",
+  "type": "array",
+  "items": { "$ref": "#/$defs/activeObject" },
+  "$defs": {
+    "name": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^[^./]+$",
+      "description": "Name of an active object, a light or a slot: no dot and no slash."
+    },
+    "version": {
+      "type": "string",
+      "pattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)$",
+      "description": "Major and minor version of the specification, as in SemVer with the patch version 0, with no leading zeros."
+    },
+    "stateName": {
+      "type": "string",
+      "description": "Name of a state declared in `states`."
+    },
+    "activeObject": {
+      "type": "object",
+      "required": ["name", "version"],
+      "properties": {
+        "name": { "$ref": "#/$defs/name" },
+        "version": { "$ref": "#/$defs/version" }
+      },
+      "if": {
+        "properties": { "version": { "const": "1.0" } },
+        "required": ["version"]
+      },
+      "then": { "$ref": "#/$defs/activeObject_1_0" }
+    },
+    "activeObject_1_0": {
+      "type": "object",
+      "description": "An active object of version 1.0. If `name` is the name of a light of the model, the object describes that light and may only have `transitions`, with the single target `light`; otherwise it is geometry-based.",
+      "required": ["name", "version"],
+      "properties": {
+        "name": { "$ref": "#/$defs/name" },
+        "version": { "const": "1.0" },
+        "slots": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/slot" }
+        },
+        "states": {
+          "type": "object",
+          "description": "State names to state declarations. The order of the keys matters: the first state is the starting state.",
+          "additionalProperties": { "$ref": "#/$defs/state" }
+        },
+        "actions": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/action" }
+        },
+        "transitions": { "$ref": "#/$defs/transitions" }
+      },
+      "additionalProperties": false
+    },
+    "slot": {
+      "type": "object",
+      "required": ["name", "type", "direction"],
+      "properties": {
+        "name": {
+          "allOf": [{ "$ref": "#/$defs/name" }, { "not": { "const": "visible" } }],
+          "description": "Unique within the object; `visible` is reserved."
+        },
+        "type": {
+          "enum": ["float", "factor", "boolean", "angle", "length", "offset"],
+          "description": "`int` and `color` are reserved for future versions."
+        },
+        "direction": { "enum": ["input", "output", "variable"] },
+        "default": {
+          "$ref": "#/$defs/slotValue",
+          "description": "A value of the slot's type; when missing, the default-initialized value of the type."
+        }
+      },
+      "allOf": [
+        {
+          "if": { "properties": { "type": { "const": "boolean" } }, "required": ["type"] },
+          "then": { "properties": { "default": { "type": "boolean" } } }
+        },
+        {
+          "if": { "properties": { "type": { "enum": ["float", "angle", "length"] } }, "required": ["type"] },
+          "then": { "properties": { "default": { "type": "number" } } }
+        },
+        {
+          "if": { "properties": { "type": { "const": "factor" } }, "required": ["type"] },
+          "then": { "properties": { "default": { "type": "number", "minimum": 0, "maximum": 1 } } }
+        },
+        {
+          "if": { "properties": { "type": { "const": "offset" } }, "required": ["type"] },
+          "then": { "properties": { "default": { "$ref": "#/$defs/offset" } } }
+        }
+      ],
+      "additionalProperties": false
+    },
+    "offset": {
+      "type": "array",
+      "items": { "type": "number" },
+      "minItems": 3,
+      "maxItems": 3,
+      "description": "Lengths in meters along X, Y and Z."
+    },
+    "slotValue": {
+      "anyOf": [{ "type": "boolean" }, { "type": "number" }, { "$ref": "#/$defs/offset" }],
+      "description": "bool for boolean; a number for float, factor, angle (radians) and length (meters); three lengths for offset."
+    },
+    "state": {
+      "type": "object",
+      "description": "Group names and slot references (`$` and the declared name of an output slot or a variable) to their lists of transformations.",
+      "patternProperties": {
+        "^\\$": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/slotTransformation" },
+          "maxItems": 1
+        }
+      },
+      "additionalProperties": {
+        "type": "array",
+        "items": { "$ref": "#/$defs/groupTransformation" },
+        "description": "Transformations of a group, composed in this order; each channel at most once."
+      }
+    },
+    "slotTransformation": {
+      "type": "object",
+      "required": ["set"],
+      "properties": { "set": { "$ref": "#/$defs/slotValue" } },
+      "additionalProperties": false
+    },
+    "vector": {
+      "type": "array",
+      "items": { "type": "number" },
+      "minItems": 1,
+      "maxItems": 3,
+      "description": "Values for X, Y and Z; a missing one takes the default value of the channel."
+    },
+    "groupTransformation": {
+      "type": "object",
+      "description": "A single-key mapping setting one channel. Angles in radians, lengths in meters.",
+      "minProperties": 1,
+      "maxProperties": 1,
+      "properties": {
+        "translate.x": { "type": "number" },
+        "translate.y": { "type": "number" },
+        "translate.z": { "type": "number" },
+        "translate": { "$ref": "#/$defs/vector" },
+        "rotate.x": { "type": "number" },
+        "rotate.y": { "type": "number" },
+        "rotate.z": { "type": "number" },
+        "rotate": { "$ref": "#/$defs/vector" },
+        "scale.x": { "type": "number" },
+        "scale.y": { "type": "number" },
+        "scale.z": { "type": "number" },
+        "scale": { "$ref": "#/$defs/vector" }
+      },
+      "additionalProperties": false
+    },
+    "action": {
+      "type": "object",
+      "required": ["label", "when", "then"],
+      "properties": {
+        "label": { "type": "string", "description": "Text shown in the UI; need not be unique." },
+        "when": {
+          "oneOf": [
+            { "$ref": "#/$defs/stateName" },
+            { "type": "array", "items": { "$ref": "#/$defs/stateName" }, "minItems": 1 }
+          ],
+          "description": "The state the action leaves, or a list of them."
+        },
+        "then": { "$ref": "#/$defs/stateName", "description": "The state the action leads to." }
+      },
+      "additionalProperties": false
+    },
+    "transitions": {
+      "type": "object",
+      "description": "Targets to transition values. A target is `*` (the defaults), a group name, `$` and the name of an output slot or a variable, or `light` in an object describing a light.",
+      "additionalProperties": { "$ref": "#/$defs/transition" }
+    },
+    "transition": {
+      "type": "string",
+      "description": "`none`, or a comma-separated list of single-channel transitions: a channel, a timing function and up to two times (duration, then delay), in any order. The pattern accepts lowercase keywords and units only, as the exporter writes them; the specification also accepts any case.",
+      "pattern": "^\\s*(none|(all|set|(translate|rotate|scale)(\\.[xyz])?|ease(-in|-out|-in-out)?|linear|[+-]?([0-9]+(\\.[0-9]*)?|\\.[0-9]+)([eE][+-]?[0-9]+)?(s|ms))(\\s+(all|set|(translate|rotate|scale)(\\.[xyz])?|ease(-in|-out|-in-out)?|linear|[+-]?([0-9]+(\\.[0-9]*)?|\\.[0-9]+)([eE][+-]?[0-9]+)?(s|ms))){0,3}(\\s*,\\s*(all|set|(translate|rotate|scale)(\\.[xyz])?|ease(-in|-out|-in-out)?|linear|[+-]?([0-9]+(\\.[0-9]*)?|\\.[0-9]+)([eE][+-]?[0-9]+)?(s|ms))(\\s+(all|set|(translate|rotate|scale)(\\.[xyz])?|ease(-in|-out|-in-out)?|linear|[+-]?([0-9]+(\\.[0-9]*)?|\\.[0-9]+)([eE][+-]?[0-9]+)?(s|ms))){0,3})*)\\s*$"
+    }
+  }
+}
