@@ -13,6 +13,7 @@
 #include <pyxel/base/str.hpp>
 #include <pyxel/gfx/group.hpp>
 #include <pyxel/gfx/interactions.hpp>
+#include <pyxel/gfx/light.hpp>
 #include <pyxel/gfx/sink.hpp>
 #include <pyxel/gfx/solid_object.hpp>
 #include <pyxel/io/export.hpp>
@@ -20,6 +21,7 @@
 #include <stdexcept>
 #include <string>
 #include <string_view>
+#include <utility>
 #include <vector>
 #include "gltf2.hpp"
 
@@ -29,6 +31,9 @@ namespace pyxel::io::testing {
 	using gfx::length;
 	using gfx::offset;
 	using gfx::rad;
+	using io::interactions::note;
+	using io::interactions::parse;
+	using io::interactions::parsed;
 	using io::interactions::serialize;
 
 	namespace {
@@ -79,6 +84,20 @@ namespace pyxel::io::testing {
 			return false;
 		}
 
+		void write_text(std::filesystem::path const& path, std::string_view text) {
+			std::ofstream file{path, std::ios::binary};
+			file << text;
+		}
+
+		std::vector<std::string> const lights{"lamp"};
+
+		// the declarations, after a round trip through the JSON
+		parsed round_trip(active_objects const& objects) { return parse(serialize(objects), lights); }
+
+		note dropped(std::string object, std::string reason) {
+			return {.object = std::move(object), .what = note::dropped, .reason = std::move(reason)};
+		}
+
 		geo_active_object door() {
 			return {
 			    .name = "door",
@@ -96,6 +115,7 @@ namespace pyxel::io::testing {
 			frame.add<gfx::solid_object>(gfx::solid::cube(gfx::cm(10), gfx::cm(200), gfx::cm(10)));
 			auto& hinge = frame.add_group({.name = "hinge"});
 			hinge.add_group({.name = "unused"});
+			frame.add_group({.name = "lamp"}).add(gfx::light{});
 			if (with_interactions) frame.add_active_object(door()).set_light_transition("lamp", "150ms");
 
 			gfx::sink out{};
@@ -274,5 +294,243 @@ namespace pyxel::io::testing {
 		auto const path = temp_file("door.obj");
 		EXPECT_THROW(export_scene("door", door_sink(true), gfx::materials{}, "obj", path), std::runtime_error);
 		EXPECT_NO_THROW(export_scene("door", door_sink(false), gfx::materials{}, "obj", path));
+	}
+
+	TEST(interactions_parse, round_trip) {
+		active_objects const objects{
+		    geo_active_object{
+		        .name = "switch",
+		        .slots =
+		            {
+		                slot{"enabled", slot_type::boolean, direction::output},
+		                slot{"level", slot_type::factor, direction::input, 0.5},
+		                slot{"tilt", slot_type::angle, direction::variable, rad(0.25)},
+		                slot{"depth", slot_type::length, direction::output, length{2}},
+		                slot{"at", slot_type::offset, direction::output, offset{length{1}, length{2}, length{3}}},
+		            },
+		        .states = {state("switched-off"), state("switched-on")
+		                                              .transform("rocker", channel::rotate_x(rad(0.25)))
+		                                              .transform("rocker", channel::translate(length{0.5}))
+		                                              .transform("base", channel::scale(2, 3))
+		                                              .set("enabled", true)
+		                                              .set("tilt", rad(0.5))
+		                                              .set("undeclared", 2.0)},
+		        .actions = {{"Turn on", "switched-off", "switched-on"},
+		                    {"Turn off", {"switched-on", "switched-off"}, "switched-off"}},
+		        .transitions = transitions{}
+		                           .for_all("100ms")
+		                           .for_group("rocker", "rotate.x 50ms")
+		                           .for_slot("enabled", "0ms linear 45ms")
+		                           .for_slot("$odd", "1s"),
+		    },
+		    geo_active_object{.name = "empty"},
+		    light_active_object{.name = "lamp", .light = "150ms"},
+		};
+
+		EXPECT_EQ(round_trip(objects), (parsed{.objects = objects}));
+		EXPECT_EQ(round_trip({light_active_object{.name = "lamp"}}),
+		          (parsed{.objects = {light_active_object{.name = "lamp"}}}));
+	}
+
+	TEST(interactions_parse, lights_are_found_by_name) {
+		auto const text = R"([{"name": "lamp", "version": "1.0"}, {"name": "bulb", "version": "1.0"}])";
+		EXPECT_EQ(parse(text, lights).objects,
+		          (active_objects{light_active_object{.name = "lamp"}, geo_active_object{.name = "bulb"}}));
+		EXPECT_EQ(parse(text, {}).objects,
+		          (active_objects{geo_active_object{.name = "lamp"}, geo_active_object{.name = "bulb"}}));
+	}
+
+	TEST(interactions_parse, vectors_are_filled) {
+		auto const result = parse(
+		    R"([{"name": "v", "version": "1.0", "states": {"s": {"g": [{"translate": [1]}, {"rotate": [0.5, 1]}, {"scale": [2]}]}}}])",
+		    lights);
+		ASSERT_EQ(result.objects.size(), 1u);
+		auto const& changes = std::get<geo_active_object>(result.objects[0]).states.at(0).groups.at("g");
+		EXPECT_EQ(changes, (std::vector<group_transformation>{
+		                       channel::translate(length{1}),
+		                       channel::rotate(rad(0.5), rad(1)),
+		                       channel::scale(2),
+		                   }));
+	}
+
+	TEST(interactions_parse, text_which_is_not_a_list_throws) {
+		EXPECT_THROW(parse("[{", lights), std::runtime_error);
+		EXPECT_THROW(parse(R"({"name": "door"})", lights), std::runtime_error);
+		EXPECT_EQ(parse("[]", lights), parsed{});
+	}
+
+	TEST(interactions_parse, unreadable_versions_are_dropped) {
+		auto const result = parse(R"([
+			{"name": "no-version"},
+			{"name": "number", "version": 1.0},
+			{"name": "short", "version": "1"},
+			{"name": "leading-zero", "version": "01.0"},
+			{"name": "patch", "version": "1.0.0"},
+			{"name": "major", "version": "2.0"},
+			{"name": "old", "version": "0.9"},
+			{"version": "1.0"},
+			"not an object",
+			{"name": "good", "version": "1.0"}
+		])",
+		                          lights);
+
+		EXPECT_EQ(result.objects, (active_objects{geo_active_object{.name = "good"}}));
+		EXPECT_EQ(result.notes, (std::vector<note>{
+		                            dropped("no-version", "it has no version"),
+		                            dropped("number", "it has no version"),
+		                            dropped("short", "\"1\" is not a version"),
+		                            dropped("leading-zero", "\"01.0\" is not a version"),
+		                            dropped("patch", "\"1.0.0\" is not a version"),
+		                            dropped("major", "version 2.0 is not supported"),
+		                            dropped("old", "version 0.9 is too old, and cannot be upgraded"),
+		                            dropped("", "it has no name"),
+		                            dropped("", "the entry is not a mapping"),
+		                        }));
+	}
+
+	TEST(interactions_parse, own_version_fails_on_unknown_names) {
+		auto const result = parse(R"([
+			{"name": "key", "version": "1.0", "updates": {}},
+			{"name": "type", "version": "1.0", "slots": [{"name": "n", "type": "int", "direction": "input"}]},
+			{"name": "channel", "version": "1.0", "states": {"s": {"g": [{"visible": false}]}}},
+			{"name": "action", "version": "1.0", "actions": [{"label": "Go", "when": "a", "then": "b", "key": 1}]}
+		])",
+		                          lights);
+
+		EXPECT_TRUE(result.objects.empty());
+		EXPECT_EQ(result.notes, (std::vector<note>{
+		                            dropped("key", "has an unknown key `updates`"),
+		                            dropped("type", "has an unknown type `int` of slot `n`"),
+		                            dropped("channel", "has an unknown channel `visible` of `g` in state `s`"),
+		                            dropped("action", "has an unknown key `key` of action `Go`"),
+		                        }));
+	}
+
+	TEST(interactions_parse, newer_minor_version_ignores_unknown_names) {
+		auto const result = parse(R"([{
+			"name": "newer", "version": "1.3", "updates": {},
+			"slots": [
+				{"name": "count", "type": "int", "direction": "output"},
+				{"name": "on", "type": "boolean", "direction": "output", "unit": "none"}
+			],
+			"states": {"s": {
+				"g": [{"visible": false}, {"rotate.y": 1}],
+				"$count": [{"set": 2}],
+				"$on": [{"set": true}]
+			}},
+			"transitions": {"$count": "1s", "$on": "2s"}
+		}])",
+		                          lights);
+
+		auto const expected = geo_active_object{
+		    .name = "newer",
+		    .slots = {slot{"on", slot_type::boolean, direction::output}},
+		    .states = {state("s").transform("g", channel::rotate_y(rad(1))).set("on", true)},
+		    .transitions = transitions{}.for_slot("on", "2s"),
+		};
+		EXPECT_EQ(result.objects, (active_objects{expected}));
+		EXPECT_EQ(
+		    result.notes,
+		    (std::vector<note>{{.object = "newer",
+		                        .what = note::ignored,
+		                        .reason = "version 1.3 is newer; left out: type `int` of slot `count`, key `unit` "
+		                                  "of slot `on`, key `updates`, channel `visible` of `g` in state `s`"}}));
+	}
+
+	TEST(interactions_parse, shapes_which_do_not_fit_are_dropped) {
+		auto const result = parse(R"([
+			{"name": "lamp", "version": "1.0", "states": {}},
+			{"name": "lamp", "version": "1.0", "transitions": {"*": "1s"}},
+			{"name": "label", "version": "1.0", "actions": [{"when": "a", "then": "b"}]},
+			{"name": "default", "version": "1.0", "slots": [{"name": "n", "type": "angle", "direction": "input", "default": true}]},
+			{"name": "set", "version": "1.0", "slots": [{"name": "n", "type": "offset", "direction": "output"}],
+			 "states": {"s": {"$n": [{"set": 1}]}}},
+			{"name": "vector", "version": "1.0", "states": {"s": {"g": [{"scale": [1, 2, 3, 4]}]}}},
+			{"name": "two", "version": "1.0", "states": {"s": {"g": [{"scale.x": 1, "scale.y": 1}]}}}
+		])",
+		                          lights);
+
+		EXPECT_TRUE(result.objects.empty());
+		EXPECT_EQ(result.notes, (std::vector<note>{
+		                            dropped("lamp", "describes a light, but has `states`"),
+		                            dropped("lamp", "describes a light, but has a transition of `*`"),
+		                            dropped("label", "has an action with no `label`"),
+		                            dropped("default", "has slot `n` with a default, which is not a angle"),
+		                            dropped("set", "sets `$n` in state `s` to a value of a wrong type"),
+		                            dropped("vector", "sets `scale` of `g` in state `s` to a value of a wrong type"),
+		                            dropped("two",
+		                                    "has a transformation of `g` in state `s`, which does not set a "
+		                                    "single channel"),
+		                        }));
+	}
+
+	class interactions_import : public ::testing::TestWithParam<std::string> {};
+
+	TEST_P(interactions_import, exported_model_comes_back) {
+		auto const& format = GetParam();
+		auto const path = temp_file(format == "glb2" ? "door.glb" : "door.gltf");
+		export_scene("door", door_sink(true), gfx::materials{}, format, path);
+
+		Assimp::Importer importer{};
+		gltf2::register_importer(importer);
+		auto const* scene = importer.ReadFile(as_str(path.u8string()), 0u);
+		ASSERT_NE(scene, nullptr) << importer.GetErrorString();
+
+		auto const* result = gltf2::interactions_of(importer, scene);
+		ASSERT_NE(result, nullptr);
+		EXPECT_EQ(*result, (parsed{.objects = {door(), light_active_object{.name = "lamp", .light = "150ms"}}}));
+	}
+
+	INSTANTIATE_TEST_SUITE_P(formats, interactions_import, ::testing::Values("glb2", "gltf2"));
+
+	// the extras of every node, in the order of the `nodes` array; the
+	// punctual light of node 3 is a light of the model
+	TEST(interactions_import, extras_of_all_nodes_are_merged) {
+		auto const path = temp_file("merged.gltf");
+		write_text(path, R"({
+	"asset": {"version": "2.0"},
+	"extensionsUsed": ["KHR_lights_punctual"],
+	"extensions": {"KHR_lights_punctual": {"lights": [{"type": "point"}]}},
+	"scenes": [{"nodes": [2]}],
+	"nodes": [
+		{"name": "first", "extras": {"PYXEL_interactions": [{"name": "a", "version": "1.0"}]}},
+		{"name": "broken", "extras": {"PYXEL_interactions": {"name": "b", "version": "1.0"}}},
+		{"name": "root", "children": [0, 1, 3],
+		 "extras": {"PYXEL_interactions": [{"name": "c", "version": "1.0"}, {"name": "d", "version": "2.0"}]}},
+		{"name": "bulb", "extensions": {"KHR_lights_punctual": {"light": 0}},
+		 "extras": {"PYXEL_interactions": [{"name": "bulb", "version": "1.0", "transitions": {"light": "1s"}}]}}
+	]
+})");
+
+		Assimp::Importer importer{};
+		gltf2::register_importer(importer);
+		auto const* scene = importer.ReadFile(as_str(path.u8string()), 0u);
+		ASSERT_NE(scene, nullptr) << importer.GetErrorString();
+
+		auto const* result = gltf2::interactions_of(importer, scene);
+		ASSERT_NE(result, nullptr);
+		EXPECT_EQ(*result, (parsed{
+		                       .objects =
+		                           {
+		                               geo_active_object{.name = "a"},
+		                               geo_active_object{.name = "c"},
+		                               light_active_object{.name = "bulb", .light = "1s"},
+		                           },
+		                       .notes = {dropped("d", "version 2.0 is not supported")},
+		                   }));
+	}
+
+	TEST(interactions_import, other_scenes_have_none) {
+		auto const path = temp_file("door.obj");
+		export_scene("door", door_sink(false), gfx::materials{}, "obj", path);
+
+		Assimp::Importer importer{};
+		gltf2::register_importer(importer);
+		auto const* scene = importer.ReadFile(as_str(path.u8string()), 0u);
+		ASSERT_NE(scene, nullptr) << importer.GetErrorString();
+		EXPECT_EQ(gltf2::interactions_of(importer, scene), nullptr);
+
+		Assimp::Importer plain{};
+		EXPECT_EQ(gltf2::interactions_of(plain, nullptr), nullptr);
 	}
 }  // namespace pyxel::io::testing

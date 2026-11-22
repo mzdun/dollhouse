@@ -9,6 +9,8 @@ set(SRCS
     src/gltf2.cpp
     src/gltf2.hpp
     src/interactions.cpp
+    src/interactions_json.hpp
+    src/interactions_parse.cpp
 )
 
 source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR} FILES ${SRCS})
