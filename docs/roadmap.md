@@ -28,8 +28,9 @@ Each stage ends with something that runs. Stage 3 (Plans) does not depend on the
   - [x] JSON Schema of the extra: [interactions.schema.json](../schemas/interactions.schema.json)
 - [x] Update [plans-schema.md](plans-schema.md) to link the new spec instead of the "draft available soon" note
 - [ ] Post-process every glTF 2 export, not only the binary one, with what Assimp cannot write
-  - [ ] `gltf2-lights`: the lights for `gltf2`, as `glb2-lights` adds them for `glb2`; today a `gltf2` export has no lights
-  - [ ] Rename both to `glb2-pyxel` and `gltf2-pyxel`, taking the place of `glb2` and `gltf2`; each adds everything of ours to the glTF document: `KHR_lights_punctual`, `PYXEL_lights_area` and the `PYXEL_interactions` extra
+  - [x] `gltf2-lights`: the lights for `gltf2`, as `glb2-lights` adds them for `glb2`; today a `gltf2` export has no lights
+  - [ ] Rename both to `glb2-pyxel` and `gltf2-pyxel`, taking the place of `glb2` and `gltf2`
+  - [ ] Add the `PYXEL_interactions` extra to both pyxel exporters; each adds everything of ours to the glTF document: `KHR_lights_punctual`, `PYXEL_lights_area` and the `PYXEL_interactions` extra
 - [ ] Declare active objects, states, actions, slots and variables in `pyxel-models`
 - [ ] Expose them in the `shapes` Python module
 - [ ] Export them to glb and glTF in `pyxel-io`, through `glb2-pyxel` and `gltf2-pyxel`

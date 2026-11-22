@@ -5,6 +5,7 @@
 #include <assimp/Exceptional.h>
 #include <assimp/scene.h>
 #include <rapidjson/document.h>
+#include <rapidjson/prettywriter.h>
 #include <rapidjson/stringbuffer.h>
 #include <rapidjson/writer.h>
 #include <algorithm>
@@ -37,9 +38,11 @@ namespace pyxel::io::glb_lights {
 		constexpr size_t header_size = 12;
 		constexpr size_t chunk_header_size = 8;
 
-		[[noreturn]] void fail(std::string const& message) {
-			throw DeadlyExportError(std::format("{}: {}", format_id, message));
+		[[noreturn]] void fail(char const* exporter, std::string const& message) {
+			throw DeadlyExportError(std::format("{}: {}", exporter, message));
 		}
+
+		[[noreturn]] void fail(std::string const& message) { fail(bin_format_id, message); }
 
 		std::uint32_t read_u32(std::span<std::byte const> bytes, size_t offset) {
 			if (offset + 4 > bytes.size()) fail("the binary from the glTF 2 exporter is cut short");
@@ -271,15 +274,34 @@ namespace pyxel::io::glb_lights {
 			area.finish(doc);
 		}
 
+		// the JSON document from Assimp, with the lights added
+		rapidjson::Document parse_with_lights(char const* exporter, std::string_view json, aiScene const& scene) {
+			rapidjson::Document doc{};
+			doc.Parse(json.data(), json.size());
+			if (doc.HasParseError() || !doc.IsObject()) fail(exporter, "the JSON document cannot be parsed");
+
+			add_lights(doc, scene);
+			return doc;
+		}
+
+		void write_file(char const* exporter,
+		                Assimp::IOSystem& io,
+		                char const* path,
+		                char const* mode,
+		                void const* data,
+		                size_t size) {
+			auto* stream = io.Open(path, mode);
+			if (!stream) fail(exporter, std::format("cannot open {} for writing", path));
+			auto const written = stream->Write(data, 1, size);
+			io.Close(stream);
+			if (written != size) fail(exporter, std::format("cannot write {}", path));
+		}
+
 		std::vector<std::byte> rebuild(std::span<std::byte const> blob, aiScene const& scene) {
 			auto const chunks = read_chunks(blob);
 			auto const& json = chunks.front().data;
-
-			rapidjson::Document doc{};
-			doc.Parse(reinterpret_cast<char const*>(json.data()), json.size());
-			if (doc.HasParseError() || !doc.IsObject()) fail("the JSON chunk cannot be parsed");
-
-			add_lights(doc, scene);
+			auto const doc =
+			    parse_with_lights(bin_format_id, {reinterpret_cast<char const*>(json.data()), json.size()}, scene);
 
 			rapidjson::StringBuffer text{};
 			rapidjson::Writer<rapidjson::StringBuffer> writer{text};
@@ -319,21 +341,137 @@ namespace pyxel::io::glb_lights {
 			// the scene was post-processed already, by the exporter calling
 			// this function
 			Assimp::Exporter base{};
-			auto const* blob = base.ExportToBlob(scene, base_format_id, 0u, properties);
+			auto const* blob = base.ExportToBlob(scene, bin_base_format_id, 0u, properties);
 			if (!blob) fail(base.GetErrorString());
 
 			auto const bytes = rebuild({static_cast<std::byte const*>(blob->data), blob->size}, *scene);
+			write_file(bin_format_id, *io, path, "wb", bytes.data(), bytes.size());
+		}
 
-			auto* stream = io->Open(path, "wb");
-			if (!stream) fail(std::format("cannot open {} for writing", path));
-			auto const written = stream->Write(bytes.data(), 1, bytes.size());
-			io->Close(stream);
-			if (written != bytes.size()) fail(std::format("cannot write {}", path));
+		// writes into a string owned by someone else; Assimp's glTF 2 writer
+		// deletes its streams, instead of closing them
+		class memory_stream final : public Assimp::IOStream {
+		public:
+			explicit memory_stream(std::string& data) : data_{data} { data_.clear(); }
+
+			size_t Read(void*, size_t, size_t) override { return 0; }
+
+			size_t Write(void const* buffer, size_t size, size_t count) override {
+				if (size == 0 || count == 0) return 0;
+				auto const bytes = size * count;
+				if (position_ + bytes > data_.size()) data_.resize(position_ + bytes);
+				std::memcpy(data_.data() + position_, buffer, bytes);
+				position_ += bytes;
+				return count;
+			}
+
+			aiReturn Seek(size_t offset, aiOrigin origin) override {
+				size_t base = 0;
+				switch (origin) {
+					case aiOrigin_SET:
+						break;
+					case aiOrigin_CUR:
+						base = position_;
+						break;
+					case aiOrigin_END:
+						base = data_.size();
+						break;
+					default:
+						return aiReturn_FAILURE;
+				}
+				if (base + offset > data_.size()) return aiReturn_FAILURE;
+				position_ = base + offset;
+				return aiReturn_SUCCESS;
+			}
+
+			size_t Tell() const override { return position_; }
+			size_t FileSize() const override { return data_.size(); }
+			void Flush() override {}
+
+		private:
+			std::string& data_;
+			size_t position_{};
+		};
+
+		// The file system of the exporter, except for the `.gltf` file itself,
+		// which goes to `json`; the `.bin` files of the buffers are written
+		// as they are
+		class json_capture final : public Assimp::IOSystem {
+		public:
+			json_capture(Assimp::IOSystem& io, char const* path, std::string& json)
+			    : io_{io}, path_{path}, json_{json} {}
+
+			bool Exists(char const* file) const override { return io_.Exists(file); }
+			char getOsSeparator() const override { return io_.getOsSeparator(); }
+
+			Assimp::IOStream* Open(char const* file, char const* mode) override {
+				if (io_.ComparePaths(file, path_.c_str())) return new memory_stream{json_};
+				return io_.Open(file, mode);
+			}
+
+			void Close(Assimp::IOStream* file) override {
+				if (dynamic_cast<memory_stream*>(file)) {
+					delete file;
+					return;
+				}
+				io_.Close(file);
+			}
+
+			bool ComparePaths(char const* one, char const* second) const override {
+				return io_.ComparePaths(one, second);
+			}
+			bool PushDirectory(std::string const& path) override { return io_.PushDirectory(path); }
+			std::string const& CurrentDirectory() const override { return io_.CurrentDirectory(); }
+			size_t StackSize() const override { return io_.StackSize(); }
+			bool PopDirectory() override { return io_.PopDirectory(); }
+			bool CreateDirectory(std::string const& path) override { return io_.CreateDirectory(path); }
+			bool ChangeDirectory(std::string const& path) override { return io_.ChangeDirectory(path); }
+			bool DeleteFile(std::string const& file) override { return io_.DeleteFile(file); }
+
+		private:
+			Assimp::IOSystem& io_;
+			std::string path_;
+			std::string& json_;
+		};
+
+		void export_gltf_lights(char const* path,
+		                        Assimp::IOSystem* io,
+		                        aiScene const* scene,
+		                        Assimp::ExportProperties const* properties) {
+			// declared first: it outlives the exporter, which owns the file
+			// system writing into it
+			std::string json{};
+			{
+				// the scene was post-processed already, by the exporter
+				// calling this function
+				Assimp::Exporter base{};
+				base.SetIOHandler(new json_capture{*io, path, json});
+				if (base.Export(scene, text_base_format_id, path, 0u, properties) != aiReturn_SUCCESS) {
+					fail(text_format_id, base.GetErrorString());
+				}
+			}
+			if (json.empty()) fail(text_format_id, "the glTF 2 exporter wrote no JSON document");
+
+			auto const doc = parse_with_lights(text_format_id, json, *scene);
+
+			// indented, as Assimp writes it
+			rapidjson::StringBuffer text{};
+			rapidjson::PrettyWriter<rapidjson::StringBuffer> writer{text};
+			doc.Accept(writer);
+			write_file(text_format_id, *io, path, "wt", text.GetString(), text.GetSize());
 		}
 	}  // namespace
 
-	void register_exporter(Assimp::Exporter& exporter) {
-		exporter.RegisterExporter({format_id, "glTF 2.0 (binary), with KHR_lights_punctual and PYXEL_lights_area",
+	std::string_view exporter_for(std::string_view format_id) noexcept {
+		if (format_id == bin_base_format_id) return bin_format_id;
+		if (format_id == text_base_format_id) return text_format_id;
+		return format_id;
+	}
+
+	void register_exporters(Assimp::Exporter& exporter) {
+		exporter.RegisterExporter({bin_format_id, "glTF 2.0 (binary), with KHR_lights_punctual and PYXEL_lights_area",
 		                           "glb", &export_glb_lights});
+		exporter.RegisterExporter(
+		    {text_format_id, "glTF 2.0, with KHR_lights_punctual and PYXEL_lights_area", "gltf", &export_gltf_lights});
 	}
 }  // namespace pyxel::io::glb_lights
