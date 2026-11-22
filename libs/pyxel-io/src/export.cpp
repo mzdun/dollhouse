@@ -20,7 +20,7 @@
 #include <utility>
 #include <variant>
 #include <vector>
-#include "glb_lights.hpp"
+#include "gltf2.hpp"
 
 namespace pyxel::io {
 	namespace {
@@ -38,9 +38,9 @@ namespace pyxel::io {
 			        r(m[0][3]), r(m[1][3]), r(m[2][3]), r(m[3][3])};
 		}
 
-		// marks the node of a light for the glb2-lights and gltf2-lights
+		// marks the node of a light for the glb2-pyxel and gltf2-pyxel
 		// exporters, which read it back from the extras of the glTF node
-		// (see glb_lights.hpp); the size of an area light goes with the
+		// (see gltf2.hpp); the size of an area light goes with the
 		// aiLight, the rest of its surface has no place there
 		struct light_tag {
 			unsigned index{};
@@ -58,21 +58,21 @@ namespace pyxel::io {
 			switch (shape) {
 				case pyxel::gfx::area_shape::disk:
 				case pyxel::gfx::area_shape::ellipse:
-					return glb_lights::area_ellipse;
+					return gltf2::area_ellipse;
 				case pyxel::gfx::area_shape::square:
 				case pyxel::gfx::area_shape::rectangle:
 					break;
 			}
-			return glb_lights::area_rectangle;
+			return gltf2::area_rectangle;
 		}
 
 		aiMetadata* make_metadata(light_tag const& tag) {
 			auto* meta = new aiMetadata{};
-			meta->Add(glb_lights::light_key, static_cast<int32_t>(tag.index));
-			if (tag.range) meta->Add(glb_lights::range_key, static_cast<float>(tag.range->count()));
+			meta->Add(gltf2::light_key, static_cast<int32_t>(tag.index));
+			if (tag.range) meta->Add(gltf2::range_key, static_cast<float>(tag.range->count()));
 			if (tag.area) {
-				meta->Add(glb_lights::area_shape_key, to_tag(tag.area->shape));
-				meta->Add(glb_lights::area_spread_key, static_cast<float>(tag.area->spread.count()));
+				meta->Add(gltf2::area_shape_key, to_tag(tag.area->shape));
+				meta->Add(gltf2::area_spread_key, static_cast<float>(tag.area->spread.count()));
 			}
 			return meta;
 		}
@@ -513,11 +513,11 @@ namespace pyxel::io {
 	                  std::string const& format_id,
 	                  std::filesystem::path const& path) {
 		Assimp::Exporter exporter{};
-		glb_lights::register_exporters(exporter);
+		gltf2::register_exporters(exporter);
 
 		// glTF 2, binary or text, with the lights added; the light nodes are
 		// tagged for them, the other formats do not need the tags
-		std::string const actual_format{glb_lights::exporter_for(format_id)};
+		std::string const actual_format{gltf2::exporter_for(format_id)};
 		auto const scene = make_scene(out, repo, actual_format != format_id);
 
 		// the meshes come with flat normals already (see make_mesh); the

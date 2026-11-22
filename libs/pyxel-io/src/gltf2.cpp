@@ -1,7 +1,7 @@
 // Copyright (c) 2026 Marcin Zdun
 // This code is licensed under MIT license (see LICENSE for details)
 
-#include "glb_lights.hpp"
+#include "gltf2.hpp"
 #include <assimp/Exceptional.h>
 #include <assimp/scene.h>
 #include <rapidjson/document.h>
@@ -24,7 +24,7 @@
 #include <utility>
 #include <vector>
 
-namespace pyxel::io::glb_lights {
+namespace pyxel::io::gltf2 {
 	namespace {
 		static_assert(std::endian::native == std::endian::little, "GLB is little-endian");
 
@@ -196,7 +196,7 @@ namespace pyxel::io::glb_lights {
 			return light;
 		}
 
-		// PYXEL_lights_area (see glb_lights.hpp)
+		// PYXEL_lights_area (see gltf2.hpp)
 		rapidjson::Value make_area(aiLight const& source, light_tags const& tags, allocator& alloc) {
 			rapidjson::Value light{rapidjson::kObjectType};
 			light.AddMember("name", rapidjson::Value{source.mName.C_Str(), alloc}, alloc);
@@ -334,10 +334,10 @@ namespace pyxel::io::glb_lights {
 			return out;
 		}
 
-		void export_glb_lights(char const* path,
-		                       Assimp::IOSystem* io,
-		                       aiScene const* scene,
-		                       Assimp::ExportProperties const* properties) {
+		void export_glb_pyxel(char const* path,
+		                      Assimp::IOSystem* io,
+		                      aiScene const* scene,
+		                      Assimp::ExportProperties const* properties) {
 			// the scene was post-processed already, by the exporter calling
 			// this function
 			Assimp::Exporter base{};
@@ -434,10 +434,10 @@ namespace pyxel::io::glb_lights {
 			std::string& json_;
 		};
 
-		void export_gltf_lights(char const* path,
-		                        Assimp::IOSystem* io,
-		                        aiScene const* scene,
-		                        Assimp::ExportProperties const* properties) {
+		void export_gltf_pyxel(char const* path,
+		                       Assimp::IOSystem* io,
+		                       aiScene const* scene,
+		                       Assimp::ExportProperties const* properties) {
 			// declared first: it outlives the exporter, which owns the file
 			// system writing into it
 			std::string json{};
@@ -470,8 +470,8 @@ namespace pyxel::io::glb_lights {
 
 	void register_exporters(Assimp::Exporter& exporter) {
 		exporter.RegisterExporter({bin_format_id, "glTF 2.0 (binary), with KHR_lights_punctual and PYXEL_lights_area",
-		                           "glb", &export_glb_lights});
+		                           "glb", &export_glb_pyxel});
 		exporter.RegisterExporter(
-		    {text_format_id, "glTF 2.0, with KHR_lights_punctual and PYXEL_lights_area", "gltf", &export_gltf_lights});
+		    {text_format_id, "glTF 2.0, with KHR_lights_punctual and PYXEL_lights_area", "gltf", &export_gltf_pyxel});
 	}
-}  // namespace pyxel::io::glb_lights
+}  // namespace pyxel::io::gltf2
