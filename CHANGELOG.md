@@ -2,6 +2,20 @@
 
 All notable changes to this project will be documented in this file. See [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) and [COMMITS.md](COMMITS.md) for commit guidelines.
 
+## [0.3.0](https://github.com/mzdun/dollhouse/compare/v0.2.1...v0.3.0) (2026-11-22)
+
+### New Features
+
+- read `PYXEL_lights_area` lights back ([5b2435d](https://github.com/mzdun/dollhouse/commit/5b2435d6e58d42435aa6c92b54fe98df49e99e7f))
+- add lights export to glTF 2 JSON files ([77721ce](https://github.com/mzdun/dollhouse/commit/77721ce789ffb775cac4c6b3b41cffedaa8db3e1))
+
+### Bug Fixes
+
+- **docs**: note down an edge case discovered by reviewer ([49f20ce](https://github.com/mzdun/dollhouse/commit/49f20cef74c1137d5c01dd478398e028fb32332a))
+- **docs**: mark the interactions spec done in the roadmap ([782fbcd](https://github.com/mzdun/dollhouse/commit/782fbcd3bfa3390c042d3916a1f0726a1333298c))
+- **docs**: make the plans schema follow the interactions spec ([ac80794](https://github.com/mzdun/dollhouse/commit/ac807942283877332aceb18810023bd5dbc1ef26))
+- **docs**: describe the model interactions extension ([bb3c26e](https://github.com/mzdun/dollhouse/commit/bb3c26eb3db801c26811fd99f849a856e17e219b))
+
 ## [0.2.1](https://github.com/mzdun/dollhouse/compare/v0.2.0...v0.2.1) (2026-11-20)
 
 ### Bug Fixes
