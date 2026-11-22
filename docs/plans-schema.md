@@ -138,7 +138,7 @@ Matching the scale of the plan, given in centimeters, with the scale of the [ext
 
 A node can have a list of children. It may also refer to a room, apply a list of [transforms](#transforms), or both.
 
-- **Names.** A node may have a `name`, unique in the project. Other nodes refer to it by this name, for example in [wiring](#wiring-objects-together). The name is optional, but a node without one cannot be wired to. The names of [openings](#openings-doors-and-windows) share this namespace, as every opening with a model is filled by a node of its own. Names of nodes and openings must not contain a slash (`/`), which separates the node from the object in a wiring.
+- **Names.** A node may have a `name`, unique in the project. Other nodes refer to it by this name, for example in [wiring](#wiring-objects-together). The name is optional, but a node without one cannot be wired to, and its model cannot keep its state between runs once the node is moved (see [External models](#external-models)). The names of [openings](#openings-doors-and-windows) share this namespace, as every opening with a model is filled by a node of its own. Names of nodes and openings must not contain a slash (`/`), which separates the node from the object in a wiring.
 - **Top-level nodes.** A top-level node names the `room` it places its children in. For convenience, the origin of a room is the top-left corner of the bounding rectangle of the room's floor. The walls around the floor do not count, so a wall's width does not change where the origin lies. The only rotation allowed at this level is `rotate.vert` by a multiple of 90°. A `rotate` with an `x` or a `y` component, or with a `vert` component that is not a multiple of 90°, is an error. Such a rotation moves the origin to another corner of that rectangle, with no translation needed: 90° moves it to the top-right corner, 180° to the bottom-right and 270° to the bottom-left. Negative scaling, used to place child nodes from right to left, does need an explicit translation. Without it, the models appear past the left end of the locally top wall, not along it.
 - **Choosing a wall.** More than one top-level node may refer to the same room, which makes it easy to pick a wall: each rotation makes a different wall the locally top one, closest to (0, 0) and running along the new X axis.
 - **Lower-level nodes.** Nodes below the top level cannot refer to rooms, but their rotations are not limited to multiples of 90°. A node's transforms are applied on top of its parent's matrix, and the resulting matrix places the node's `model`.
@@ -638,17 +638,19 @@ materials:
 ## Interactions
 
 > [!IMPORTANT]
-> A new draft for the model extension will be available elsewhere soon.
+> How a model declares its active objects, slots, variables, actions and states is described in [Model interactions](model-interactions.md).
 
 As far as this document is concerned, every model exposes a list of active objects: a single `door`, for example, or the `left switch`, `middle switch` and `bottom switch` of a triple switch.
 
 An object may declare input and output **slots**. Each slot has a name, a type and a direction, and its value can change while the house is viewed. Two objects placed by different nodes are wired together by connecting chosen slots, so that one object can update the other. When the two objects share several slots with the same name and type and with opposite directions, all of them can be connected at once.
 
-The name of an active object must be unique in its model, and must also differ from the names of the model's lights. If an object and a light share a name anyway, a wiring that names them reaches the light. Names of active objects, lights and slots must not contain a dot (`.`) or a slash (`/`), as these characters separate the parts of a [wiring](#wiring-objects-together).
+A slot can also be bidirectional: a **variable** is both an input and an output slot. Wherever this document speaks of an output slot or an input slot, a variable counts as either.
+
+Names of active objects, lights and slots follow the rules of [Model interactions](model-interactions.md#names), which also say which object a name reaches when a model declares it more than once. In particular, the names contain no dot (`.`) and no slash (`/`), as these characters separate the parts of a [wiring](#wiring-objects-together).
 
 Lights are a special case. A light declares no slots of its own, but every light has the same two input slots:
 
-- `enabled`, a boolean, which turns the light on and off,
+- `enabled`, a boolean, which turns the light on and off, `true` by default,
 - `intensity`, a number clamped to the range from 0 to 1, inclusive.
 
 The light shines with the intensity declared in its model, multiplied by `intensity`, or not at all if `enabled` is false.
@@ -723,7 +725,9 @@ The `models` section maps names to 3D model files. Each key is the name by which
 
 A node or an opening that names a model missing from `models` is an error. The accepted file formats depend on the viewer. A model file that is missing, or in a format the viewer cannot read, is left out, together with every wire to or from it. Nothing is provided in its place, not even a box of the model's size, because the size is not known without reading the file. This is a [hard warning](#hard-warnings): the viewer shows the project, but must tell the user which models are missing. To do so, it may mark the place of the model in its own way, for example with an icon or a small stand-in model.
 
-When a node places a model, the model is checked for its active objects, with their slots, variables, actions and states. Every node that places the model gets its own storage, holding the values of the slots and variables and the current state, so two copies of the same door can stand open and closed at the same time.
+When a node places a model, the model is checked for its active objects, with their slots (variables included), actions and states. Every node that places the model gets its own storage, holding the values of the slots and the current state, so two copies of the same door can stand open and closed at the same time.
+
+The viewer may keep the storage between runs. It is kept under the `name` of the node or the opening, so it follows the node wherever the project moves it, and it survives other edits too: models added or removed elsewhere, changed wiring, or a rebuilt model with different slots. Whatever no longer matches starts anew, and the rest is restored, as described in [Keeping the storage between runs](model-interactions.md#keeping-the-storage-between-runs). An unnamed node is kept by its place among the nodes instead, so it starts anew once moved. A restored state takes precedence over the `state` of the node, which applies only to a storage started anew, or to an active object whose kept state the rebuilt model no longer declares.
 
 Each active object starts in the first of these states that exists:
 
@@ -731,7 +735,7 @@ Each active object starts in the first of these states that exists:
 2. The `closed` state.
 3. The first state declared for the object.
 
-The starting values of slots and variables will be described together with the models.
+The starting values of slots and variables are described together with the models, in [Model interactions](model-interactions.md).
 
 ```yaml
 models:
@@ -744,7 +748,7 @@ models:
   exit door: models/exit_door.glb
 
   # a single active object with a boolean output slot,
-  # "enabled", and two states: off and on
+  # "enabled", and two states: switched-off and switched-on
   light switch: models/10_x_10_switch_single.glb
 
   # a single point light
@@ -774,7 +778,7 @@ nodes:
           - name: dining room switch
             model: light switch
             # no `state` and no "closed" state, so the switch starts
-            # in "off", its first declared state; entering a state
+            # in "switched-off", its first declared state; entering a state
             # applies its settings, which here most likely set
             # the "enabled" slot to false
             wires:
@@ -963,6 +967,7 @@ A hard warning means the project and an external file disagree. It can only be f
 - **A model file that is missing or in a format the viewer cannot read.** The model is left out, with every wire to or from it, and nothing is provided in its place.
 - **An active object or slot missing from a wiring**, on either side, including the [first active object](#first-active-object) of a model that has none. The connection is left out.
 - **A wiring that connects slots of different types.** The connection is left out, so, for example, a switch does not turn on its light.
+- **An active object breaking the rules of [Model interactions](model-interactions.md#the-reading-side).** The importer drops that object and keeps the other objects of the model. Wires to or from the dropped object are left out, as for any missing object.
 
 A viewer may offer a strict mode that treats hard warnings as errors.
 
@@ -977,6 +982,7 @@ A viewer may warn about these, but shows the project anyway.
   - a `bumps` picture leaves the tile flat,
   - a sky box picture makes the sky box behave as if it was not given.
 - A path whose case differs from the name of the file on disk, on a system that ignores case but preserves them. The project would not open on a system that does not.
+- An active object written for an older version of [Model interactions](model-interactions.md#versions) and upgraded when read. A viewer must tell the user about this one, naming the model and the object, as the object may behave differently from what its author tested.
 - A room without a `name`, as nothing can be placed in it.
 - A room whose `touches` and `avoids` select no area.
 - Any face, plinth or molding that ends up with the deliberately distinct material, for example because it names a missing material.
