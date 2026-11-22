@@ -6,6 +6,7 @@
 #include <cstddef>
 #include <map>
 #include <optional>
+#include <pyxel/gfx/interactions.hpp>
 #include <pyxel/gfx/light.hpp>
 #include <pyxel/gfx/solid.hpp>
 #include <pyxel/math/glm.hpp>
@@ -15,8 +16,8 @@
 namespace pyxel::gfx {
 	// Collects the geometry of a model as a tree of nodes. Every node has
 	// a name, a local transformation (relative to its parent node), and the
-	// meshes (one per material) and lights added while it was the current
-	// node.
+	// meshes (one per material), lights and active objects added while it
+	// was the current node.
 	//
 	// The tree starts with an unnamed root. A named scope (see `scope`) opens
 	// a child node of the current one, with the matrix given; the solids
@@ -79,6 +80,9 @@ namespace pyxel::gfx {
 			std::map<std::string, glm_solid> meshes{};
 			// in the order of adding
 			std::vector<placed_light> lights{};
+			// in the order of adding; they may name any node of the tree,
+			// not only this one (see docs/model-interactions.md)
+			std::vector<interactions::active_object> active_objects{};
 			// in the order of opening
 			std::vector<node_id> children{};
 		};
@@ -97,6 +101,11 @@ namespace pyxel::gfx {
 		// is, and the same rules apply to it as to the local matrices of the
 		// nodes: no shear
 		void add_light(light const& light, glm::dmat4 const& matrix);
+
+		// keeps a copy of the declaration in the current node; nothing is
+		// checked here, as the exporter checks them, once the whole tree is
+		// known
+		void add_active_object(interactions::active_object const& declaration);
 
 		// opens a child of the current node and makes it current; nodes are
 		// never merged, so two siblings with the same name are two nodes

@@ -352,4 +352,32 @@ namespace pyxel::gfx::testing {
 		EXPECT_TRUE(group{}.active_objects().empty());
 		EXPECT_TRUE(group{}.add_group({.name = "child"}).active_objects().empty());
 	}
+
+	TEST(gfx_group, output_puts_active_objects_in_the_nearest_named_node) {
+		using interactions::geo_active_object;
+		using interactions::light_active_object;
+
+		group root{};
+		root.set_light_transition("ceiling", "1s");
+		auto& wardrobe = root.add_group({.name = "wardrobe"});
+		wardrobe.add_active_object("left-door");
+		auto& unnamed = wardrobe.add_group({.material = "wood"});
+		unnamed.add_active_object("right-door");
+		unnamed.add_group({.name = "drawer"}).add_active_object("drawer");
+		wardrobe.add_active_object("lock");
+
+		sink out{};
+		root.output(out, identity);
+
+		EXPECT_EQ(out.at(sink::root).active_objects,
+		          (interactions::active_objects{light_active_object{.name = "ceiling", .light = "1s"}}));
+		// the declarations of a group come before the ones of its children
+		EXPECT_EQ(out.at(find(out, {"wardrobe"})).active_objects, (interactions::active_objects{
+		                                                              geo_active_object{.name = "left-door"},
+		                                                              geo_active_object{.name = "lock"},
+		                                                              geo_active_object{.name = "right-door"},
+		                                                          }));
+		EXPECT_EQ(out.at(find(out, {"wardrobe", "drawer"})).active_objects,
+		          (interactions::active_objects{geo_active_object{.name = "drawer"}}));
+	}
 }  // namespace pyxel::gfx::testing
