@@ -1,0 +1,58 @@
+# Folded form of examples-minimal.yaml: the shape that would be stored
+# in the PYXEL_interactions extra of the glTF root node (as JSON). Rules
+# that make it this short:
+
+- name: tilt-and-turn
+  version: "1.0"
+  states:
+    closed: {}
+    tilted: { tilt-hinge: [{ rotate.x: 0.0873 }] } # 5°
+    opened: { right-hinge: [{ rotate.y: 1.3963 }] } # 80°
+    opened-wide:
+      right-hinge: [{ rotate.y: 1.3963 }] # 80°
+      left-hinge: [{ rotate.y: -1.3963 }] # -80°
+  actions:
+    - { label: Tilt, when: closed, then: tilted }
+    - { label: Open one, when: closed, then: opened }
+    # before "Close", so that the default interaction in "opened"
+    # opens the second wing
+    - { label: Open both, when: opened, then: opened-wide }
+    - { label: Close, when: [tilted, opened], then: closed }
+    - { label: Close left, when: opened-wide, then: opened }
+  transitions:
+    "*": rotate.x 200ms ease-in, rotate.y 200ms ease-in
+    tilt-hinge: rotate.x 300ms ease-in
+
+- name: door
+  version: "1.0"
+  states:
+    closed: {}
+    opened: { hinge: [{ rotate.y: 1.3963 }] } # 80°
+  actions:
+    - { label: Open door, when: closed, then: opened }
+    - { label: Close, when: opened, then: closed }
+  transitions:
+    hinge: rotate.y 200ms ease-in
+
+- name: switch
+  version: "1.0"
+  slots:
+    - { name: enabled, type: boolean, direction: output }
+  states:
+    switched-off: {}
+    switched-on:
+      rocker: [{ rotate.x: 0.1745 }] # 10°
+      $enabled: [{ set: true }]
+  actions:
+    - { label: Turn on, when: switched-off, then: switched-on }
+    - { label: Turn off, when: switched-on, then: switched-off }
+  transitions:
+    rocker: rotate.x 50ms ease-in
+    # duration, timing function, delay: the value flips after the delay
+    $enabled: 0ms linear 45ms
+
+# every named light gets the input slots enabled and intensity, and its
+# update expression; an object describing it declares only the transition
+- name: light-bulb
+  version: "1.0"
+  transitions: { light: 50ms ease-out }
