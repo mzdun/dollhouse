@@ -550,7 +550,7 @@ The format must carry data of our own on a node, both ways, and other tools must
 
 | Format | Custom node data written | Custom node data read | Source |
 | --- | --- | --- | --- |
-| glTF 2 (`gltf2`, `glb2`) | yes, node `extras` | yes, node `extras` | in use: `glb2-lights` and `gltf2-lights` write the extras and read them back |
+| glTF 2 (`gltf2`, `glb2`) | yes, node `extras` | yes, node `extras` | in use: `glb2-pyxel` and `gltf2-pyxel` write the extras and read them back |
 | FBX (`fbx`, `fbxa`) | most likely not | likely, as user properties, so import only | Assimp sources |
 | Collada | most likely not, beyond `id`/`sid` | most likely not, beyond `id`/`sid` and scene asset info | Assimp sources |
 | assbin | likely | likely, but Assimp-only | Assimp sources |
