@@ -7,6 +7,7 @@ extensions:
   - proj_flow.minimal.ext.bug_report
   - dollhouse.icons
   - dollhouse.dyn-modules-install
+  - proj_flow_test_coverage.ext
 
 entry:
   config: [Conan, CMake]
@@ -42,7 +43,8 @@ postproc:
 
 cmake:
   vars:
-    DOLLHOUSE_COVERAGE: "?config:coverage"
+    DOLLHOUSE_COVERALLS: "?config:coverage"
+    DOLLHOUSE_COVERALLS_UPLOAD: "?config:upload_to_coveralls"
     DOLLHOUSE_SANITIZE: "?config:sanitizer=address"
     DOLLHOUSE_SANITIZE_THREAD: "?config:sanitizer=thread"
     # Treats warnings as errors (/WX, -Werror). Not a matrix key, so it is
@@ -56,6 +58,12 @@ cmake:
     #   ./flow run -E freethreaded-shapes=on
     DOLLHOUSE_FREE_THREADED: "?config:freethreaded-shapes"
     # DOLLHOUSE_CUTDOWN_OS: "?runtime:cutdown_os"
+
+# with coverage on, the Test step builds this target instead of running
+# ctest: it runs the tests and writes the Coveralls report to
+# build/artifacts/coverage
+test:
+  target: DOLLHOUSE_coveralls
 
 shortcuts:
   dbg: { build_type: Debug, sanitizer: false }
