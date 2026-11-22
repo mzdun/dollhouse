@@ -9,6 +9,7 @@
 #include <pyxel/gfx/solid_object.hpp>
 #include <stdexcept>
 #include <string>
+#include <variant>
 #include <vector>
 
 namespace pyxel::gfx::testing {
@@ -298,5 +299,57 @@ namespace pyxel::gfx::testing {
 		// the consumers of the tree must observe the negative determinant
 		EXPECT_LT(glm::determinant(node.local), 0.0);
 		EXPECT_EQ(vertices(out, "", {"mirrored"}), (points_t{{0, 0, 0}}));
+	}
+
+	TEST(gfx_group, active_objects_keep_the_order) {
+		using namespace interactions;
+
+		group root{};
+		auto const declared = geo_active_object{
+		    .name = "door",
+		    .states = {state("closed"), state("opened").transform("door-hinge", channel::rotate_y(deg(80)))},
+		    .actions = {{"Open", "closed", "opened"}, {"Close", "opened", "closed"}},
+		    .transitions = transitions{}.for_group("door-hinge", "rotate.y 200ms ease-in"),
+		};
+
+		auto& self = root.add_active_object(declared)
+		                 .set_light_transition("lamp", "150ms ease-out")
+		                 .add_active_object("switch", {slot{"enabled", slot_type::boolean, direction::output}});
+		EXPECT_EQ(&self, &root);
+
+		auto const& objects = root.active_objects();
+		ASSERT_EQ(objects.size(), 3u);
+		EXPECT_EQ(objects[0], active_object{declared});
+		EXPECT_EQ(objects[1], (active_object{light_active_object{.name = "lamp", .light = "150ms ease-out"}}));
+
+		auto const& sw = std::get<geo_active_object>(objects[2]);
+		EXPECT_EQ(sw.name, "switch");
+		ASSERT_EQ(sw.slots.size(), 1u);
+		EXPECT_EQ(sw.slots[0].name, "enabled");
+		EXPECT_TRUE(sw.states.empty());
+		EXPECT_TRUE(sw.actions.empty());
+		EXPECT_EQ(sw.transitions, transitions{});
+	}
+
+	TEST(gfx_group, light_transition_is_replaced) {
+		using namespace interactions;
+
+		group root{};
+		root.add_active_object("lamp")
+		    .set_light_transition("lamp", "150ms ease-out")
+		    .set_light_transition("ceiling", "1s")
+		    .set_light_transition("lamp", "300ms linear");
+
+		auto const& objects = root.active_objects();
+		ASSERT_EQ(objects.size(), 3u);
+		// a geometry-based object of the same name is not a light
+		EXPECT_EQ(std::get<geo_active_object>(objects[0]).name, "lamp");
+		EXPECT_EQ(objects[1], (active_object{light_active_object{.name = "lamp", .light = "300ms linear"}}));
+		EXPECT_EQ(objects[2], (active_object{light_active_object{.name = "ceiling", .light = "1s"}}));
+	}
+
+	TEST(gfx_group, no_active_objects_by_default) {
+		EXPECT_TRUE(group{}.active_objects().empty());
+		EXPECT_TRUE(group{}.add_group({.name = "child"}).active_objects().empty());
 	}
 }  // namespace pyxel::gfx::testing
