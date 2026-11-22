@@ -5,6 +5,7 @@
 
 #include <assimp/Exporter.hpp>
 #include <assimp/Importer.hpp>
+#include <pyxel/io/interactions.hpp>
 #include <string_view>
 
 // Assimp's glTF 2 exporter writes no lights. The `glb2-pyxel` and
@@ -56,6 +57,14 @@
 // An area light, which cannot be read, is left out with a warning in
 // Assimp's log, as are the area lights of a node with a punctual light,
 // whose range would use the same key.
+//
+// The importer also reads the PYXEL_interactions extra from the document
+// itself, as Assimp cuts and flattens its copy in the metadata. It looks
+// for it in every node, as another application may have wrapped the model
+// in a new root, and merges the lists in the order of the `nodes` array.
+// The names of the lights of the scene tell which objects describe lights.
+// Every note of the parser goes to Assimp's log as a warning, and the
+// result is kept by the importer, for interactions_of().
 namespace pyxel::io::gltf2 {
 	inline constexpr auto bin_format_id = "glb2-pyxel";
 	inline constexpr auto bin_base_format_id = "glb2";
@@ -97,4 +106,10 @@ namespace pyxel::io::gltf2 {
 	// nothing, if there is no glTF 2 importer to replace (e.g. it was
 	// replaced already)
 	void register_importer(Assimp::Importer& importer);
+
+	// The active objects of `scene`, as read by the importer of ours, with
+	// the notes about the ones left out or read in part; nullptr, if the
+	// importer of ours is not registered with `importer`, or if `scene` is
+	// not the scene it read last (e.g. the file was not glTF 2)
+	interactions::parsed const* interactions_of(Assimp::Importer const& importer, aiScene const* scene);
 }  // namespace pyxel::io::gltf2

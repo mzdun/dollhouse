@@ -29,6 +29,7 @@
 #include <string_view>
 #include <utility>
 #include <vector>
+#include "interactions_json.hpp"
 
 namespace pyxel::io::gltf2 {
 	namespace {
@@ -761,6 +762,49 @@ namespace pyxel::io::gltf2 {
 			std::vector<std::unique_ptr<aiLight>> found_{};
 		};
 
+		// The rules of docs/model-interactions.md marked for import (see Rules
+		// there), checked on the whole model: each faulty active object is
+		// removed from `result.objects`, with a `dropped` note telling why.
+		// Not implemented yet: every object passes.
+		void check_imported(interactions::parsed& /*result*/,
+		                    rapidjson::Value const& /*doc*/,
+		                    aiScene const& /*scene*/) {}
+
+		// the PYXEL_interactions extras of every node, in the order of the
+		// `nodes` array
+		interactions::parsed read_interactions(rapidjson::Value const& doc, aiScene const& scene) {
+			interactions::parsed result{};
+			auto const* nodes = member(doc, "nodes");
+			if (!nodes || !nodes->IsArray()) return result;
+
+			std::vector<std::string> light_names{};
+			light_names.reserve(scene.mNumLights);
+			for (unsigned index = 0; index < scene.mNumLights; ++index)
+				light_names.emplace_back(scene.mLights[index]->mName.C_Str());
+
+			for (rapidjson::SizeType index = 0; index < nodes->Size(); ++index) {
+				auto const& node = (*nodes)[index];
+				auto const* extras = member(node, "extras");
+				auto const* extra = extras ? member(*extras, interactions_extra) : nullptr;
+				if (!extra) continue;
+				if (!extra->IsArray()) {
+					warn(std::format("the {} extra of node {} is not a list; left out", interactions_extra, index));
+					continue;
+				}
+				interactions::parse_into(*extra, light_names, result);
+			}
+
+			check_imported(result, doc, scene);
+
+			for (auto const& [object, what, reason] : result.notes) {
+				auto const* action = what == interactions::note::dropped   ? "left out"
+				                     : what == interactions::note::ignored ? "read in part"
+				                                                           : "upgraded";
+				warn(std::format("active object `{}` {}: {}", object, action, reason));
+			}
+			return result;
+		}
+
 		// makes InternReadFile() of any importer callable
 		struct intern_access : Assimp::BaseImporter {
 			using Assimp::BaseImporter::InternReadFile;
@@ -781,28 +825,44 @@ namespace pyxel::io::gltf2 {
 
 			void SetupProperties(Assimp::Importer const* importer) override { base_->SetupProperties(importer); }
 
+			interactions::parsed const* interactions_of(aiScene const* scene) const noexcept {
+				return scene && scene == scene_ ? &interactions_ : nullptr;
+			}
+
 		protected:
 			void InternReadFile(std::string const& file, aiScene* scene, Assimp::IOSystem* io) override {
+				scene_ = nullptr;
+				interactions_ = {};
+
 				auto const read = &intern_access::InternReadFile;
 				((*base_).*read)(file, scene, io);
+				// the scene is read, even if no extras can be added to it
+				scene_ = scene;
 
 				auto const json = read_json(*io, file);
 				if (!json) {
-					warn(std::format("cannot read the JSON document of {}; area lights left out", file));
+					warn(std::format("cannot read the JSON document of {}; area lights and interactions left out",
+					                 file));
 					return;
 				}
 				rapidjson::Document doc{};
 				doc.Parse(json->data(), json->size());
 				if (doc.HasParseError() || !doc.IsObject()) {
-					warn(std::format("cannot parse the JSON document of {}; area lights left out", file));
+					warn(std::format("cannot parse the JSON document of {}; area lights and interactions left out",
+					                 file));
 					return;
 				}
 				area_lights{doc}.add_to(*scene);
+				// after the area lights, which add to the names of the lights
+				interactions_ = read_interactions(doc, *scene);
 			}
 
 		private:
 			std::unique_ptr<Assimp::BaseImporter> base_;
 			aiImporterDesc desc_{};
+			// the scene of the last InternReadFile(), and what it found in it
+			aiScene const* scene_{};
+			interactions::parsed interactions_{};
 		};
 	}  // namespace
 
@@ -831,5 +891,13 @@ namespace pyxel::io::gltf2 {
 			importer.RegisterLoader(replacement.release());
 			return;
 		}
+	}
+
+	interactions::parsed const* interactions_of(Assimp::Importer const& importer, aiScene const* scene) {
+		for (size_t index = 0; index < importer.GetImporterCount(); ++index) {
+			if (auto const* ours = dynamic_cast<pyxel_importer const*>(importer.GetImporter(index)))
+				return ours->interactions_of(scene);
+		}
+		return nullptr;
 	}
 }  // namespace pyxel::io::gltf2
