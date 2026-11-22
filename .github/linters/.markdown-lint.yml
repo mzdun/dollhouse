@@ -1,0 +1,7 @@
+# markdownlint rules, read by super-linter (VALIDATE_MARKDOWN).
+# Locally: npx markdownlint-cli2 --config .github/linters/.markdown-lint.yml <files>
+---
+default: true
+
+# Paragraphs stay on one line: the IDE and the generated HTML wrap them anyway.
+MD013: false
