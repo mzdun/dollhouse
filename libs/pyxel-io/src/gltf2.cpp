@@ -7,6 +7,7 @@
 #include <assimp/importerdesc.h>
 #include <assimp/scene.h>
 #include <rapidjson/document.h>
+#include <rapidjson/error/en.h>
 #include <rapidjson/prettywriter.h>
 #include <rapidjson/stringbuffer.h>
 #include <rapidjson/writer.h>
@@ -279,13 +280,67 @@ namespace pyxel::io::gltf2 {
 			area.finish(doc);
 		}
 
-		// the JSON document from Assimp, with the lights added
-		rapidjson::Document parse_with_lights(char const* exporter, std::string_view json, aiScene const& scene) {
+		// the first root node of the default scene (or of the first one)
+		rapidjson::Value* root_node(rapidjson::Document& doc) {
+			auto const scenes_it = doc.FindMember("scenes");
+			auto const nodes_it = doc.FindMember("nodes");
+			if (scenes_it == doc.MemberEnd() || !scenes_it->value.IsArray() || scenes_it->value.Empty() ||
+			    nodes_it == doc.MemberEnd() || !nodes_it->value.IsArray())
+				return nullptr;
+
+			auto const scene_it = doc.FindMember("scene");
+			auto const scene_index =
+			    scene_it != doc.MemberEnd() && scene_it->value.IsUint() ? scene_it->value.GetUint() : 0u;
+			if (scene_index >= scenes_it->value.Size()) return nullptr;
+
+			auto const& scene = scenes_it->value[scene_index];
+			if (!scene.IsObject()) return nullptr;
+			auto const roots_it = scene.FindMember("nodes");
+			if (roots_it == scene.MemberEnd() || !roots_it->value.IsArray() || roots_it->value.Empty() ||
+			    !roots_it->value[0].IsUint())
+				return nullptr;
+
+			auto const index = roots_it->value[0].GetUint();
+			if (index >= nodes_it->value.Size() || !nodes_it->value[index].IsObject()) return nullptr;
+			return &nodes_it->value[index];
+		}
+
+		void add_interactions(char const* exporter,
+		                      rapidjson::Document& doc,
+		                      Assimp::ExportProperties const* properties) {
+			if (!properties || !properties->HasPropertyString(interactions_property)) return;
+			auto const text = properties->GetPropertyString(interactions_property);
+			if (text.empty()) return;
+
+			auto& alloc = doc.GetAllocator();
+			rapidjson::Document extra{&alloc};
+			extra.Parse(text.data(), text.size());
+			if (extra.HasParseError()) {
+				fail(exporter, std::format("the {} extra cannot be parsed: {}", interactions_extra,
+				                           rapidjson::GetParseError_En(extra.GetParseError())));
+			}
+
+			auto* root = root_node(doc);
+			if (!root) fail(exporter, std::format("no root node to put the {} extra in", interactions_extra));
+
+			// parsed with the allocator of the document, so it can be moved in
+			auto& extras = member_object(*root, "extras", alloc);
+			extras.RemoveMember(interactions_extra);
+			extras.AddMember(rapidjson::StringRef(interactions_extra), extra.Move(), alloc);
+		}
+
+		// the JSON document from Assimp, with the lights and the
+		// interactions added
+		rapidjson::Document parse_with_extras(char const* exporter,
+		                                      std::string_view json,
+		                                      aiScene const& scene,
+		                                      Assimp::ExportProperties const* properties) {
 			rapidjson::Document doc{};
 			doc.Parse(json.data(), json.size());
 			if (doc.HasParseError() || !doc.IsObject()) fail(exporter, "the JSON document cannot be parsed");
 
 			add_lights(doc, scene);
+			add_interactions(exporter, doc, properties);
 			return doc;
 		}
 
@@ -302,11 +357,13 @@ namespace pyxel::io::gltf2 {
 			if (written != size) fail(exporter, std::format("cannot write {}", path));
 		}
 
-		std::vector<std::byte> rebuild(std::span<std::byte const> blob, aiScene const& scene) {
+		std::vector<std::byte> rebuild(std::span<std::byte const> blob,
+		                               aiScene const& scene,
+		                               Assimp::ExportProperties const* properties) {
 			auto const chunks = read_chunks(blob);
 			auto const& json = chunks.front().data;
-			auto const doc =
-			    parse_with_lights(bin_format_id, {reinterpret_cast<char const*>(json.data()), json.size()}, scene);
+			auto const doc = parse_with_extras(bin_format_id, {reinterpret_cast<char const*>(json.data()), json.size()},
+			                                   scene, properties);
 
 			rapidjson::StringBuffer text{};
 			rapidjson::Writer<rapidjson::StringBuffer> writer{text};
@@ -349,7 +406,7 @@ namespace pyxel::io::gltf2 {
 			auto const* blob = base.ExportToBlob(scene, bin_base_format_id, 0u, properties);
 			if (!blob) fail(base.GetErrorString());
 
-			auto const bytes = rebuild({static_cast<std::byte const*>(blob->data), blob->size}, *scene);
+			auto const bytes = rebuild({static_cast<std::byte const*>(blob->data), blob->size}, *scene, properties);
 			write_file(bin_format_id, *io, path, "wb", bytes.data(), bytes.size());
 		}
 
@@ -457,7 +514,7 @@ namespace pyxel::io::gltf2 {
 			}
 			if (json.empty()) fail(text_format_id, "the glTF 2 exporter wrote no JSON document");
 
-			auto const doc = parse_with_lights(text_format_id, json, *scene);
+			auto const doc = parse_with_extras(text_format_id, json, *scene, properties);
 
 			// indented, as Assimp writes it
 			rapidjson::StringBuffer text{};

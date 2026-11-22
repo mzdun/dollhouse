@@ -35,6 +35,13 @@
 //   (the whole front half-space)
 // - `range`, optional, as in KHR_lights_punctual
 //
+// The exporters also write the PYXEL_interactions extra (see
+// docs/model-interactions.md): its text comes in the string property
+// `interactions_property` of the export, and goes, parsed, to the `extras`
+// of the root node of the scene. Assimp cannot carry it on a node, as it
+// cuts metadata strings and flattens arrays. Without the property, or with
+// an empty one, nothing is added.
+//
 // Assimp's glTF 2 importer reads KHR_lights_punctual, but not the area
 // lights. The importer of ours takes its place: it runs it, then reads the
 // JSON document again, and adds an aiLight of aiLightSource_AREA for every
@@ -62,6 +69,11 @@ namespace pyxel::io::gltf2 {
 	// spread is in radians
 	inline constexpr auto area_shape_key = "pyxel_area_shape";
 	inline constexpr auto area_spread_key = "pyxel_area_spread";
+
+	// the export property with the text of the PYXEL_interactions extra
+	inline constexpr auto interactions_property = "pyxel_interactions";
+	// the key of the extra in the `extras` of the root node
+	inline constexpr auto interactions_extra = "PYXEL_interactions";
 
 	inline constexpr int area_rectangle = 0;
 	inline constexpr int area_ellipse = 1;
