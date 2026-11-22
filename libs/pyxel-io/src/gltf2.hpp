@@ -4,6 +4,7 @@
 #pragma once
 
 #include <assimp/Exporter.hpp>
+#include <assimp/Importer.hpp>
 #include <string_view>
 
 // Assimp's glTF 2 exporter writes no lights. The `glb2-pyxel` and
@@ -33,6 +34,21 @@
 // - `spread`: the full angle of the emission around -z, in radians, up to pi
 //   (the whole front half-space)
 // - `range`, optional, as in KHR_lights_punctual
+//
+// Assimp's glTF 2 importer reads KHR_lights_punctual, but not the area
+// lights. The importer of ours takes its place: it runs it, then reads the
+// JSON document again, and adds an aiLight of aiLightSource_AREA for every
+// node with PYXEL_lights_area, the reverse of the exporters:
+//
+// - the light is named after its node, as Assimp names the punctual ones
+// - the intensity is folded into the colors, as Assimp does it
+// - the width and the height go to `mSize`
+// - the node gets the metadata the exporters read: `area_shape_key` and
+//   `area_spread_key`, and `range_key`, if there is a range
+//
+// An area light, which cannot be read, is left out with a warning in
+// Assimp's log, as are the area lights of a node with a punctual light,
+// whose range would use the same key.
 namespace pyxel::io::gltf2 {
 	inline constexpr auto bin_format_id = "glb2-pyxel";
 	inline constexpr auto bin_base_format_id = "glb2";
@@ -59,4 +75,14 @@ namespace pyxel::io::gltf2 {
 	// not listed by export_formats(), as they take the place of `glb2` and
 	// `gltf2`
 	void register_exporters(Assimp::Exporter& exporter);
+
+	// the name of Assimp's glTF 2 importer, and of the one taking its place
+	inline constexpr auto base_importer_name = "glTF2 Importer";
+	inline constexpr auto importer_name = "glTF2 Importer, with PYXEL_lights_area";
+
+	// replaces Assimp's glTF 2 importer with the one of ours, which reads
+	// `.gltf` and `.glb` files, as it does, and adds the area lights; does
+	// nothing, if there is no glTF 2 importer to replace (e.g. it was
+	// replaced already)
+	void register_importer(Assimp::Importer& importer);
 }  // namespace pyxel::io::gltf2
