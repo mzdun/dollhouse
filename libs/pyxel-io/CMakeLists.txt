@@ -11,6 +11,8 @@ set(SRCS
     src/interactions.cpp
     src/interactions_json.hpp
     src/interactions_parse.cpp
+    src/interactions_rules.cpp
+    src/interactions_rules.hpp
 )
 
 source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR} FILES ${SRCS})
@@ -43,6 +45,7 @@ if(DOLLHOUSE_TESTING)
     set(TEST_SRCS
         tests/gltf2.test.cpp
         tests/interactions.test.cpp
+        tests/interactions_rules.test.cpp
     )
     source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR}/tests FILES ${TEST_SRCS})
 
