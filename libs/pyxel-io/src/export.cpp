@@ -38,10 +38,10 @@ namespace pyxel::io {
 			        r(m[0][3]), r(m[1][3]), r(m[2][3]), r(m[3][3])};
 		}
 
-		// marks the node of a light for the glb2-lights exporter, which reads
-		// it back from the extras of the glTF node (see glb_lights.hpp); the
-		// size of an area light goes with the aiLight, the rest of its
-		// surface has no place there
+		// marks the node of a light for the glb2-lights and gltf2-lights
+		// exporters, which read it back from the extras of the glTF node
+		// (see glb_lights.hpp); the size of an area light goes with the
+		// aiLight, the rest of its surface has no place there
 		struct light_tag {
 			unsigned index{};
 			std::optional<pyxel::gfx::length> range{};
@@ -513,12 +513,12 @@ namespace pyxel::io {
 	                  std::string const& format_id,
 	                  std::filesystem::path const& path) {
 		Assimp::Exporter exporter{};
-		glb_lights::register_exporter(exporter);
+		glb_lights::register_exporters(exporter);
 
-		// glTF 2 binary, with KHR_lights_punctual added; the light nodes are
-		// tagged for it, the other formats do not need the tags
-		std::string const actual_format = format_id == glb_lights::base_format_id ? glb_lights::format_id : format_id;
-		auto const scene = make_scene(out, repo, actual_format == glb_lights::format_id);
+		// glTF 2, binary or text, with the lights added; the light nodes are
+		// tagged for them, the other formats do not need the tags
+		std::string const actual_format{glb_lights::exporter_for(format_id)};
+		auto const scene = make_scene(out, repo, actual_format != format_id);
 
 		// the meshes come with flat normals already (see make_mesh); the
 		// n-gons are split into triangles, which keep the normals

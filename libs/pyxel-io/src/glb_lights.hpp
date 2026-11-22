@@ -4,10 +4,13 @@
 #pragma once
 
 #include <assimp/Exporter.hpp>
+#include <string_view>
 
-// Assimp's glTF 2 exporter writes no lights. The `glb2-lights` exporter runs
-// it (as `glb2`) into memory, and adds KHR_lights_punctual to the binary,
-// before writing it out.
+// Assimp's glTF 2 exporter writes no lights. The `glb2-lights` and
+// `gltf2-lights` exporters run it (as `glb2` and `gltf2`) into memory, add
+// KHR_lights_punctual to its JSON document, and write the file out. For the
+// binary, the JSON is the first chunk; for the text, it is the `.gltf` file,
+// while the buffers go to their `.bin` files, as Assimp writes them.
 //
 // The node of every light is tagged with metadata (`light_key`: the index of
 // the light in the scene; `range_key`: its range, if any; for area lights,
@@ -31,8 +34,10 @@
 //   (the whole front half-space)
 // - `range`, optional, as in KHR_lights_punctual
 namespace pyxel::io::glb_lights {
-	inline constexpr auto format_id = "glb2-lights";
-	inline constexpr auto base_format_id = "glb2";
+	inline constexpr auto bin_format_id = "glb2-lights";
+	inline constexpr auto bin_base_format_id = "glb2";
+	inline constexpr auto text_format_id = "gltf2-lights";
+	inline constexpr auto text_base_format_id = "gltf2";
 
 	inline constexpr auto light_key = "pyxel_light";
 	// the key Assimp's glTF 2 importer puts the range under
@@ -45,7 +50,13 @@ namespace pyxel::io::glb_lights {
 	inline constexpr int area_rectangle = 0;
 	inline constexpr int area_ellipse = 1;
 
-	// registers `glb2-lights` with the exporter; it is not listed by
-	// export_formats(), as it takes the place of `glb2`
-	void register_exporter(Assimp::Exporter& exporter);
+	// the format to export to, when `format_id` was asked for: `glb2-lights`
+	// for `glb2`, `gltf2-lights` for `gltf2`, `format_id` itself for the
+	// others
+	std::string_view exporter_for(std::string_view format_id) noexcept;
+
+	// registers `glb2-lights` and `gltf2-lights` with the exporter; they are
+	// not listed by export_formats(), as they take the place of `glb2` and
+	// `gltf2`
+	void register_exporters(Assimp::Exporter& exporter);
 }  // namespace pyxel::io::glb_lights
