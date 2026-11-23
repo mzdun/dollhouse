@@ -83,6 +83,10 @@ namespace pyxel::io::gltf2 {
 	inline constexpr auto interactions_property = "pyxel_interactions";
 	// the key of the extra in the `extras` of the root node
 	inline constexpr auto interactions_extra = "PYXEL_interactions";
+	// the key of the scene metadata, under which the importer of ours
+	// stamps every scene it reads with a number of its own (uint64), to
+	// tell it from a later scene at the same address
+	inline constexpr auto import_stamp_key = "pyxel_import";
 
 	inline constexpr int area_rectangle = 0;
 	inline constexpr int area_ellipse = 1;
@@ -110,6 +114,7 @@ namespace pyxel::io::gltf2 {
 	// The active objects of `scene`, as read by the importer of ours, with
 	// the notes about the ones left out or read in part; nullptr, if the
 	// importer of ours is not registered with `importer`, or if `scene` is
-	// not the scene it read last (e.g. the file was not glTF 2)
+	// not the scene it read last (e.g. the file was not glTF 2, even if its
+	// scene took the address of the freed glTF 2 one)
 	interactions::parsed const* interactions_of(Assimp::Importer const& importer, aiScene const* scene);
 }  // namespace pyxel::io::gltf2

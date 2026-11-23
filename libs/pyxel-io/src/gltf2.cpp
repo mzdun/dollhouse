@@ -15,6 +15,7 @@
 #include <assimp/DefaultLogger.hpp>
 #include <assimp/IOStream.hpp>
 #include <assimp/IOSystem.hpp>
+#include <atomic>
 #include <bit>
 #include <cmath>
 #include <cstddef>
@@ -870,8 +871,14 @@ namespace pyxel::io::gltf2 {
 
 			void SetupProperties(Assimp::Importer const* importer) override { base_->SetupProperties(importer); }
 
+			// Assimp does not tell the importer, when the scene is freed, so
+			// the address alone could match a later scene of another file,
+			// allocated in the same place; the stamp tells them apart
 			interactions::parsed const* interactions_of(aiScene const* scene) const noexcept {
-				return scene && scene == scene_ ? &interactions_ : nullptr;
+				if (!scene || scene != scene_ || !scene->mMetaData) return nullptr;
+				uint64_t stamp{};
+				if (!scene->mMetaData->Get(import_stamp_key, stamp) || stamp != stamp_) return nullptr;
+				return &interactions_;
 			}
 
 		protected:
@@ -882,6 +889,9 @@ namespace pyxel::io::gltf2 {
 				auto const read = &intern_access::InternReadFile;
 				((*base_).*read)(file, scene, io);
 				// the scene is read, even if no extras can be added to it
+				stamp_ = ++last_stamp;
+				if (!scene->mMetaData) scene->mMetaData = new aiMetadata{};
+				scene->mMetaData->Add(import_stamp_key, stamp_);
 				scene_ = scene;
 
 				auto const json = read_json(*io, file);
@@ -905,9 +915,15 @@ namespace pyxel::io::gltf2 {
 		private:
 			std::unique_ptr<Assimp::BaseImporter> base_;
 			aiImporterDesc desc_{};
-			// the scene of the last InternReadFile(), and what it found in it
+			// the scene of the last InternReadFile(), its stamp, and what it
+			// found in it
 			aiScene const* scene_{};
+			uint64_t stamp_{};
 			interactions::parsed interactions_{};
+
+			// shared by every importer of ours, so no two scenes get the
+			// same stamp
+			static inline std::atomic<uint64_t> last_stamp{};
 		};
 	}  // namespace
 
