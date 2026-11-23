@@ -19,6 +19,7 @@ set(SRCS
     include/pyxel/gfx/interactions.hpp
     include/pyxel/gfx/light.hpp
     include/pyxel/gfx/light_object.hpp
+    include/pyxel/gfx/loaded_model.hpp
     include/pyxel/gfx/loaded_object.hpp
     include/pyxel/gfx/materials.hpp
     include/pyxel/gfx/object.hpp
@@ -44,6 +45,7 @@ set(SRCS
     src/gfx/group.cpp
     src/gfx/interactions.cpp
     src/gfx/light.cpp
+    src/gfx/loaded_model.cpp
     src/gfx/loaded_object.cpp
     src/gfx/materials.cpp
     src/gfx/object.cpp
@@ -106,6 +108,7 @@ if(DOLLHOUSE_TESTING)
         tests/gfx/interactions.test.cpp
         tests/gfx/light.test.cpp
         tests/gfx/light_object.test.cpp
+        tests/gfx/loaded_model.test.cpp
         tests/gfx/loaded_object.test.cpp
         tests/gfx/revolve.test.cpp
         tests/gfx/sink.test.cpp
