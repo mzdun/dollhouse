@@ -888,31 +888,41 @@ namespace pyxel::io::gltf2 {
 
 				auto const read = &intern_access::InternReadFile;
 				((*base_).*read)(file, scene, io);
-				// the scene is read, even if no extras can be added to it
-				stamp_ = ++last_stamp;
-				if (!scene->mMetaData) scene->mMetaData = new aiMetadata{};
-				scene->mMetaData->Add(import_stamp_key, stamp_);
-				scene_ = scene;
 
-				auto const json = read_json(*io, file);
+				// Assimp deletes the scene, if anything here throws, so the
+				// scene is remembered only once nothing more can go wrong; it
+				// is read, even if no extras can be added to it
+				auto found = read_extras(file, *scene, *io);
+				auto const stamp = ++last_stamp;
+				if (!scene->mMetaData) scene->mMetaData = new aiMetadata{};
+				scene->mMetaData->Add(import_stamp_key, stamp);
+
+				stamp_ = stamp;
+				interactions_ = std::move(found);
+				scene_ = scene;
+			}
+
+		private:
+			// adds the area lights to the scene, and returns the interactions
+			static interactions::parsed read_extras(std::string const& file, aiScene& scene, Assimp::IOSystem& io) {
+				auto const json = read_json(io, file);
 				if (!json) {
 					warn(std::format("cannot read the JSON document of {}; area lights and interactions left out",
 					                 file));
-					return;
+					return {};
 				}
 				rapidjson::Document doc{};
 				doc.Parse(json->data(), json->size());
 				if (doc.HasParseError() || !doc.IsObject()) {
 					warn(std::format("cannot parse the JSON document of {}; area lights and interactions left out",
 					                 file));
-					return;
+					return {};
 				}
-				area_lights{doc}.add_to(*scene);
+				area_lights{doc}.add_to(scene);
 				// after the area lights, which add to the names of the lights
-				interactions_ = read_interactions(doc, *scene);
+				return read_interactions(doc, scene);
 			}
 
-		private:
 			std::unique_ptr<Assimp::BaseImporter> base_;
 			aiImporterDesc desc_{};
 			// the scene of the last InternReadFile(), its stamp, and what it
