@@ -420,10 +420,10 @@ namespace pyxel::io {
 		// no name, in a named node, whose name no light takes; that needs the
 		// name of the node to be used by no other node, and the node to have
 		// no other light and no meshes (the Collada and FBX exporters give
-		// a node either meshes or a light, never both). Any other light gets a new child node, placed
-		// by the light's matrix, named after the light, if no node uses that
-		// name yet. A light with no name, or with a name already used, gets
-		// a generated one, `Light`, `Light.001`, ..., which neither a node nor
+		// a node either meshes or a light, never both). Any other light gets
+		// a new child node, placed by the light's matrix, named after the
+		// light, if no node uses that name yet. A light with no name, or with a name already used, gets
+		// a generated one, `Light`, `Light-001`, ..., which neither a node nor
 		// a light of the model uses.
 		lights_result make_lights(sink const& out, node_tree& tree) {
 			auto const& nodes = out.nodes();
@@ -448,7 +448,7 @@ namespace pyxel::io {
 			auto const generated = [&] {
 				std::string name{"Light"};
 				while (light_names.contains(name) || used.contains(name))
-					name = std::format("Light.{:03}", ++counter);
+					name = std::format("Light-{:03}", ++counter);
 				used.insert(name);
 				return name;
 			};
