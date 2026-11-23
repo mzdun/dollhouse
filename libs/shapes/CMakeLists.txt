@@ -39,6 +39,7 @@ set(SRCS
     src/glue/bind_color.cpp
     src/glue/bind_dmat4.cpp
     src/glue/bind_group.cpp
+    src/glue/bind_interactions.cpp
     src/glue/bind_length.cpp
     src/glue/bind_library.cpp
     src/glue/bind_light.cpp
@@ -54,6 +55,7 @@ set(SRCS
     src/glue/length.hpp
     src/glue/lifetime.cpp
     src/glue/lifetime.hpp
+    src/glue/locked.hpp
     src/glue/measure.hpp
     src/glue/sink_lease.hpp
 )
