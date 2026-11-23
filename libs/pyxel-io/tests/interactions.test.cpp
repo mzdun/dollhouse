@@ -653,6 +653,34 @@ namespace pyxel::io::testing {
 		EXPECT_EQ(*result, (parsed{.objects = {swing, light_active_object{.name = "bulb", .light = "1s"}}}));
 	}
 
+	// two lights with no name, each in a group of the shared name `a`, are
+	// written on generated nodes, `Light` and `Light-001`; on import, these
+	// are the names of the lights, so they must keep the naming rules, or
+	// every model with them would be read with a warning
+	TEST(interactions_import, generated_light_names_keep_the_rules) {
+		gfx::group root{};
+		root.add_group({.name = "a"}).add(gfx::light{});
+		root.add_group({.name = "a"}).add(gfx::light{});
+		root.add_group({.name = "lamp"}).add(gfx::light{.name = "lamp"});
+		root.set_light_transition("lamp", "1s");
+
+		gfx::sink out{};
+		root.output(out, glm::dmat4{1.0});
+		auto const path = temp_file("lamp.glb");
+		export_scene("lamp", out, gfx::materials{}, "glb2", path);
+		auto const doc = read_document(path);
+		EXPECT_TRUE(has_node(doc, "Light"));
+		EXPECT_TRUE(has_node(doc, "Light-001"));
+
+		Assimp::Importer importer{};
+		gltf2::register_importer(importer);
+		auto const* scene = importer.ReadFile(as_str(path.u8string()), 0u);
+		ASSERT_NE(scene, nullptr) << importer.GetErrorString();
+		auto const* result = gltf2::interactions_of(importer, scene);
+		ASSERT_NE(result, nullptr);
+		EXPECT_EQ(*result, (parsed{.objects = {light_active_object{.name = "lamp", .light = "1s"}}}));
+	}
+
 	// two lights of one name still fail the export, even though they are
 	// written on nodes of their own
 	TEST(interactions_export, lights_sharing_a_name_fail) {
