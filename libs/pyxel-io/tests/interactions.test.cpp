@@ -483,6 +483,135 @@ namespace pyxel::io::testing {
 
 	INSTANTIATE_TEST_SUITE_P(formats, interactions_import, ::testing::Values("glb2", "gltf2"));
 
+	// Goldilocks: the object describing a light, declared in the group
+	// above the light, in the group the light is in, or in a group below it.
+	enum class bear { too_shallow, just_right, too_deep };
+
+	std::string bear_name(::testing::TestParamInfo<bear> const& info) {
+		switch (info.param) {
+			case bear::too_shallow:
+				return "too_shallow";
+			case bear::just_right:
+				return "just_right";
+			case bear::too_deep:
+				break;
+		}
+		return "too_deep";
+	}
+
+	// `room` > `lamp` > `shade`, each with a cube, and a light in `lamp`;
+	// the meshes keep the light from taking the node of `lamp`
+	gfx::sink goldilocks_sink(std::string const& light_name, bear placement) {
+		auto const box = [] { return gfx::solid::cube(gfx::cm(10), gfx::cm(10), gfx::cm(10)); };
+		gfx::group root{};
+		auto& room = root.add_group({.name = "room"});
+		room.add<gfx::solid_object>(box());
+		auto& lamp = room.add_group({.name = "lamp"});
+		lamp.add<gfx::solid_object>(box());
+		lamp.add(gfx::light{.name = light_name});
+		auto& shade = lamp.add_group({.name = "shade"});
+		shade.add<gfx::solid_object>(box());
+
+		auto& owner = placement == bear::too_shallow ? room : placement == bear::just_right ? lamp : shade;
+		owner.set_light_transition(light_name, "1s");
+
+		gfx::sink out{};
+		root.output(out, glm::dmat4{1.0});
+		return out;
+	}
+
+	class goldilocks : public ::testing::TestWithParam<bear> {
+	protected:
+		// the active objects read back from the exported model
+		active_objects round_trip(gfx::sink const& out, rapidjson::Document* doc = nullptr) {
+			auto const path = temp_file("lamp.glb");
+			export_scene("lamp", out, gfx::materials{}, "glb2", path);
+			if (doc) *doc = read_document(path);
+
+			Assimp::Importer importer{};
+			gltf2::register_importer(importer);
+			auto const* scene = importer.ReadFile(as_str(path.u8string()), 0u);
+			if (!scene) {
+				ADD_FAILURE() << importer.GetErrorString();
+				return {};
+			}
+			auto const* result = gltf2::interactions_of(importer, scene);
+			if (!result) {
+				ADD_FAILURE() << "no interactions";
+				return {};
+			}
+			EXPECT_EQ(result->notes, std::vector<note>{});
+			return result->objects;
+		}
+	};
+
+	// `bulb` is written on a node of its own name, so the importer finds it,
+	// wherever its object was declared
+	TEST_P(goldilocks, properly_named_light_survives) {
+		rapidjson::Document doc{};
+		EXPECT_EQ(round_trip(goldilocks_sink("bulb", GetParam()), &doc),
+		          (active_objects{light_active_object{.name = "bulb", .light = "1s"}}));
+		EXPECT_TRUE(has_node(doc, "bulb"));
+	}
+
+	// `lamp` is the name of the group with meshes, so the light is written
+	// as `Light`; only the object declared in the group of the light follows
+	// it, the others are dropped
+	TEST_P(goldilocks, generated_name_survives_just_right) {
+		auto const objects = round_trip(goldilocks_sink("lamp", GetParam()));
+		if (GetParam() == bear::just_right) {
+			EXPECT_EQ(objects, (active_objects{light_active_object{.name = "Light", .light = "1s"}}));
+		} else {
+			EXPECT_EQ(objects, active_objects{});
+		}
+	}
+
+	INSTANTIATE_TEST_SUITE_P(bears,
+	                         goldilocks,
+	                         ::testing::Values(bear::too_shallow, bear::just_right, bear::too_deep),
+	                         bear_name);
+
+	// the light `bulb`, alone in the group `lamp`, does not take the node of
+	// the group, so an object moving `lamp` comes back
+	TEST(interactions_import, group_holding_a_light_of_another_name_comes_back) {
+		gfx::group root{};
+		auto& lamp = root.add_group({.name = "lamp"});
+		lamp.add(gfx::light{.name = "bulb"});
+		geo_active_object const swing{
+		    .name = "swing",
+		    .states = {state("still"), state("turned").transform("lamp", channel::rotate_y(rad(1)))},
+		    .actions = {{"Turn", "still", "turned"}, {"Return", "turned", "still"}},
+		};
+		root.add_active_object(swing);
+		root.set_light_transition("bulb", "1s");
+
+		gfx::sink out{};
+		root.output(out, glm::dmat4{1.0});
+		auto const path = temp_file("lamp.glb");
+		export_scene("lamp", out, gfx::materials{}, "glb2", path);
+
+		Assimp::Importer importer{};
+		gltf2::register_importer(importer);
+		auto const* scene = importer.ReadFile(as_str(path.u8string()), 0u);
+		ASSERT_NE(scene, nullptr) << importer.GetErrorString();
+		auto const* result = gltf2::interactions_of(importer, scene);
+		ASSERT_NE(result, nullptr);
+		EXPECT_EQ(*result, (parsed{.objects = {swing, light_active_object{.name = "bulb", .light = "1s"}}}));
+	}
+
+	// two lights of one name still fail the export, even though they are
+	// written on nodes of their own
+	TEST(interactions_export, lights_sharing_a_name_fail) {
+		gfx::group root{};
+		root.add_group({.name = "left"}).add(gfx::light{.name = "bulb"});
+		root.add_group({.name = "right"}).add(gfx::light{.name = "bulb"});
+		root.set_light_transition("bulb", "1s");
+
+		gfx::sink out{};
+		root.output(out, glm::dmat4{1.0});
+		EXPECT_THROW(export_scene("lamp", out, gfx::materials{}, "glb2", temp_file("lamp.glb")), std::runtime_error);
+	}
+
 	// the extras of every node, in the order of the `nodes` array; the
 	// punctual light of node 3 is a light of the model
 	TEST(interactions_import, extras_of_all_nodes_are_merged) {
