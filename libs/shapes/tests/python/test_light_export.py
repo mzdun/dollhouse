@@ -172,7 +172,7 @@ class TestNodes:
             root.add_group(name="leg", pos=shapes.at_x(cm(-50))).add(point())
 
         dae = export_dae(tmp_path, fill)
-        assert set(lights(dae)) == {"Light", "Light.001"}
+        assert set(lights(dae)) == {"Light", "Light-001"}
         for leg in named(scene_root(dae), "leg"):
             assert not has_light(leg)
             assert len(children(leg)) == 1
@@ -182,7 +182,7 @@ class TestNodes:
             root.add_group(name="Light").add(cube())
             root.add(point())
 
-        assert set(lights(export_dae(tmp_path, fill))) == {"Light.001"}
+        assert set(lights(export_dae(tmp_path, fill))) == {"Light-001"}
 
     def test_spot_shines_along_the_rotated_minus_z(self, tmp_path):
         def fill(root):
