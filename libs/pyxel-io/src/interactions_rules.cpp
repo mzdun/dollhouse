@@ -415,8 +415,13 @@ namespace pyxel::io::interactions {
 				auto const declared = [&](std::string_view name) {
 					return std::ranges::find(states, name, &decl::state::name) != states.end();
 				};
-				for (auto const& action : actions) {
-					auto const what = std::format("action `{}`", action.label);
+				for (size_t index = 0; index < actions.size(); ++index) {
+					auto const& action = actions[index];
+					// an action is identified by its position; the label is
+					// only for the user, but it is the clearer of the two
+					auto const what = action.label.empty() ? std::format("action {}", index + 1)
+					                                       : std::format("action `{}`", action.label);
+					if (action.label.empty()) report(std::format("has {} with an empty `label`", what));
 					if (action.when.empty()) report(std::format("has {} leaving no state", what));
 					for (auto const& name : action.when) {
 						if (!declared(name))

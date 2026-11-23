@@ -241,12 +241,15 @@ namespace pyxel::io::testing {
 		object.actions.emplace_back("Go", "nowhere", "closed");
 		object.actions.emplace_back("Lost", "closed", "lost");
 		object.actions.emplace_back("Empty", std::vector<state_name>{}, "closed");
+		object.actions.emplace_back("", "closed", "lost");
 
 		EXPECT_EQ(reasons(object), (strings{
 		                               "declares state `closed` twice",
 		                               "has action `Go` leaving state `nowhere`, which it does not declare",
 		                               "has action `Lost` leading to state `lost`, which it does not declare",
 		                               "has action `Empty` leaving no state",
+		                               "has action 7 with an empty `label`",
+		                               "has action 7 leading to state `lost`, which it does not declare",
 		                           }));
 	}
 
