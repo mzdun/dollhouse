@@ -1,6 +1,7 @@
 // Copyright (c) 2026 Marcin Zdun
 // This code is licensed under MIT license (see LICENSE for details)
 
+#include <assimp/scene.h>
 #include <gtest/gtest.h>
 #include <rapidjson/document.h>
 #include <assimp/Importer.hpp>
@@ -10,6 +11,8 @@
 #include <format>
 #include <fstream>
 #include <iterator>
+#include <memory>
+#include <new>
 #include <pyxel/base/str.hpp>
 #include <pyxel/gfx/group.hpp>
 #include <pyxel/gfx/interactions.hpp>
@@ -712,5 +715,38 @@ namespace pyxel::io::testing {
 
 		Assimp::Importer plain{};
 		EXPECT_EQ(gltf2::interactions_of(plain, nullptr), nullptr);
+	}
+
+	// a scene of another file, read after the glTF 2 one, may take the
+	// address of the freed glTF 2 scene; here, a new scene is built in the
+	// place of the glTF 2 scene by hand, as the allocator may not reuse it
+	TEST(interactions_import, later_scene_at_the_same_address_has_none) {
+		auto const path = temp_file("door.glb");
+		export_scene("door", door_sink(true), gfx::materials{}, "glb2", path);
+
+		Assimp::Importer importer{};
+		gltf2::register_importer(importer);
+		ASSERT_NE(importer.ReadFile(as_str(path.u8string()), 0u), nullptr) << importer.GetErrorString();
+
+		std::unique_ptr<aiScene> scene{importer.GetOrphanedScene()};
+		ASSERT_NE(gltf2::interactions_of(importer, scene.get()), nullptr);
+
+		scene->~aiScene();
+		new (scene.get()) aiScene{};
+		EXPECT_EQ(gltf2::interactions_of(importer, scene.get()), nullptr);
+	}
+
+	TEST(interactions_import, next_file_of_the_same_importer_has_none) {
+		auto const glb = temp_file("door.glb");
+		auto const obj = temp_file("door.obj");
+		export_scene("door", door_sink(true), gfx::materials{}, "glb2", glb);
+		export_scene("door", door_sink(false), gfx::materials{}, "obj", obj);
+
+		Assimp::Importer importer{};
+		gltf2::register_importer(importer);
+		ASSERT_NE(importer.ReadFile(as_str(glb.u8string()), 0u), nullptr) << importer.GetErrorString();
+		auto const* scene = importer.ReadFile(as_str(obj.u8string()), 0u);
+		ASSERT_NE(scene, nullptr) << importer.GetErrorString();
+		EXPECT_EQ(gltf2::interactions_of(importer, scene), nullptr);
 	}
 }  // namespace pyxel::io::testing
