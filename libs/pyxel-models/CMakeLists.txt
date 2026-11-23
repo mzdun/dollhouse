@@ -19,6 +19,7 @@ set(SRCS
     include/pyxel/gfx/interactions.hpp
     include/pyxel/gfx/light.hpp
     include/pyxel/gfx/light_object.hpp
+    include/pyxel/gfx/loaded_object.hpp
     include/pyxel/gfx/materials.hpp
     include/pyxel/gfx/object.hpp
     include/pyxel/gfx/sink.hpp
@@ -27,6 +28,7 @@ set(SRCS
     include/pyxel/gfx/solid_object.hpp
     include/pyxel/gfx/space.hpp
     include/pyxel/gfx/transform.hpp
+    include/pyxel/gfx/transition.hpp
     include/pyxel/rng/dice.hpp
     include/pyxel/rng/engine.hpp
     include/pyxel/rng/noise.hpp
@@ -42,6 +44,7 @@ set(SRCS
     src/gfx/group.cpp
     src/gfx/interactions.cpp
     src/gfx/light.cpp
+    src/gfx/loaded_object.cpp
     src/gfx/materials.cpp
     src/gfx/object.cpp
     src/gfx/revolve.cpp
@@ -49,6 +52,7 @@ set(SRCS
     src/gfx/solid.cpp
     src/gfx/space.cpp
     src/gfx/transform.cpp
+    src/gfx/transition.cpp
     src/rng/engine.cpp
     src/rng/noise.cpp
 )
@@ -102,6 +106,7 @@ if(DOLLHOUSE_TESTING)
         tests/gfx/interactions.test.cpp
         tests/gfx/light.test.cpp
         tests/gfx/light_object.test.cpp
+        tests/gfx/loaded_object.test.cpp
         tests/gfx/revolve.test.cpp
         tests/gfx/sink.test.cpp
         tests/gfx/sized.test.cpp
@@ -109,6 +114,7 @@ if(DOLLHOUSE_TESTING)
         tests/gfx/solid_object.test.cpp
         tests/gfx/space.test.cpp
         tests/gfx/transform.test.cpp
+        tests/gfx/transition.test.cpp
         tests/math/format.test.cpp
         tests/math/geometry.test.cpp
         tests/math/value.test.cpp
