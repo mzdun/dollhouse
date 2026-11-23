@@ -33,7 +33,7 @@ Each stage ends with something that runs. Stage 3 (Plans) does not depend on the
   - [ ] Add the `PYXEL_interactions` extra to both pyxel exporters; each adds everything of ours to the glTF document: `KHR_lights_punctual`, `PYXEL_lights_area` and the `PYXEL_interactions` extra
 - [x] Read the area lights back: a glTF 2 importer in `pyxel-io`, taking the place of Assimp's, adds the `PYXEL_lights_area` lights to the scene
 - [x] Declare active objects, states, actions, slots and variables in `pyxel-models`
-- [ ] Expose them in the `shapes` Python module
+- [x] Expose them in the `shapes` Python module
 - [x] Export them to glb and glTF in `pyxel-io`, through `glb2-pyxel` and `gltf2-pyxel`
 - [ ] Provide rules API for transition runner
   - [ ] Parse the rules
@@ -179,6 +179,7 @@ Driven by measurements, not done up front.
   - [ ] For main, prepare better library separation.
   - [ ] Scope stack of the sinks (`python_scopes()`, with its lease ids) per thread: unlike the library, a scope belongs to an `output` call, which runs on one thread
   - [ ] `detach_wrappers` under the locks of pybind11 (`with_instance_map`) or `py::scoped_critical_section`
+  - [x] Critical sections on the mutable declarations of active objects (`state`, `transitions`) and on the active objects of a `group`
   - [ ] Check the global state of `pyxel-models` and `pyxel-io` (paint registry, exporter list, Assimp)
   - [ ] Tests with several threads building models and outputting objects, run on 3.14t in CI
   - [ ] Turn `DOLLHOUSE_FREE_THREADED` on by default, or drop the option
@@ -198,3 +199,5 @@ Driven by measurements, not done up front.
   - [ ] Expose the variant to the module users (`shapes.__variant__`)
 - [ ] Add `pyyaml` to the Python environment of the tests, so `test_listing_is_yaml` is not skipped
 - [ ] Range-checked unit conversions: `value_cast`, `round` and the converting constructor of `pyxel::math::value` have undefined behavior for NaN, infinity and out-of-range values when converting to integral storage (see the comment on [`detail::convert`](../libs/pyxel-models/include/pyxel/math/value.hpp#L65)); decide between throwing, clamping or a checked variant
+- [ ] Wires within one model, still in version 1.0 of the interactions: a bedside lamp with a switch on it wires the `enabled` output of its switch to the bulb inside it in the model itself, not in the floor plan
+- [ ] Several switches for one light, still in version 1.0 of the interactions: find a way to model two-way (staircase) and intermediate (cross) switches, where flipping any of them toggles the light
