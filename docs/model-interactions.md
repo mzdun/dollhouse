@@ -133,7 +133,7 @@ The shape of the decoded `states` is given by the [JSON Schema](#json-schema).
 
 In JSON, `actions` is a list that defines both the actions the user can take on an active object and its state machine, in which the actions are the edges between states. An action has no name of its own; it is identified by its position in the list. Each entry has:
 
-- `label`, the text shown in the UI. It is required, but does not have to be unique.
+- `label`, the text shown in the UI. It is required and must not be empty, but does not have to be unique.
 - `when`, the name of the state the action leaves, or a list of them.
 - `then`, the name of the state the action leads to.
 
@@ -624,7 +624,7 @@ The exporter fails on a violation of any of these rules. The importer checks tho
 | Every slot named in a state is a declared output slot or variable. | yes | [Channels](#channels) |
 | Every transformation sets a channel its target has, with a value of the channel's type; no list names a channel twice; no state uses `visible`. | yes | [Channels](#channels), [States](#states) |
 | The channels of a group keep one order across all states of the object. | yes | [States](#states) |
-| Every state named in `when` or `then` is declared, and every action has a `label`. | yes | [Actions](#actions) |
+| Every state named in `when` or `then` is declared, and every action has a non-empty `label`. | yes | [Actions](#actions) |
 | Every target in `transitions` is one the object can change, and every transition value parses. | yes | [Transitions](#transitions) |
 | A model with active objects is exported to `gltf2` or `glb2` only. | not applicable | [File persistence](#file-persistence) |
 
