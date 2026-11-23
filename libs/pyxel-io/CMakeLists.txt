@@ -3,11 +3,13 @@
 
 set(SRCS
     include/pyxel/io/export.hpp
+    include/pyxel/io/import.hpp
     include/pyxel/io/interactions.hpp
 
     src/export.cpp
     src/gltf2.cpp
     src/gltf2.hpp
+    src/import.cpp
     src/interactions.cpp
     src/interactions_json.hpp
     src/interactions_parse.cpp
@@ -44,6 +46,7 @@ set_target_properties(pyxel-io PROPERTIES
 if(DOLLHOUSE_TESTING)
     set(TEST_SRCS
         tests/gltf2.test.cpp
+        tests/import.test.cpp
         tests/interactions.test.cpp
         tests/interactions_rules.test.cpp
     )
