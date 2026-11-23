@@ -48,31 +48,4 @@ namespace pyxel::io::interactions {
 	// with another light, or which another object describes, is named in a
 	// problem of its own.
 	std::vector<problem> check(gfx::interactions::active_objects const& objects, model_names const& model);
-
-	// ---- transitions -----------------------------------------------------
-
-	enum class easing { ease, ease_in, ease_out, ease_in_out, linear };
-
-	// One item of a transition value, with the omitted parts filled from
-	// `all 0s ease 0s`; a negative time is taken as 0s.
-	struct single_transition {
-		std::string channel{"all"};
-		interactions::easing easing{easing::ease};
-		double duration{};  // seconds
-		double delay{};     // seconds
-
-		bool operator==(single_transition const&) const = default;
-	};
-
-	struct transition_result {
-		// empty for `none`
-		std::vector<single_transition> items{};
-		// empty, if the value parses
-		std::string error{};
-	};
-
-	// The grammar of Transitions grammar in the specification; keywords and
-	// units are ASCII case-insensitive, the channel names come back in
-	// lowercase. The channels are not matched with any target here.
-	transition_result parse_transition(std::string_view value);
 }  // namespace pyxel::io::interactions
