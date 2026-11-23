@@ -440,6 +440,30 @@ namespace pyxel::io::testing {
 		                                  "of slot `on`, key `updates`, channel `visible` of `g` in state `s`"}}));
 	}
 
+	// a group or a slot, whose every change is left out, is not in the state
+	// at all: re-exported, it would be written as an empty list
+	TEST(interactions_parse, nothing_left_of_a_change_leaves_no_target) {
+		auto const result = parse(R"([{
+			"name": "newer", "version": "1.1",
+			"slots": [{"name": "level", "type": "factor", "direction": "output"}],
+			"states": {"on": {
+				"g": [{"visible": false}],
+				"h": [{"rotate.y": 1}],
+				"$level": [{"ramp": 1}]
+			}}
+		}])",
+		                          lights);
+
+		auto const expected = geo_active_object{
+		    .name = "newer",
+		    .slots = {slot{"level", slot_type::factor, direction::output}},
+		    .states = {state("on").transform("h", channel::rotate_y(rad(1)))},
+		};
+		EXPECT_EQ(result.objects, (active_objects{expected}));
+		ASSERT_EQ(result.notes.size(), 1u);
+		EXPECT_EQ(result.notes[0].what, note::ignored);
+	}
+
 	TEST(interactions_parse, shapes_which_do_not_fit_are_dropped) {
 		auto const result = parse(R"([
 			{"name": "lamp", "version": "1.0", "states": {}},

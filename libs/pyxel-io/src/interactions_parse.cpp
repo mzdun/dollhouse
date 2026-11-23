@@ -316,10 +316,14 @@ namespace pyxel::io::interactions {
 					if (!value) fail(std::format("sets {} to a value of a wrong type", where));
 					list.push_back({.set = std::move(*value)});
 				}
+				// every change was left out, or there were none: the state does
+				// not set the slot
+				if (list.empty()) item.slots.erase(name);
 			}
 
 			void group_changes(decl::state& item, std::string_view group, json const& changes, std::string_view where) {
-				auto& list = item.groups[std::string{group}];
+				std::string const key{group};
+				auto& list = item.groups[key];
 				for (auto const& change : changes.GetArray()) {
 					auto const member_it = single(change, where);
 					auto const name = view(member_it->name);
@@ -330,6 +334,8 @@ namespace pyxel::io::interactions {
 					}
 					list.push_back(transformation(*known, member_it->value, where));
 				}
+				// as for the slots: no transformation left, no group
+				if (list.empty()) item.groups.erase(key);
 			}
 
 			decl::group_transformation transformation(channel_kind const& channel,
