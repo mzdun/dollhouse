@@ -62,7 +62,7 @@ A light is exported on a node of its own, named after the light, so the names of
 
 A light with an empty name is not an active object. It cannot be wired or described by an active object, and it is always on, at full intensity, with no transition. Two such lights do not share a name in the sense above.
 
-A model in which geometry-based objects share a name is still usable: a reference to that name reaches the object declared first in the model (see [The reading side](#the-reading-side) for the order of objects merged from several nodes).
+A model in which geometry-based objects share a name is still usable: a reference to that name reaches the object declared first in the model, the first of them in the list of active objects (see [Through the sink](#through-the-sink) for the order the `pyxel-io` exporter writes them in, and [The reading side](#the-reading-side) for the order of objects merged from several nodes).
 
 Inside the declaration of an active object, in its `states`, `updates` and `transitions`, a slot is referred to by its declared name prefixed with a dollar sign: the slot `enabled` is `$enabled`. Every key starting with `$` refers to a slot, so a group whose name starts with `$` cannot be used by an active object. A slot whose declared name itself starts with `$` is referred to with one more dollar sign: the slot `$enabled` is `$$enabled`. Outside the declaration, for example in a wiring, a slot is always referred to by its declared name, without the added dollar sign.
 
@@ -588,7 +588,7 @@ As the exporter writes the document itself, the interactions could also go into 
 #### The writing side
 
 - Code attaches one or more active objects to a group with `group::add_active_object()`, or `add_active_object()` of `shapes.group` in Python (see [Changes to `gfx::group`](#changes-to-gfxgroup)).
-- During export, the groups pass their declarations to the nodes of the sink, and the exporter gathers them from the whole node tree into one list.
+- During export, the groups pass their declarations to the nodes of the sink, and the exporter gathers them from the whole node tree into one list. The order of that list is the order of declaration (see [Through the sink](#through-the-sink)).
 - If the list is empty, nothing more is done.
 - The list is validated against the [rules](#rules) of this specification. A violation fails the export, like the other export errors.
 - Assimp writes the glTF 2 file into memory: the JSON document of `gltf2`, or the JSON chunk of `glb2`.
@@ -1139,7 +1139,8 @@ The exporter works on `gfx::sink`, not on the groups, so the declarations travel
 
 - `sink::node` gains a list of active objects, `std::vector<interactions::active_object> active_objects`, and `sink` gains `add_active_object()`, which adds one to the current node.
 - `group::output()` adds its declarations after it opens its scope: to its own node for a named group, or to the node of the nearest named group above it otherwise.
-- `export_scene()` collects the declarations of every node, in the order of the tree, and runs the steps of [The writing side](#the-writing-side): the checks, the JSON, and the `PYXEL_interactions` extra of the root node. A non-empty list with an export format other than `gltf2` or `glb2` throws `std::runtime_error`.
+- `export_scene()` collects the declarations node by node, in the order the nodes were opened, and those of one node in the order they were added. It then runs the steps of [The writing side](#the-writing-side): the checks, the JSON, and the `PYXEL_interactions` extra of the root node. A non-empty list with an export format other than `gltf2` or `glb2` throws `std::runtime_error`.
+- The order of the collected list is the order of declaration of the model: it decides which object is declared first, for names shared by several objects and for groups moved by several objects. It follows the nodes, not the groups. A named group opens its node before its children are output, and an unnamed group adds its declarations to the node of the nearest named group above it, so they come before the declarations of every named group below that node, even of a named group output earlier. For example, a named group `A` holds, in this order, a named group `B`, declaring an object `x`, and an unnamed group `C`, declaring another object `x`. The declaration of `C` goes to the node of `A`, which was opened before the node of `B`, so the list holds the `x` of `C` first, and that one is declared first. To keep its declarations in the order of the groups, a class gives the group declaring them a name.
 - A node is kept in the export when an active object names it, even if it has no meshes in it or below, which would otherwise leave it out.
 
 #### Dependencies

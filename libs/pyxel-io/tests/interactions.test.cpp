@@ -486,6 +486,33 @@ namespace pyxel::io::testing {
 
 	INSTANTIATE_TEST_SUITE_P(formats, interactions_import, ::testing::Values("glb2", "gltf2"));
 
+	// The order of declaration follows the nodes (see Through the sink in
+	// the specification): in `A`, the named `B` declares `x` before the
+	// unnamed `C` does, but `C` declares it in the node of `A`, opened
+	// before the node of `B`, so the `x` of `C` is declared first
+	TEST(interactions_export, unnamed_group_declares_before_named_siblings) {
+		geo_active_object const from_b{.name = "x", .states = {state("b")}};
+		geo_active_object const from_c{.name = "x", .states = {state("c")}};
+
+		gfx::group root{};
+		auto& a = root.add_group({.name = "A"});
+		a.add_group({.name = "B"}).add_active_object(from_b);
+		a.add_group({}).add_active_object(from_c);
+
+		gfx::sink out{};
+		root.output(out, glm::dmat4{1.0});
+		auto const path = temp_file("order.glb");
+		export_scene("order", out, gfx::materials{}, "glb2", path);
+
+		Assimp::Importer importer{};
+		gltf2::register_importer(importer);
+		auto const* scene = importer.ReadFile(as_str(path.u8string()), 0u);
+		ASSERT_NE(scene, nullptr) << importer.GetErrorString();
+		auto const* result = gltf2::interactions_of(importer, scene);
+		ASSERT_NE(result, nullptr);
+		EXPECT_EQ(*result, (parsed{.objects = {from_c, from_b}}));
+	}
+
 	// Goldilocks: the object describing a light, declared in the group
 	// above the light, in the group the light is in, or in a group below it.
 	enum class bear { too_shallow, just_right, too_deep };

@@ -547,8 +547,11 @@ namespace pyxel::io {
 			return std::ranges::any_of(out.nodes(), [](auto const& node) { return !node.active_objects.empty(); });
 		}
 
-		// The declarations of every node, in the order of the tree: a node is
-		// opened after its parent and its earlier siblings. A light written
+		// The declarations of every node, in the order the nodes were opened,
+		// which is the order of declaration (see Through the sink in
+		// docs/model-interactions.md): the declarations of an unnamed group
+		// go to the node of the nearest named group above it, so they come
+		// before those of the named groups below that node. A light written
 		// with a generated name (see make_lights) takes the object describing
 		// it along only, if that object was added in the node of the light:
 		// the object is renamed after the light. Any other object naming such
