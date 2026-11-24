@@ -1,7 +1,25 @@
 # Copyright (c) 2026 Marcin Zdun
 # This code is licensed under MIT license (see LICENSE for details)
 
-from shapes import *  # type: ignore
+from shapes import (
+    I,
+    action,
+    at_x,
+    at_y,
+    at_z,
+    channel,
+    cm,
+    deg,
+    group,
+    length,
+    library,
+    mm,
+    rgb,
+    size,
+    solid,
+    state,
+    transitions,
+)
 
 _frame_material = library.register_paint(rgb(255, 255, 255), roughness=0.9)
 _glass_material = library.register_paint(rgb(61, 162, 205, 0.43), roughness=0.1)

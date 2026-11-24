@@ -13,7 +13,23 @@ from typing import Any, Callable
 
 import pytest
 import shapes
-from shapes import *  # type: ignore
+from shapes import (
+    action,
+    axis,
+    channel,
+    cm,
+    deg,
+    geo_active_object,
+    light,
+    light_active_object,
+    offset,
+    slot,
+    slot_direction,
+    slot_type,
+    solid,
+    state,
+    transitions,
+)
 
 Fill = Callable[[shapes.group], None]
 

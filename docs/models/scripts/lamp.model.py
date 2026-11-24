@@ -1,7 +1,7 @@
 # Copyright (c) 2026 Marcin Zdun
 # This code is licensed under MIT license (see LICENSE for details)
 
-from shapes import *  # type: ignore
+from shapes import I, at_y, cleanup, cm, group, library, light, rgb, solid
 
 _wood = library.register_paint(rgb(226, 196, 152), roughness=0.55)
 _black_plastic = library.register_paint(rgb(22, 22, 22), roughness=0.4)
