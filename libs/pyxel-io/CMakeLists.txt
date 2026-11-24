@@ -5,6 +5,7 @@ set(SRCS
     include/pyxel/io/export.hpp
     include/pyxel/io/import.hpp
     include/pyxel/io/interactions.hpp
+    include/pyxel/io/pose.hpp
 
     src/export.cpp
     src/glb.cpp
@@ -17,6 +18,7 @@ set(SRCS
     src/interactions_parse.cpp
     src/interactions_rules.cpp
     src/interactions_rules.hpp
+    src/pose.cpp
 )
 
 source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR} FILES ${SRCS})
@@ -51,6 +53,7 @@ if(DOLLHOUSE_TESTING)
         tests/import.test.cpp
         tests/interactions.test.cpp
         tests/interactions_rules.test.cpp
+        tests/pose.test.cpp
     )
     source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR}/tests FILES ${TEST_SRCS})
 
