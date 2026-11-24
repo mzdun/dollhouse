@@ -45,7 +45,7 @@ Each stage ends with something that runs. Stage 3 (Plans) does not depend on the
   - [x] Build lookup table of parsed rules per target.
   - [x] Gather all group rules in a lookup table and all slots in a separate lookup table; for lights put `"light"` into slots.
   - [x] Store both lookup tables with loaded active object
-- [ ] Fix "Order within a tick" in the spec: step 5 registers only the changes made in steps 1 and 4, so a state change that takes no time (it stops at once in step 2 or 3) never sends its new value along the wires; register every output and variable whose value changed anywhere in steps 1 to 4. Resolve before Dollhouse work (stage 4) starts.
+- [x] Fix "Order within a tick" in the spec: step 5 registers only the changes made in steps 1 and 4, so a state change that takes no time (it stops at once in step 2 or 3) never sends its new value along the wires; register every output and variable whose value changed anywhere in steps 1 to 4. Resolve before Dollhouse work (stage 4) starts.
 - [x] A CLI tool for quick checks of models: read a `.glb` or `.gltf` file and print its bounding box and active objects, with their states, actions, slots, variables and transitions
 - [x] Sample models: a door, a light switch, a lamp
 
