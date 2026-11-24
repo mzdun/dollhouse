@@ -1,0 +1,20 @@
+args: $DATA/light-source.gltf
+expected:
+  return-code: 0
+  stdout: |
+    HIERARCHY
+      - bulb
+
+    LIGHTS
+      - name: bulb
+        type: point
+
+    ACTIVE OBJECTS
+      - name: bulb
+        kind: light
+        slots:
+          - input boolean enabled = true
+          - input factor intensity = 1
+        light: bulb
+        transition: 1.5s ease-out 100ms
+  stderr: ''

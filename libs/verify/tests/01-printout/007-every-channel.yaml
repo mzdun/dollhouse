@@ -1,0 +1,94 @@
+args: $DATA/cabinet.gltf
+expected:
+  return-code: 0
+  stdout: |
+    HIERARCHY
+      - drawer
+      - left-door
+        - knob
+
+    ACTIVE OBJECTS
+      - name: cabinet
+        kind: geometry
+        start: closed
+        slots:
+          - input float ratio = 0.25
+          - input factor dim = 0
+          - output boolean opened = false
+          - output angle tilt = 15°
+          - variable length reach = 0 cm
+          - variable offset spot = (10 cm, 20 cm, 30 cm)
+        actions:
+          - "Peek"
+          - "Open"
+          - "Close"
+        states:
+          - name: closed
+            state machine:
+              on <click>: ajar
+              on "Peek": ajar
+              on "Open": opened
+            highlights:
+              - drawer
+              - left-door
+              - knob
+            values:
+              drawer: {translate.z: 0 cm, translate: (0 cm, 0 cm, 0 cm)}
+              left-door: {rotate.y: 0°, rotate: (0°, 0°, 0°)}
+              knob: {scale.x: 1, scale: (1, 1, 1)}
+              $opened: false
+              $tilt: 15°
+              $reach: 0 cm
+              $spot: (10 cm, 20 cm, 30 cm)
+          - name: ajar
+            state machine:
+              on <click>: opened
+              on "Open": opened
+              on "Close": closed
+            highlights:
+              - drawer
+              - left-door
+              - knob
+            values:
+              drawer: {translate.z: 10 cm, translate: (0 cm, 0 cm, 0 cm)}
+              left-door: {rotate.y: -30°, rotate: (0°, 0°, 0°)}
+              knob: {scale.x: 1, scale: (1, 1, 1)}
+              $opened: true
+              $tilt: 5°
+              $reach: 0 cm
+              $spot: (10 cm, 20 cm, 30 cm)
+          - name: opened
+            state machine:
+              on <click>: closed
+              on "Close": closed
+            highlights:
+              - drawer
+              - left-door
+              - knob
+            values:
+              drawer: {translate.z: 0 cm, translate: (1 cm, 2 cm, 40 cm)}
+              left-door: {rotate.y: 0°, rotate: (0°, -90°, 0°)}
+              knob: {scale.x: 1.5, scale: (2, 2, 2)}
+              $opened: true
+              $tilt: 15°
+              $reach: 75 cm
+              $spot: (50 cm, 0 cm, -12.5 cm)
+        groups:
+          - name: drawer
+            channels:
+              - translate.z: 300ms ease 0s
+              - translate: 400ms ease-in-out 0s
+          - name: left-door
+            channels:
+              - rotate.y: 250ms ease-out 10ms
+              - rotate: 250ms ease-out 10ms
+          - name: knob
+            channels:
+              - scale.x: 0s ease-in 0s
+              - scale: 1s ease 0s
+        slot channels:
+          - opened: 0s linear 45ms
+          - tilt: 2s linear 50ms
+          - reach: 2s linear 50ms
+          - spot: 2s linear 50ms
+  stderr: ''

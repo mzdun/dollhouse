@@ -1,0 +1,7 @@
+args: ''
+expected:
+  return-code: 2
+  stdout: ''
+  stderr: |
+    usage: verify [-h] [--version] [-v] [-q] <path>
+    verify: error: argument <path> is required

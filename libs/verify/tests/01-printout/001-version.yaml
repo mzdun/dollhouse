@@ -1,0 +1,6 @@
+args: --version
+expected:
+  return-code: 0
+  stdout: |
+    verify $VERSION
+  stderr: ''

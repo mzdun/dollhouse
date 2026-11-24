@@ -1,0 +1,6 @@
+args: $DATA/missing.gltf
+expected:
+  return-code: 1
+  stdout: ''
+  stderr: |
+    $DATA/missing.gltf: error: cannot read $DATA/missing.gltf: Unable to open file "$DATA/missing.gltf".

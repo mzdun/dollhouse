@@ -1,0 +1,50 @@
+args: $DATA/unreachable.gltf
+expected:
+  return-code: 0
+  stdout: |
+    HIERARCHY
+      - frame
+      - hinge
+        - leaf
+        - handle
+
+    ACTIVE OBJECTS
+      - name: door
+        kind: geometry
+        start: closed
+        actions:
+          - "Open"
+          - "Close"
+          - "Unjam"
+        states:
+          - name: closed
+            state machine:
+              on <click>: opened
+              on "Open": opened
+            highlights:
+              - hinge
+            values:
+              hinge: {rotate.y: 0°}
+          - name: opened
+            state machine:
+              on <click>: closed
+              on "Close": closed
+            highlights:
+              - hinge
+            values:
+              hinge: {rotate.y: 80°}
+          - name: jammed
+            state machine:
+              on <click>: closed
+              on "Unjam": closed
+            highlights:
+              - hinge
+            values:
+              hinge: {rotate.y: 10°}
+        groups:
+          - name: hinge
+            channels:
+              - rotate.y: 200ms ease-in 0s
+  stderr: |
+    $DATA/unreachable.gltf: warning: active object `door`: state `jammed` cannot be reached from `closed`
+    $DATA/unreachable.gltf: warning: active object `door`: action "Unjam" is never offered

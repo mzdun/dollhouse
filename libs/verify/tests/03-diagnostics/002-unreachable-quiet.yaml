@@ -1,0 +1,7 @@
+args: -q $DATA/unreachable.gltf
+expected:
+  return-code: 0
+  stdout: ''
+  stderr: |
+    $DATA/unreachable.gltf: warning: active object `door`: state `jammed` cannot be reached from `closed`
+    $DATA/unreachable.gltf: warning: active object `door`: action "Unjam" is never offered

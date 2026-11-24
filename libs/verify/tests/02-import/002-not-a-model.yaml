@@ -1,0 +1,6 @@
+args: $DATA/broken.gltf
+expected:
+  return-code: 1
+  stdout: ''
+  stderr: |
+    $DATA/broken.gltf: error: cannot read $DATA/broken.gltf: No suitable reader found for the file format of file "$DATA/broken.gltf".
