@@ -7,6 +7,7 @@ add_subdirectory(pyxel-engine)
 add_subdirectory(backends)
 add_subdirectory(shapes)
 add_subdirectory(dollhouse)
+add_subdirectory(verify)
 
 # only the libraries with real tests; pyxel-engine and backends hold
 # placeholders and the dollhouse app is a thin entry point
