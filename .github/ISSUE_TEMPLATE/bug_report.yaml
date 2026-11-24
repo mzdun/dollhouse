@@ -63,7 +63,7 @@ body:
       label: Version
       description: Which version of dollhouse was used?
       options:
-        - Current (v0.2.0)
+        - Current (v0.2.1)
         - Previous (v0.1.0)
         - Older, than v0.1.0
         - Other, e.g. main branch
