@@ -1,0 +1,6 @@
+args: -q -e 'Open "left door"' $DATA/door.gltf
+expected:
+  return-code: 1
+  stdout: ''
+  stderr: |
+    $DATA/door.gltf: error: emulate 'Open "left door"': no active object `left door`

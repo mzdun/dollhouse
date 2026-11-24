@@ -4,6 +4,8 @@
 set(SRCS
   src/checks.cpp
   src/checks.hpp
+  src/emulate.cpp
+  src/emulate.hpp
   src/main.cpp
   src/names.cpp
   src/names.hpp

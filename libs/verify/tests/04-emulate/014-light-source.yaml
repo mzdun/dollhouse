@@ -1,0 +1,6 @@
+args: -q -e '<click> bulb' $DATA/light-source.gltf
+expected:
+  return-code: 1
+  stdout: ''
+  stderr: |
+    $DATA/light-source.gltf: error: emulate '<click> bulb': active object `bulb` has no states

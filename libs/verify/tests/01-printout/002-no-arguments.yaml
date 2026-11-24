@@ -3,5 +3,5 @@ expected:
   return-code: 2
   stdout: ''
   stderr: |
-    usage: verify [-h] [--version] [-v] [-q] <path>
+    usage: verify [-h] [--version] [-v] [-q] [-e '<action> <object>' ...] [-w <path>] <path>
     verify: error: argument <path> is required

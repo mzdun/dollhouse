@@ -1,0 +1,7 @@
+args: -w $TMP/door-start.gltf $DATA/door.gltf
+writes:
+  $TMP/door-start.gltf: $DATA/posed/door-start.gltf
+expected:
+  return-code: 0
+  stdout: ''
+  stderr: ''

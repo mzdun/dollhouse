@@ -1,0 +1,5 @@
+args: -q -e 'Open door' $DATA/door.gltf
+expected:
+  return-code: 0
+  stdout: ''
+  stderr: ''

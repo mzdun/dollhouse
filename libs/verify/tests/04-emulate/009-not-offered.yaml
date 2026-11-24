@@ -1,0 +1,6 @@
+args: -q -e 'Open door' -e 'Open door' $DATA/door.gltf
+expected:
+  return-code: 1
+  stdout: ''
+  stderr: |
+    $DATA/door.gltf: error: emulate 'Open door': active object `door`: "Open" does nothing in state `opened`
