@@ -1,0 +1,60 @@
+args: $DATA/lights.gltf
+expected:
+  return-code: 0
+  stdout: |
+    HIERARCHY
+      - sun
+      - bulb
+      - reading-lamp
+      - panel
+      - oval
+
+    LIGHTS
+      - name: sun
+        type: directional
+      - name: bulb
+        type: point
+      - name: reading-lamp
+        type: spot
+      - name: panel
+        type: area
+      - name: oval
+        type: area
+
+    ACTIVE OBJECTS
+      - name: sun
+        kind: light
+        slots:
+          - input boolean enabled = true
+          - input factor intensity = 1
+        light: sun
+        transition: 0s ease 0s
+      - name: bulb
+        kind: light
+        slots:
+          - input boolean enabled = true
+          - input factor intensity = 1
+        light: bulb
+        transition: 0s ease 0s
+      - name: reading-lamp
+        kind: light
+        slots:
+          - input boolean enabled = true
+          - input factor intensity = 1
+        light: reading-lamp
+        transition: 0s ease 0s
+      - name: panel
+        kind: light
+        slots:
+          - input boolean enabled = true
+          - input factor intensity = 1
+        light: panel
+        transition: 0s ease 0s
+      - name: oval
+        kind: light
+        slots:
+          - input boolean enabled = true
+          - input factor intensity = 1
+        light: oval
+        transition: 0s ease 0s
+  stderr: ''

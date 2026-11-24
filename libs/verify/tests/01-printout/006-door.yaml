@@ -1,0 +1,39 @@
+args: $DATA/door.gltf
+expected:
+  return-code: 0
+  stdout: |
+    HIERARCHY
+      - frame
+      - hinge
+        - leaf
+        - handle
+
+    ACTIVE OBJECTS
+      - name: door
+        kind: geometry
+        start: closed
+        actions:
+          - "Open"
+          - "Close"
+        states:
+          - name: closed
+            state machine:
+              on <click>: opened
+              on "Open": opened
+            highlights:
+              - hinge
+            values:
+              hinge: {rotate.y: 0°}
+          - name: opened
+            state machine:
+              on <click>: closed
+              on "Close": closed
+            highlights:
+              - hinge
+            values:
+              hinge: {rotate.y: 80°}
+        groups:
+          - name: hinge
+            channels:
+              - rotate.y: 200ms ease-in 0s
+  stderr: ''

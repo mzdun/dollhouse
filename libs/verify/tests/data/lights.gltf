@@ -1,0 +1,109 @@
+{
+  "asset": {
+    "version": "2.0",
+    "generator": "verify tests"
+  },
+  "scene": 0,
+  "scenes": [
+    {
+      "nodes": [
+        0
+      ]
+    }
+  ],
+  "nodes": [
+    {
+      "name": "room",
+      "children": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ]
+    },
+    {
+      "name": "sun",
+      "extensions": {
+        "KHR_lights_punctual": {
+          "light": 0
+        }
+      }
+    },
+    {
+      "name": "bulb",
+      "extensions": {
+        "KHR_lights_punctual": {
+          "light": 1
+        }
+      }
+    },
+    {
+      "name": "reading-lamp",
+      "extensions": {
+        "KHR_lights_punctual": {
+          "light": 2
+        }
+      }
+    },
+    {
+      "name": "panel",
+      "extensions": {
+        "PYXEL_lights_area": {
+          "light": 0
+        }
+      }
+    },
+    {
+      "name": "oval",
+      "extensions": {
+        "PYXEL_lights_area": {
+          "light": 1
+        }
+      }
+    }
+  ],
+  "extensionsUsed": [
+    "KHR_lights_punctual",
+    "PYXEL_lights_area"
+  ],
+  "extensions": {
+    "KHR_lights_punctual": {
+      "lights": [
+        {
+          "type": "directional",
+          "intensity": 2
+        },
+        {
+          "type": "point",
+          "range": 5
+        },
+        {
+          "type": "spot",
+          "spot": {
+            "innerConeAngle": 0.2,
+            "outerConeAngle": 0.6
+          }
+        }
+      ]
+    },
+    "PYXEL_lights_area": {
+      "lights": [
+        {
+          "shape": "rectangle",
+          "width": 0.6,
+          "height": 0.3,
+          "spread": 3.141592653589793,
+          "intensity": 10
+        },
+        {
+          "shape": "ellipse",
+          "width": 0.4,
+          "height": 0.2,
+          "spread": 1.5707963267948966,
+          "intensity": 10
+        }
+      ]
+    }
+  }
+}

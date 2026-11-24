@@ -33,3 +33,21 @@ set_target_properties(verify PROPERTIES
 if (DOLLHOUSE_INSTALL)
   install(TARGETS verify)
 endif()
+
+##################################################################
+##  TESTING
+##################################################################
+
+# the presets are named after the build types (see CMakePresets.json),
+# which has none for RelWithDebInfo; the cases and their models are in
+# tests/, see test-runner in .flow/config.yml
+string(TOLOWER "${CMAKE_BUILD_TYPE}" VERIFY_PRESET)
+if (DOLLHOUSE_TESTING AND VERIFY_PRESET MATCHES "^(debug|release)$")
+  add_test(
+    NAME verify-test-runner
+    COMMAND "${Python3_EXECUTABLE}" "${PROJECT_SOURCE_DIR}/.flow/flow.py"
+      tests runner --preset "${VERIFY_PRESET}"
+      --ctrf "${PROJECT_BINARY_DIR}/test-results/ctrf/verify.json"
+    WORKING_DIRECTORY ${PROJECT_SOURCE_DIR}
+  )
+endif()

@@ -1,0 +1,188 @@
+{
+  "asset": {
+    "version": "2.0",
+    "generator": "verify tests"
+  },
+  "scene": 0,
+  "scenes": [
+    {
+      "nodes": [
+        0
+      ]
+    }
+  ],
+  "nodes": [
+    {
+      "name": "cabinet",
+      "children": [
+        1,
+        2
+      ],
+      "extras": {
+        "PYXEL_interactions": [
+          {
+            "name": "cabinet",
+            "version": "1.0",
+            "slots": [
+              {
+                "name": "ratio",
+                "type": "float",
+                "direction": "input",
+                "default": 0.25
+              },
+              {
+                "name": "dim",
+                "type": "factor",
+                "direction": "input"
+              },
+              {
+                "name": "opened",
+                "type": "boolean",
+                "direction": "output"
+              },
+              {
+                "name": "tilt",
+                "type": "angle",
+                "direction": "output",
+                "default": 0.2617993877991494
+              },
+              {
+                "name": "reach",
+                "type": "length",
+                "direction": "variable"
+              },
+              {
+                "name": "spot",
+                "type": "offset",
+                "direction": "variable",
+                "default": [
+                  0.1,
+                  0.2,
+                  0.3
+                ]
+              }
+            ],
+            "states": {
+              "closed": {},
+              "ajar": {
+                "drawer": [
+                  {
+                    "translate.z": 0.1
+                  }
+                ],
+                "left-door": [
+                  {
+                    "rotate.y": -0.5235987755982988
+                  }
+                ],
+                "$opened": [
+                  {
+                    "set": true
+                  }
+                ],
+                "$tilt": [
+                  {
+                    "set": 0.08726646259971647
+                  }
+                ]
+              },
+              "opened": {
+                "drawer": [
+                  {
+                    "translate": [
+                      0.01,
+                      0.02,
+                      0.4
+                    ]
+                  }
+                ],
+                "left-door": [
+                  {
+                    "rotate": [
+                      0,
+                      -1.5707963267948966,
+                      0
+                    ]
+                  }
+                ],
+                "knob": [
+                  {
+                    "scale.x": 1.5
+                  },
+                  {
+                    "scale": [
+                      2,
+                      2,
+                      2
+                    ]
+                  }
+                ],
+                "$opened": [
+                  {
+                    "set": true
+                  }
+                ],
+                "$reach": [
+                  {
+                    "set": 0.75
+                  }
+                ],
+                "$spot": [
+                  {
+                    "set": [
+                      0.5,
+                      0,
+                      -0.125
+                    ]
+                  }
+                ]
+              }
+            },
+            "actions": [
+              {
+                "label": "Peek",
+                "when": "closed",
+                "then": "ajar"
+              },
+              {
+                "label": "Open",
+                "when": [
+                  "closed",
+                  "ajar"
+                ],
+                "then": "opened"
+              },
+              {
+                "label": "Close",
+                "when": [
+                  "ajar",
+                  "opened"
+                ],
+                "then": "closed"
+              }
+            ],
+            "transitions": {
+              "*": "all 2s linear 50ms",
+              "drawer": "translate.z 300ms ease, translate 400ms ease-in-out",
+              "left-door": "all 250ms ease-out 10ms",
+              "knob": "scale.x 0s ease-in, scale 1s",
+              "$opened": "set 0s linear 45ms"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "drawer"
+    },
+    {
+      "name": "left-door",
+      "children": [
+        3
+      ]
+    },
+    {
+      "name": "knob"
+    }
+  ]
+}

@@ -9,11 +9,12 @@ add_subdirectory(shapes)
 add_subdirectory(dollhouse)
 add_subdirectory(verify)
 
-# only the libraries with real tests; pyxel-engine and backends hold
+# only the code with real tests; pyxel-engine and backends hold
 # placeholders and the dollhouse app is a thin entry point
 add_to_coverage(
     pyxel-models
     pyxel-io
     shapes
+    verify
 )
 cov_set_parent_scope()

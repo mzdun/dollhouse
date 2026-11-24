@@ -1,0 +1,53 @@
+{
+  "asset": {
+    "version": "2.0",
+    "generator": "verify tests"
+  },
+  "scene": 0,
+  "scenes": [
+    {
+      "nodes": [
+        0
+      ]
+    }
+  ],
+  "nodes": [
+    {
+      "name": "lamp",
+      "children": [
+        1
+      ],
+      "extras": {
+        "PYXEL_interactions": [
+          {
+            "name": "bulb",
+            "version": "1.0",
+            "transitions": {
+              "light": "1.5s ease-out 100ms"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "bulb",
+      "extensions": {
+        "KHR_lights_punctual": {
+          "light": 0
+        }
+      }
+    }
+  ],
+  "extensionsUsed": [
+    "KHR_lights_punctual"
+  ],
+  "extensions": {
+    "KHR_lights_punctual": {
+      "lights": [
+        {
+          "type": "point"
+        }
+      ]
+    }
+  }
+}

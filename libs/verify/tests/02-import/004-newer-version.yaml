@@ -1,0 +1,6 @@
+args: -q $DATA/newer.gltf
+expected:
+  return-code: 0
+  stdout: ''
+  stderr: |
+    $DATA/newer.gltf: warning: active object `door`: read in part: version 1.1 is newer; left out: key `sounds`

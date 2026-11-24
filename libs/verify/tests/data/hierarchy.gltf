@@ -1,0 +1,45 @@
+{
+  "asset": {
+    "version": "2.0",
+    "generator": "verify tests"
+  },
+  "scene": 0,
+  "scenes": [
+    {
+      "nodes": [
+        0
+      ]
+    }
+  ],
+  "nodes": [
+    {
+      "name": "house",
+      "children": [
+        1,
+        4
+      ]
+    },
+    {
+      "name": "ground-floor",
+      "children": [
+        2,
+        3
+      ]
+    },
+    {
+      "name": "kitchen"
+    },
+    {
+      "name": "hall"
+    },
+    {
+      "name": "attic",
+      "children": [
+        5
+      ]
+    },
+    {
+      "name": "chest"
+    }
+  ]
+}
