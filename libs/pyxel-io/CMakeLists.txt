@@ -7,6 +7,8 @@ set(SRCS
     include/pyxel/io/interactions.hpp
 
     src/export.cpp
+    src/glb.cpp
+    src/glb.hpp
     src/gltf2.cpp
     src/gltf2.hpp
     src/import.cpp
