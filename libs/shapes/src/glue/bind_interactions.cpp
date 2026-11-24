@@ -53,7 +53,8 @@ namespace shapes::glue {
 
 		template <typename Value>
 		std::string unit_repr(Value const& value) {
-			return py::repr(py::cast(value)).cast<std::string>();
+			py::object const obj = py::cast(value);
+			return py::repr(obj).cast<std::string>();
 		}
 
 		std::string list_repr(std::vector<std::string> const& items) {
