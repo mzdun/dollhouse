@@ -55,7 +55,8 @@ further defined and clarified by project maintainers.
 ## Enforcement
 
 Instances of abusive, harassing, or otherwise unacceptable behavior may be
-reported by contacting the project team at marcin.zdun@gmail.com. All
+reported by contacting the project team at
+[marcin.zdun+dollhouse@gmail.com](mailto:Marcin%20Zdun%20%28dollhouse%20issues%29%20%3Cmarcin.zdun%2Bdollhouse%40gmail.com%3E?subject=%5Bdollhouse%20conduct%5D%20). All
 complaints will be reviewed and investigated and will result in a response that
 is deemed necessary and appropriate to the circumstances. The project team is
 obligated to maintain confidentiality with regard to the reporter of an incident.
