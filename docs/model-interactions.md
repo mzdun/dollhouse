@@ -534,7 +534,7 @@ Every tick of a scene goes through the same steps, in this order, for all placem
 2. **Actions.** The actions requested since the previous tick, by the user or by the application, are taken in the order they were requested, each starting or interrupting a transition (see [Starting a transition](#starting-a-transition)).
 3. **Lights.** Each light source evaluates its update expression, and a change of the future value of its intensity factor requests its synthesized state.
 4. **Transitions.** Every running transition advances by the time elapsed since the previous tick, its channels take their new current values, and the transitions reaching the end stop. A transition started in steps 2 or 3 of this tick does not advance yet: it starts from progress 0 in the next tick, unless its change duration is zero and it stopped at once.
-5. **Outputs.** Every output slot and variable whose current value has changed in this tick, in step 1 or 4, registers the change for step 1 of the next tick.
+5. **Outputs.** Every output slot and variable whose current value now differs from its value at the start of the tick registers the change for step 1 of the next tick. The change may come from any of steps 1 to 4: a wire in step 1, a transition that stopped at once in step 2 or 3 (a change duration of zero, or any transition of the [startup phase](#startup-phase)), or a running transition in step 4. A value that changes and returns to where it was within the same tick registers nothing.
 
 A value set by a state therefore comes after a value from a wire in the same tick, and a change crosses one wire per tick. The [startup phase](#startup-phase) runs the same steps, with no clock and with every transition immediate.
 
