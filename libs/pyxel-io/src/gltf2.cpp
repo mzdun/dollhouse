@@ -31,22 +31,14 @@
 #include <utility>
 #include <variant>
 #include <vector>
+#include "glb.hpp"
 #include "interactions_json.hpp"
 #include "interactions_rules.hpp"
 
 namespace pyxel::io::gltf2 {
 	namespace {
-		static_assert(std::endian::native == std::endian::little, "GLB is little-endian");
-
 		constexpr auto punctual_extension = "KHR_lights_punctual";
 		constexpr auto area_extension = "PYXEL_lights_area";
-
-		// https://registry.khronos.org/glTF/specs/2.0/glTF-2.0.html#binary-gltf-layout
-		constexpr std::uint32_t glb_magic = 0x46546C67;  // "glTF"
-		constexpr std::uint32_t glb_version = 2;
-		constexpr std::uint32_t chunk_json = 0x4E4F534A;  // "JSON"
-		constexpr size_t header_size = 12;
-		constexpr size_t chunk_header_size = 8;
 
 		[[noreturn]] void fail(char const* exporter, std::string const& message) {
 			throw DeadlyExportError(std::format("{}: {}", exporter, message));
@@ -54,40 +46,12 @@ namespace pyxel::io::gltf2 {
 
 		[[noreturn]] void fail(std::string const& message) { fail(bin_format_id, message); }
 
-		std::uint32_t read_u32(std::span<std::byte const> bytes, size_t offset) {
-			if (offset + 4 > bytes.size()) fail("the binary from the glTF 2 exporter is cut short");
-			std::uint32_t result{};
-			std::memcpy(&result, bytes.data() + offset, sizeof(result));
-			return result;
-		}
-
-		void write_u32(std::vector<std::byte>& out, std::uint32_t value) {
-			auto const* bytes = reinterpret_cast<std::byte const*>(&value);
-			out.insert(out.end(), bytes, bytes + sizeof(value));
-		}
-
-		struct chunk {
-			std::uint32_t type;
-			std::span<std::byte const> data;
-		};
-
-		std::vector<chunk> read_chunks(std::span<std::byte const> bytes) {
-			if (read_u32(bytes, 0) != glb_magic || read_u32(bytes, 4) != glb_version) {
-				fail("the glTF 2 exporter did not produce a GLB 2 binary");
+		std::vector<glb::chunk> read_chunks(std::span<std::byte const> bytes) {
+			try {
+				return glb::read_chunks(bytes);
+			} catch (std::runtime_error const& error) {
+				fail(std::format("the glTF 2 exporter wrote a broken binary: {}", error.what()));
 			}
-			auto const total = std::min<size_t>(read_u32(bytes, 8), bytes.size());
-
-			std::vector<chunk> result{};
-			for (size_t offset = header_size; offset + chunk_header_size <= total;) {
-				auto const length = read_u32(bytes, offset);
-				auto const type = read_u32(bytes, offset + 4);
-				offset += chunk_header_size;
-				if (offset + length > total) fail("a chunk of the binary is cut short");
-				result.push_back({type, bytes.subspan(offset, length)});
-				offset += length;
-			}
-			if (result.empty() || result.front().type != chunk_json) fail("the binary does not start with JSON");
-			return result;
 		}
 
 		using allocator = rapidjson::Document::AllocatorType;
@@ -373,31 +337,7 @@ namespace pyxel::io::gltf2 {
 			rapidjson::Writer<rapidjson::StringBuffer> writer{text};
 			doc.Accept(writer);
 
-			std::string json_text{text.GetString(), text.GetSize()};
-			// chunks are aligned to 4 bytes; JSON is padded with spaces
-			while (json_text.size() % 4 != 0)
-				json_text.push_back(' ');
-
-			std::vector<std::byte> out{};
-			out.reserve(blob.size() + json_text.size());
-			write_u32(out, glb_magic);
-			write_u32(out, glb_version);
-			write_u32(out, 0);  // total length, set below
-
-			write_u32(out, static_cast<std::uint32_t>(json_text.size()));
-			write_u32(out, chunk_json);
-			auto const* json_bytes = reinterpret_cast<std::byte const*>(json_text.data());
-			out.insert(out.end(), json_bytes, json_bytes + json_text.size());
-
-			for (auto const& [type, data] : std::span{chunks}.subspan(1)) {
-				write_u32(out, static_cast<std::uint32_t>(data.size()));
-				write_u32(out, type);
-				out.insert(out.end(), data.begin(), data.end());
-			}
-
-			auto const total = static_cast<std::uint32_t>(out.size());
-			std::memcpy(out.data() + 8, &total, sizeof(total));
-			return out;
+			return glb::write({text.GetString(), text.GetSize()}, std::span{chunks}.subspan(1));
 		}
 
 		void export_glb_pyxel(char const* path,
@@ -550,10 +490,12 @@ namespace pyxel::io::gltf2 {
 			auto const size = stream->FileSize();
 
 			std::uint32_t header[3]{};
-			if (size >= header_size && read_exactly(*stream, header, header_size) && header[0] == glb_magic) {
+			if (size >= glb::header_size && read_exactly(*stream, header, glb::header_size) &&
+			    header[0] == glb::magic) {
 				std::uint32_t chunk[2]{};
-				if (size < header_size + chunk_header_size || !read_exactly(*stream, chunk, chunk_header_size) ||
-				    chunk[1] != chunk_json || chunk[0] > size - header_size - chunk_header_size) {
+				if (size < glb::header_size + glb::chunk_header_size ||
+				    !read_exactly(*stream, chunk, glb::chunk_header_size) || chunk[1] != glb::chunk_json ||
+				    chunk[0] > size - glb::header_size - glb::chunk_header_size) {
 					return std::nullopt;
 				}
 				std::string result(chunk[0], '\0');
