@@ -5,6 +5,7 @@
 #include <format>
 #include <print>
 #include <string>
+#include <vector>
 #include "names.hpp"
 #include "outline.hpp"
 

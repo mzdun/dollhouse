@@ -1,7 +1,26 @@
 # Copyright (c) 2026 Marcin Zdun
 # This code is licensed under MIT license (see LICENSE for details)
 
-from shapes import *  # type: ignore
+from shapes import (
+    I,
+    action,
+    at_x,
+    at_z,
+    channel,
+    deg,
+    group,
+    length,
+    library,
+    mm,
+    offset,
+    rgb,
+    slot,
+    slot_direction,
+    slot_type,
+    solid,
+    state,
+    transitions,
+)
 
 _plastic = library.register_paint(rgb(246, 246, 242), roughness=0.35)
 

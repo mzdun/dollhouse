@@ -3,7 +3,26 @@
 
 from dataclasses import dataclass
 
-from shapes import *  # type: ignore
+from shapes import (
+    I,
+    action,
+    at_x,
+    at_y,
+    at_z,
+    channel,
+    cleanup,
+    cm,
+    deg,
+    group,
+    length,
+    library,
+    mm,
+    rgb,
+    size,
+    solid,
+    state,
+    transitions,
+)
 
 metal = library.register_paint(rgb(0, 0, 0), roughness=0.6, metallic=0.75)
 plank = library.register_paint(rgb(218, 185, 141), roughness=0.6)
@@ -140,7 +159,7 @@ def door(root: group):
     hinge_pos = cfg.wall_hole.width / 2 + plank_width
 
     hinge_rot = root.add_group(name="hinge").transform(
-        I.translate(x=-hinge_pos, z=(cfg.wall_hole.depth / 2 + plank_width))
+        I.translate(x=-hinge_pos, z=cfg.wall_hole.depth / 2 + plank_width)
     )
     hinge_rot.add_active_object(
         name="opener",
