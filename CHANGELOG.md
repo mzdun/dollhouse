@@ -2,6 +2,33 @@
 
 All notable changes to this project will be documented in this file. See [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) and [COMMITS.md](COMMITS.md) for commit guidelines.
 
+## [0.4.0](https://github.com/mzdun/dollhouse/compare/v0.3.0...v0.4.0) (2026-11-24)
+
+### New Features
+
+- **interactions**: load active objects for running them ([61d6d85](https://github.com/mzdun/dollhouse/commit/61d6d85f566302e231c7087c21df6bb3b65273d3))
+- **interactions**: check the rules on import ([6b3982a](https://github.com/mzdun/dollhouse/commit/6b3982aafe52ca93c0fb36cf41d3f08d8e7cfb95))
+- **interactions**: check the rules before exporting ([df9b587](https://github.com/mzdun/dollhouse/commit/df9b5871bcd463dee9f070a731d0b74d5a347e11))
+- **interactions**: read active objects from glTF 2 files ([98bc0cc](https://github.com/mzdun/dollhouse/commit/98bc0ccc89a5b3d8ef54e7643151b64c0411ffa2))
+- **interactions**: write active objects to glTF 2 files ([d185f83](https://github.com/mzdun/dollhouse/commit/d185f83f815bb9cd0fb908df2f570753052bea85))
+- **interactions**: pass active objects through the sink ([4d2af2b](https://github.com/mzdun/dollhouse/commit/4d2af2b0f477189cb693b73b286c751ce96920b0))
+- **interactions**: let groups declare active objects ([111528e](https://github.com/mzdun/dollhouse/commit/111528e9659a8543616b47f1e6dba072ec2e8ecf))
+- **interactions**: add the C++ declarations of active objects ([9e63afa](https://github.com/mzdun/dollhouse/commit/9e63afa1e2935a37c50e671ef1c2b3c6052663f8))
+- **io**: import models into a loaded model ([2ed2a4d](https://github.com/mzdun/dollhouse/commit/2ed2a4d178ba3e712280913d92e2fe5cadc11e02))
+- **shapes**: declare active objects from Python ([51fd94c](https://github.com/mzdun/dollhouse/commit/51fd94cb99695de3d53eb2199dfe63658e77e6f4))
+- **verify**: add a tool verifying model files ([ac3e7db](https://github.com/mzdun/dollhouse/commit/ac3e7dbd14753ca189f8a0d66b55d74e5dabe343))
+
+### Bug Fixes
+
+- remove compilation issue on GCC ([55a574c](https://github.com/mzdun/dollhouse/commit/55a574c3bb5e9007560724e9aa4ad8cf50743f66))
+- **docs**: define the order of declaration on export ([d6c3db4](https://github.com/mzdun/dollhouse/commit/d6c3db44aa06fa20c5e4b1a8f795b60f9a11a349))
+- **interactions**: leave out targets with no changes left ([3b3f8f9](https://github.com/mzdun/dollhouse/commit/3b3f8f915e2840041d554a4ec23291ef0027761f))
+- **interactions**: remember an imported scene only once it is complete ([2c39d30](https://github.com/mzdun/dollhouse/commit/2c39d301d804292f8747cfe5c2075e407e854f14))
+- **interactions**: refuse actions with an empty label ([385ef48](https://github.com/mzdun/dollhouse/commit/385ef48b2390e85b0a199a26f3a7f1ed30b0570e))
+- **interactions**: generate light names without a dot ([33dc4b5](https://github.com/mzdun/dollhouse/commit/33dc4b5bbe8c8f753d4e7756555a6584939e5cfc))
+- **interactions**: tell imported scenes apart by more than the address ([0613c8d](https://github.com/mzdun/dollhouse/commit/0613c8d12c8593d271fb6fd14241adbceb9851c8))
+- **interactions**: keep light names on export ([7444025](https://github.com/mzdun/dollhouse/commit/74440252d7831e07ee9aca64769872c07744cefb))
+
 ## [0.3.0](https://github.com/mzdun/dollhouse/compare/v0.2.1...v0.3.0) (2026-11-24)
 
 ### New Features
