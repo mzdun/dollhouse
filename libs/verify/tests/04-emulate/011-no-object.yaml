@@ -1,0 +1,6 @@
+args: -q -e door $DATA/door.gltf
+expected:
+  return-code: 1
+  stdout: ''
+  stderr: |
+    $DATA/door.gltf: error: emulate 'door': expected an action and an active object

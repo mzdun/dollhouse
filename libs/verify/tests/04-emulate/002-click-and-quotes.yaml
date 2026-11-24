@@ -1,0 +1,10 @@
+args: -w $TMP/door-steps.gltf -e '"Open" door' -e '<click> "door"' -e='Open door' -e '"Close" "door"' $DATA/door.gltf
+expected:
+  return-code: 0
+  stdout: |
+    EMULATION
+      - "Open" door: closed -> opened
+      - <click> door: opened -> closed
+      - "Open" door: closed -> opened
+      - "Close" door: opened -> closed
+  stderr: ''

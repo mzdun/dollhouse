@@ -1,0 +1,17 @@
+args: -e 'Open door' -w $TMP/door-opened.gltf $DATA/door.gltf
+post:
+- $TMP/door-opened.gltf
+writes:
+  $TMP/door-opened.gltf: $DATA/posed/door-opened.gltf
+expected:
+  return-code: 0
+  stdout: |
+    EMULATION
+      - "Open" door: closed -> opened
+
+    HIERARCHY
+      - frame
+      - hinge
+        - leaf
+        - handle
+  stderr: ''

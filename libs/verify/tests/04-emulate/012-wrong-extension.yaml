@@ -1,0 +1,6 @@
+args: -w $TMP/door.glb $DATA/door.gltf
+expected:
+  return-code: 1
+  stdout: ''
+  stderr: |
+    $DATA/door.gltf: error: cannot write $TMP/door.glb: a copy of a text glTF 2 file needs the .gltf extension

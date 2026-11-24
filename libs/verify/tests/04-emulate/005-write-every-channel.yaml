@@ -1,0 +1,9 @@
+args: --emulate='Open cabinet' --write=$TMP/cabinet-opened.gltf $DATA/cabinet.gltf
+writes:
+  $TMP/cabinet-opened.gltf: $DATA/posed/cabinet-opened.gltf
+expected:
+  return-code: 0
+  stdout: |
+    EMULATION
+      - "Open" cabinet: closed -> opened
+  stderr: ''

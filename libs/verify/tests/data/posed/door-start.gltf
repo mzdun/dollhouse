@@ -1,0 +1,39 @@
+{
+    "asset": {
+        "version": "2.0",
+        "generator": "verify tests"
+    },
+    "scene": 0,
+    "scenes": [
+        {
+            "nodes": [
+                0
+            ]
+        }
+    ],
+    "nodes": [
+        {
+            "name": "door",
+            "children": [
+                1,
+                2
+            ]
+        },
+        {
+            "name": "frame"
+        },
+        {
+            "name": "hinge",
+            "children": [
+                3,
+                4
+            ]
+        },
+        {
+            "name": "leaf"
+        },
+        {
+            "name": "handle"
+        }
+    ]
+}

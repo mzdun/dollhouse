@@ -1,0 +1,6 @@
+args: -q -e 'Slam door' $DATA/door.gltf
+expected:
+  return-code: 1
+  stdout: ''
+  stderr: |
+    $DATA/door.gltf: error: emulate 'Slam door': active object `door` has no action "Slam"

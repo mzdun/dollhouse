@@ -1,0 +1,12 @@
+args: -w $TMP/dropped.gltf $DATA/dropped.gltf
+expected:
+  return-code: 1
+  stdout: ''
+  stderr: |
+    $DATA/dropped.gltf: error: left out: the entry is not a mapping
+    $DATA/dropped.gltf: error: left out: it has no name
+    $DATA/dropped.gltf: error: active object `no-version`: left out: it has no version
+    $DATA/dropped.gltf: error: active object `not-a-version`: left out: "one" is not a version
+    $DATA/dropped.gltf: error: active object `too-new`: left out: version 2.0 is not supported
+    $DATA/dropped.gltf: error: active object `too-old`: left out: version 0.9 is too old, and cannot be upgraded
+    $DATA/dropped.gltf: error: active object `ghost`: left out: names group `ghost-hinge` in state `opened`, which is not a node of the model
