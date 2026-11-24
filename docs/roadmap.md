@@ -27,27 +27,27 @@ Each stage ends with something that runs. Stage 3 (Plans) does not depend on the
   - [x] Storage in the glTF file: the `PYXEL_interactions` extra of the root node, written after Assimp, next to `PYXEL_lights_area`
   - [x] JSON Schema of the extra: [interactions.schema.json](../schemas/interactions.schema.json)
 - [x] Update [plans-schema.md](plans-schema.md) to link the new spec instead of the "draft available soon" note
-- [ ] Post-process every glTF 2 export, not only the binary one, with what Assimp cannot write
+- [x] Post-process every glTF 2 export, not only the binary one, with what Assimp cannot write
   - [x] `gltf2-lights`: the lights for `gltf2`, as `glb2-lights` adds them for `glb2`
   - [x] Rename both to `glb2-pyxel` and `gltf2-pyxel`, taking the place of `glb2` and `gltf2`
-  - [ ] Add the `PYXEL_interactions` extra to both pyxel exporters; each adds everything of ours to the glTF document: `KHR_lights_punctual`, `PYXEL_lights_area` and the `PYXEL_interactions` extra
+  - [x] Add the `PYXEL_interactions` extra to both pyxel exporters; each adds everything of ours to the glTF document: `KHR_lights_punctual`, `PYXEL_lights_area` and the `PYXEL_interactions` extra
 - [x] Read the area lights back: a glTF 2 importer in `pyxel-io`, taking the place of Assimp's, adds the `PYXEL_lights_area` lights to the scene
 - [x] Declare active objects, states, actions, slots and variables in `pyxel-models`
 - [x] Expose them in the `shapes` Python module
 - [x] Export them to glb and glTF in `pyxel-io`, through `glb2-pyxel` and `gltf2-pyxel`
-- [ ] Provide rules API for transition runner
-  - [ ] Parse the rules
-  - [ ] Diverge for light active objects and for geometry-based active objects
-  - [ ] Propagate `"*"` (with target type filtering, on lights paths assume `"light"` refers to a slot)
-  - [ ] For lights, propagate `all` with used channels filtering, using `set` as the only supported channel.
-  - [ ] Take the `set` rule for `lite` and store it for usage with lights.
-  - [ ] For geo objects, propagate `all` with used channels filtering.
-  - [ ] Build lookup table of parsed rules per target.
-  - [ ] Gather all group rules in a lookup table and all slots in a separate lookup table; for lights put `"light"` into slots.
-  - [ ] Store both lookup tables with loaded active object
+- [x] Provide rules API for transition runner
+  - [x] Parse the rules
+  - [x] Diverge for light active objects and for geometry-based active objects
+  - [x] Propagate `"*"` (with target type filtering, on lights paths assume `"light"` refers to a slot)
+  - [x] For lights, propagate `all` with used channels filtering, using `set` as the only supported channel.
+  - [x] Take the `set` rule for `lite` and store it for usage with lights.
+  - [x] For geo objects, propagate `all` with used channels filtering.
+  - [x] Build lookup table of parsed rules per target.
+  - [x] Gather all group rules in a lookup table and all slots in a separate lookup table; for lights put `"light"` into slots.
+  - [x] Store both lookup tables with loaded active object
 - [ ] Fix "Order within a tick" in the spec: step 5 registers only the changes made in steps 1 and 4, so a state change that takes no time (it stops at once in step 2 or 3) never sends its new value along the wires; register every output and variable whose value changed anywhere in steps 1 to 4. Resolve before Dollhouse work (stage 4) starts.
-- [ ] A CLI tool for quick checks of models: read a `.glb` or `.gltf` file and print its bounding box and active objects, with their states, actions, slots, variables and transitions
-- [ ] Sample models: a door, a light switch, a lamp
+- [x] A CLI tool for quick checks of models: read a `.glb` or `.gltf` file and print its bounding box and active objects, with their states, actions, slots, variables and transitions
+- [x] Sample models: a door, a light switch, a lamp
 
 ## Stage 1: Inspector as a viewer
 
@@ -75,7 +75,7 @@ Each stage ends with something that runs. Stage 3 (Plans) does not depend on the
 
 Needs stage 0.
 
-- [ ] Load active objects, states, actions, slots and variables from the glb
+- [x] Load active objects, states, actions, slots and variables from the glb
 - [ ] Model checks (active objects, slots, slot types), reported in the log view
 - [ ] Runtime for states, actions and slots
 - [ ] UI
