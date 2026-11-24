@@ -119,8 +119,28 @@ namespace pyxel::gfx {
 		// model, with the nodes placed by `world_matrices(moves)`.
 		AABB bounds(std::span<glm::mat4 const> moves = {}) const;
 
+		// The move of every node, with each active object settled in its
+		// state from `states`, one per object, as indices into its states:
+		// the values of the channels of each group the state sets,
+		// composed with move_of(). The moves of several objects moving the
+		// same node are composed in the order the objects are declared,
+		// `M = M1 · M2 · ...`. An object with an empty state, past the end
+		// of `states`, or with a state it does not have, moves nothing; so
+		// do the light sources.
+		std::vector<glm::dmat4> moves(std::span<std::optional<size_t> const> states) const;
+
+		// The states every object starts in, for moves().
+		std::vector<std::optional<size_t>> start_states() const;
+
 		// Fills `objects` from the loaded objects, finding their groups among
 		// the nodes and their lights among the lights, by name.
 		void resolve(interactions::loaded_objects loaded);
 	};
+
+	// The move of a group with the values of its channels, composed in the
+	// order given: `M = M1 · M2 · ...`, so each one moves the axes already
+	// moved by the ones before it (see Channels and Model space in
+	// docs/model-interactions.md). In doubles, for the callers writing the
+	// result back to a file.
+	glm::dmat4 move_of(std::span<interactions::group_transformation const> values);
 }  // namespace pyxel::gfx
