@@ -3,7 +3,7 @@
 
 cmake_minimum_required (VERSION 4.2)
 project (dollhouse
-  VERSION 0.2.1
+  VERSION 0.3.0
   DESCRIPTION "Your house, your furniture, in one place"
   LANGUAGES CXX)
 
