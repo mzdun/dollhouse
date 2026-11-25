@@ -55,12 +55,22 @@ Each stage ends with something that runs. Stage 3 (Plans) does not depend on the
   - [ ] Input binding engine (buttons, single-axis wheels, two-axis sticks), designed with controllers in mind
   - [ ] Mouse and keyboard
   - [ ] Keep the window state between runs
-- [ ] GLFW backend in `libs/backends/glfw`
-  - [ ] Window, graphics context and the main loop
-  - [ ] Mouse and keyboard events fed to the input binding engine
+- [ ] Dependencies: `sdl`, `sdl_image` and `imgui` (docking branch) in `conanfile.txt` (see [Dependencies](ui-framework-analysis.md#dependencies))
+- [ ] SDL3 backend in `libs/backends/sdl3`, replacing `libs/backends/glfw`
+  - [ ] Window and the main loop
+  - [ ] Mouse, keyboard and text events fed to the input binding engine
   - [ ] Window position, size and state, for keeping them between runs
   - [ ] Verify the application framework against it: an empty Inspector window that opens, takes input, closes and reopens where it was left
-- [ ] UI engine (independent of the backend window implementation)
+- [ ] SDL3 GPU backend in `libs/backends/sdl3-gpu`
+  - [ ] Device, Vulkan first, with the platform's native driver as the fallback; the chosen driver goes to the log
+  - [ ] Shader pipeline: sources compiled to SPIR-V, SDL_shadercross for DXIL and MSL
+    - [ ] Decide the source language (GLSL or HLSL)
+    - [ ] Decide when shadercross runs (build time or runtime)
+    - [ ] Set up SDL_shadercross as submodule under `external/`
+  - [ ] UI pass drawing the ImGui draw data through `imgui_impl_sdlgpu3`
+- [ ] UI in `libs/pyxel-ui` (Dear ImGui, independent of SDL)
+  - [ ] ImGui context fed from engine events, with ProggyForever as the font
+  - [ ] Docking, with the Inspector layout kept with the window state
   - [ ] Log view (warnings, errors)
   - [ ] Controls for the sun
 - [ ] Model loader/reloader, with a file watcher (the model and the files it depends on, such as the `.bin` of a `.gltf`)
@@ -107,7 +117,7 @@ Independent of stages 1 and 2; a library, tested without UI.
 
 ## Stage 4: Dollhouse MVP
 
-- [ ] Reuse the Inspector framework (app and UI)
+- [ ] Reuse the Inspector framework (app and UI), with a minimal set of floating windows and widgets over the house instead of docked panels
 - [ ] (Re)load project
 - [ ] Project observer, reusing the Inspector file watcher (reload when any file of the project changes), watching:
   - the main project file
