@@ -26,7 +26,8 @@ entry:
     - DevInst
 
 python-dynamic-modules:
-  - shapes
+  - name: shapes
+    enabled-by: DOLLHOUSE_WITH_SHAPES
 
 compiler:
   names:
