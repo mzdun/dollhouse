@@ -21,7 +21,7 @@ target_include_directories(shapes-core
 )
 target_link_libraries(shapes-core PUBLIC pyxel-models pyxel-io)
 set_target_properties(shapes-core PROPERTIES
-    FOLDER libs
+    FOLDER libs/extras
     # linked into the `shapes` Python module, a shared library
     POSITION_INDEPENDENT_CODE ON
 )

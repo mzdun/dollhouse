@@ -57,7 +57,7 @@ jobs:
           VALIDATE_TSX: true
 
           IGNORE_GENERATED_FILES: true
-          FILTER_REGEX_INCLUDE: ".*/libs/.*|.*/apps/.*|.*/docs/.*|.*/examples/.*|.*/tools/[^/]+\\.py"
+          FILTER_REGEX_INCLUDE: ".*/libs/.*|.*/extras/.*|.*/docs/.*|.*/examples/.*|.*/tools/[^/]+\\.py"
           FILTER_REGEX_EXCLUDE: ".*/build/.*|\
             .*/external/.*|\
             .*/tools/.*"

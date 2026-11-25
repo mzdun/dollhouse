@@ -28,7 +28,7 @@ This is a project maintained in spare time, so the answers are best effort. You 
 The most interesting parts are the ones reading data from outside:
 
 - loading glTF 2 and GLB files, including the active objects and their rules (`libs/pyxel-io`),
-- the `shapes` Python module (`libs/shapes`),
-- the `verify` tool (`libs/verify`).
+- the `shapes` Python module (`extras/shapes`),
+- the `verify` tool (`extras/verify`).
 
 Problems in third-party dependencies should go to their own projects, unless dollhouse uses them in an unsafe way.

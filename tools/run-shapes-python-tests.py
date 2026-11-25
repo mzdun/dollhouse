@@ -8,7 +8,7 @@ Run the `shapes` Python bindings tests the way CTest does.
 
 The command, environment and working directory are taken from the
 ``shapes-python`` test registered in ``build/<preset>`` (see
-libs/shapes/CMakeLists.txt), so the run matches CTest: the same interpreter,
+extras/shapes/CMakeLists.txt), so the run matches CTest: the same interpreter,
 the module from that build tree, the JUnit report, and on sanitizer builds the
 preloaded ASan runtime. Every argument this script does not know goes to
 pytest:
@@ -32,7 +32,7 @@ import textwrap
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
-TEST_DIR = ROOT / "libs" / "shapes" / "tests" / "python"
+TEST_DIR = ROOT / "extras" / "shapes" / "tests" / "python"
 TEST_NAME = "shapes-python"
 PRESETS = ("debug", "release")
 
@@ -50,8 +50,7 @@ class _DocstringFormatter(argparse.RawDescriptionHelpFormatter):
     def _fill_text(self, text: str, width: int, indent: str) -> str:
         paragraphs = inspect.cleandoc(text).split("\n\n")
         return "\n\n".join(
-            self._fill_paragraph(paragraph, width, indent)
-            for paragraph in paragraphs
+            self._fill_paragraph(paragraph, width, indent) for paragraph in paragraphs
         )
 
     @staticmethod
