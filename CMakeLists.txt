@@ -94,6 +94,7 @@ include(${PROJECT_SOURCE_DIR}/.flow/packages/config.cmake)
 include(CPack)
 
 add_subdirectory(libs)
+add_subdirectory(extras)
 
 # #################################################################
 # #  COVERAGE

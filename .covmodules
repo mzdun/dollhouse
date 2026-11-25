@@ -3,4 +3,7 @@
 [module "IO"]
 	path = libs/pyxel-io
 [module "Shapes"]
-	path = libs/shapes
+	path = extras/shapes
+[module "Verify"]
+	path = extras/verify
+
