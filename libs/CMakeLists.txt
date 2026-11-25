@@ -9,8 +9,10 @@ add_subdirectory(backends)
 if (DOLLHOUSE_WITH_SHAPES)
 add_subdirectory(shapes)
 endif(DOLLHOUSE_WITH_SHAPES)
-
+if (DOLLHOUSE_WITH_VERIFY)
 add_subdirectory(verify)
+endif(DOLLHOUSE_WITH_VERIFY)
+
 add_subdirectory(dollhouse)
 
 # only the code with real tests; pyxel-engine and backends hold
@@ -18,9 +20,14 @@ add_subdirectory(dollhouse)
 add_to_coverage(
     pyxel-models
     pyxel-io
-    verify
 )
+
 if (DOLLHOUSE_WITH_SHAPES)
 add_to_coverage(shapes)
 endif(DOLLHOUSE_WITH_SHAPES)
+
+if (DOLLHOUSE_WITH_VERIFY)
+add_to_coverage(verify)
+endif(DOLLHOUSE_WITH_VERIFY)
+
 cov_set_parent_scope()
