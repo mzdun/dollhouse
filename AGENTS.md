@@ -81,6 +81,8 @@ Build trees go to `build/debug` and `build/release`. Test reports (JUnit XML) ar
 - New source files go to the `SRCS` list and new test files to the `TEST_SRCS` list in the matching `CMakeLists.txt`.
 - Put the logic into `libs/libdollhouse`, where it can be tested; keep `libs/app` a thin entry point. A new library goes into its own `libs/<name>/` directory, added with `add_subdirectory()` in `libs/CMakeLists.txt`.
 - New C++ dependencies go to `[requires]` in `conanfile.txt` and then `find_package()` + `target_link_libraries()` in CMake.
+- Never keep an owned C pointer from SDL or Dear ImGui bare. Wrap it in a `std::unique_ptr` alias whose deleter calls the matching destroy function given as a template argument, so the deleter is an empty type, and `static_assert` that the alias is the size of the raw pointer. GPU resources released through their device (`SDL_ReleaseGPU*(device, ptr)`) keep the device next to the pointer instead. See [Handles](docs/ui-framework-analysis.md#handles).
+- SDL is called only from `libs/backends/`; the other libraries stay free of it, so they can be tested without a window. The layers are in [docs/project-structure.md](docs/project-structure.md).
 - Compiler flags for every target come from `DOLLHOUSE_ADDITIONAL_COMPILE_FLAGS` and `DOLLHOUSE_ADDITIONAL_LINK_FLAGS` set in `.flow/cmake/common.cmake`.
 - Format changed C++ files with clang-format before committing.
 
