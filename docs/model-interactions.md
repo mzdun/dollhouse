@@ -659,7 +659,7 @@ Two more things may happen on import, and neither breaks an object. Assimp may s
 
 The schema gives what the exporter writes and the importer accepts. Bindings in other languages may be laxer than the JSON: in the [C++ data structures](#c-data-structures), for example, a `light_active_object` may have an empty `light` transition, which the exporter writes as no entry at all, as in the JSON an entry describing a light exists only to declare its transition.
 
-For the same objects in a readable form, see [`docs/examples/interactions-stored.yaml`](examples/interactions-stored.yaml), and [`docs/examples/interactions-loaded.yaml`](examples/interactions-loaded.yaml) for what an importer builds from them.
+For the same objects in a readable form, see [`examples/interactions-stored.yaml`](../examples/interactions-stored.yaml), and [`examples/interactions-loaded.yaml`](../examples/interactions-loaded.yaml) for what an importer builds from them.
 
 ## API
 

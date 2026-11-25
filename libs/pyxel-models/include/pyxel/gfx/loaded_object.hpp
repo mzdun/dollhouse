@@ -17,8 +17,8 @@
 // PYXEL_interactions extra and checked the rules: the declarations of
 // pyxel/gfx/interactions.hpp, resolved for running them (see Actions and
 // Instantiation in docs/model-interactions.md, and
-// docs/examples/interactions-loaded.yaml for the same objects as the ones
-// in docs/examples/interactions-stored.yaml). Nothing here is stored in a
+// examples/interactions-loaded.yaml for the same objects as the ones
+// in examples/interactions-stored.yaml). Nothing here is stored in a
 // file; it is all derived from the declarations.
 //
 // States, groups and slots are referred to by their index in the lists of

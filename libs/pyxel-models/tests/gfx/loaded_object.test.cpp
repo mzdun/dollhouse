@@ -9,8 +9,8 @@
 #include <string>
 #include <vector>
 
-// The objects of docs/examples/interactions-stored.yaml, loaded into the ones
-// of docs/examples/interactions-loaded.yaml.
+// The objects of examples/interactions-stored.yaml, loaded into the ones
+// of examples/interactions-loaded.yaml.
 namespace pyxel::gfx::interactions::testing {
 	using namespace math::literals;
 	using strings = std::vector<std::string>;
