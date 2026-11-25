@@ -22,6 +22,7 @@ class MkDirs(Rule):
 
 
 class Copy(Rule):
+
     def command(self, statement: Statement):
         return []
 
@@ -31,17 +32,13 @@ class Copy(Rule):
 
 class Magick:
     class SvgToPng(Rule):
+
         def command(self, statement: Statement):
             return [
                 tool,
                 "-background",
                 "none",
-                *statement.inputs,
-                "-alpha",
-                "Off",
-                "-compose",
-                "CopyOpacity",
-                "-composite",
+                statement.inputs[0],
                 statement.outputs[0],
             ]
 
@@ -81,8 +78,8 @@ def copy(src: str, dst: str):
     return Copy.statement([dst], [src])
 
 
-def svg_to_png(output: str, image: str, mask: str):
-    return Magick.SvgToPng.statement([output], [image, mask], [os.path.dirname(output)])
+def svg_to_png(output: str, image: str):
+    return Magick.SvgToPng.statement([output], [image], [os.path.dirname(output)])
 
 
 def resize(output: str, stencil: str, size: str):

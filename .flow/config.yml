@@ -15,6 +15,7 @@ entry:
   build: [Build]
   dyn-install: [Build, DynModulesInstall]
   test: [Build, Test]
+  icons: [Icons]
   verify:
     - Build
     - Test

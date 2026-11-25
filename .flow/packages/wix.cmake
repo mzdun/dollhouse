@@ -1,5 +1,5 @@
 set(CPACK_WIX_UPGRADE_GUID "a799d16e-b7ca-4726-b683-2a1818afd541")
-set(CPACK_WIX_PRODUCT_ICON "${PROJECT_SOURCE_DIR}/data/assets/appicon.ico")
+set(CPACK_WIX_PRODUCT_ICON "${PROJECT_SOURCE_DIR}/data/assets/dollhouse.ico")
 set(CPACK_WIX_UI_BANNER "${PROJECT_SOURCE_DIR}/data/assets/wix_banner.bmp")
 set(CPACK_WIX_UI_DIALOG "${PROJECT_SOURCE_DIR}/data/assets/wix_dialog.bmp")
 set(CPACK_WIX_ROOT_FEATURE_TITLE "dollhouse ${PROJECT_VERSION_MAJOR}.${PROJECT_VERSION_MINOR}")

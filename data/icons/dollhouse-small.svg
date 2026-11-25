@@ -1,0 +1,50 @@
+<svg xmlns='http://www.w3.org/2000/svg' width='256px' height='256px' viewBox='0 0 48 48' version='1.1' fill="none">
+    <defs>
+        <radialGradient id="gradient-fill" cx="12" cy="15" r="48" gradientUnits="userSpaceOnUse">
+            <stop offset="0" stop-color="#3057E1" />
+            <stop offset="1" stop-color="#002882" />
+        </radialGradient>
+        <style>
+            .plan {
+                stroke-linecap: round;
+                stroke-linejoin: round;
+                fill: none;
+            }
+
+            .outline {
+                stroke-width: 5;
+                stroke: #002082;
+            }
+
+            .outline>.partitions {
+                stroke-width: 3.5;
+            }
+
+            .drawing {
+                stroke-width: 3;
+                stroke: #ffffff;
+            }
+
+            .drawing>.partitions {
+                stroke-width: 1.5;
+            }
+        </style>
+    </defs>
+    <g>
+        <rect fill="url(#gradient-fill)" width="48" height="48" rx="5" />
+        <g class="plan outline" transform="translate(4,4)">
+            <path d="M15,38 h-13 v-36 h36 v36 h-13" />
+            <path class="partitions" d="
+                M13,2 v20 m0,10 v6
+                M13,16 h14 v6 m0,10 v6
+                " />
+        </g>
+        <g class="plan drawing" transform="translate(4,4)">
+            <path d="M15,38 h-13 v-36 h36 v36 h-13" />
+            <path class="partitions" d="
+                M13,2 v20 m0,10 v6
+                M13,16 h14 v6 m0,10 v6
+                " />
+        </g>
+    </g>
+</svg>

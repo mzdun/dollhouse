@@ -1,0 +1,90 @@
+<svg xmlns='http://www.w3.org/2000/svg' width='256px' height='256px' viewBox='0 0 48 48' version='1.1' fill="none">
+    <defs>
+        <filter id='shadow' color-interpolation-filters="sRGB">
+            <feDropShadow dx="0" dy="1" stdDeviation=".3" flood-opacity="0.25" />
+        </filter>
+        <radialGradient id="fill-red" cx="-11" cy="-14" r="34" gradientUnits="userSpaceOnUse">
+            <stop offset="0" stop-color="#fc4f4f" />
+            <stop offset="1" stop-color="#480e0e" />
+        </radialGradient>
+        <radialGradient id="fill-green" cx="-11" cy="-14" r="34" gradientUnits="userSpaceOnUse">
+            <stop offset="0" stop-color="#9dfc4f" />
+            <stop offset="1" stop-color="#28480e" />
+        </radialGradient>
+        <radialGradient id="fill-blue" cx="-11" cy="-14" r="34" gradientUnits="userSpaceOnUse">
+            <stop offset="0" stop-color="#4fc6fc" />
+            <stop offset="1" stop-color="#0e3648" />
+        </radialGradient>
+        <style>
+            .red-paint {
+                fill: url("#fill-red");
+            }
+
+            .green-paint {
+                fill: url("#fill-green");
+            }
+
+            .blue-paint {
+                fill: url("#fill-blue");
+            }
+
+            .shadow {
+                fill: white;
+                filter: url("#shadow");
+            }
+
+            .face-top {
+                opacity: .15;
+            }
+
+            .face-left {
+                opacity: .1;
+            }
+
+            .face-right {
+                opacity: .2;
+            }
+        </style>
+    </defs>
+
+    <!-- rect opacity=".4" width="48" height="48" fill="black" / -->
+
+    <g transform="translate(24,41.76)">
+        <path class="shadow" d="
+        M-9.53,0 l9.53,-4.76 l9.53,4.76 l9.53,-4.76
+        l-19.05,-9.53 l-19.05,9.53 z
+    " />
+
+        <g transform="translate(-9.53,0)">
+            <path class="green-paint" d="M0,0 l-9.53,-4.76 v-11 l9.53,-4.76 l9.53,4.76 v11  z" />
+
+            <g fill="black">
+                <path class="face-left" d="M0,0 l-9.53,-4.76 v-11 l9.53,4.76 z" />
+                <path class="face-right" d="M0,0 l9.53,-4.76 v-11 l-9.53,4.76 z" />
+                <path class="face-top" d="M0,-11 l-9.53,-4.76 l9.53,-4.76 l9.53,4.76 z" />
+            </g>
+        </g>
+
+        <g transform="translate(0,-15.76)">
+
+            <path class="red-paint" d="M0,0 l-9.53,-4.76 v-11 l9.53,-4.76 l9.53,4.76 v11  z" />
+
+            <g fill="black">
+                <path class="face-left" d="M0,0 l-9.53,-4.76 v-11 l9.53,4.76 z" />
+                <path class="face-right" d="M0,0 l9.53,-4.76 v-11 l-9.53,4.76 z" />
+                <path class="face-top" d="M0,-11 l-9.53,-4.76 l9.53,-4.76 l9.53,4.76 z" />
+            </g>
+        </g>
+
+        <g transform="translate(9.53,0)">
+
+            <path class="blue-paint" d="M0,0 l-9.53,-4.76 v-11 l9.53,-4.76 l9.53,4.76 v11  z" />
+
+            <g fill="black">
+                <path class="face-left" d="M0,0 l-9.53,-4.76 v-11 l9.53,4.76 z" />
+                <path class="face-right" d="M0,0 l9.53,-4.76 v-11 l-9.53,4.76 z" />
+                <path class="face-top" d="M0,-11 l-9.53,-4.76 l9.53,-4.76 l9.53,4.76 z" />
+            </g>
+        </g>
+    </g>
+</svg>
