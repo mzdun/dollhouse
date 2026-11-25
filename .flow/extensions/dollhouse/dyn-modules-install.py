@@ -13,6 +13,14 @@ Configuration (``.flow/config.yml``) names the modules:
 
     python-dynamic-modules:
       - shapes
+      - name: other
+        enabled-by: DOLLHOUSE_WITH_OTHER
+
+A module given by its name alone is always installed. A module given with
+``enabled-by`` is installed only when that variable is true in the
+``CMakeCache.txt`` of the build directory, so a module turned off by a
+CMake option is skipped, not reported missing. A variable absent from the
+cache is an error: it is either misspelled or the build is not configured.
 
 Each module is looked up in ``<build dir>/bin`` as either one of::
 
@@ -36,7 +44,9 @@ runtime of Visual Studio.
 
 import json
 import os
+import re
 import sysconfig
+from dataclasses import dataclass
 from pathlib import Path
 
 from proj_flow.api import env, step
@@ -45,8 +55,98 @@ EXTENSIONS = ["pyd", "so"]
 ALLOW_DEBUG_ENV = "DOLLHOUSE_INSTALL_DEBUG"
 
 
-def _modules(rt: env.Runtime) -> list[str]:
-    return [str(name) for name in rt._cfg.get("python-dynamic-modules", [])]
+#: Values CMake reads as false in ``if(<variable>)``; any other value,
+#: except the ones ending in ``-NOTFOUND``, is true.
+CMAKE_FALSE = {"", "0", "OFF", "NO", "FALSE", "N", "IGNORE", "NOTFOUND"}
+CMAKE_CACHE_ENTRY = re.compile(r"^([^#/][^:=]*)(?::[^=]*)?=(.*)$")
+
+
+@dataclass
+class _dyn_module:
+    name: str
+    enabled_by: str | None = None
+
+
+def _parse_module(rt: env.Runtime, entry) -> _dyn_module:
+    if isinstance(entry, dict):
+        name = entry.get("name")
+        enabled_by = entry.get("enabled-by")
+        unknown = sorted(set(entry) - {"name", "enabled-by"})
+        if not name or unknown:
+            rt.fatal(
+                "dyn-modules-install: a module needs `name` and may have "
+                f"`enabled-by`, got {entry!r}"
+            )
+        return _dyn_module(str(name), str(enabled_by) if enabled_by else None)
+    return _dyn_module(str(entry))
+
+
+def _modules(rt: env.Runtime) -> list[_dyn_module]:
+    return [
+        _parse_module(rt, entry) for entry in rt._cfg.get("python-dynamic-modules", [])
+    ]
+
+
+def _read_cmake_cache(build_dir: Path) -> dict[str, str] | None:
+    """Variables of the ``CMakeCache.txt`` in build_dir, or None, if there
+    is no cache yet."""
+    try:
+        lines = (build_dir / "CMakeCache.txt").read_text(encoding="UTF-8").splitlines()
+    except FileNotFoundError:
+        return None
+    result = dict[str, str]()
+    for line in lines:
+        match = CMAKE_CACHE_ENTRY.match(line)
+        if match:
+            result[match.group(1).strip()] = match.group(2).strip()
+    return result
+
+
+def _cmake_true(value: str) -> bool:
+    upper = value.upper()
+    return upper not in CMAKE_FALSE and not upper.endswith("-NOTFOUND")
+
+
+def _is_enabled(
+    rt: env.Runtime, module: _dyn_module, cache: dict[str, str] | None
+) -> bool:
+    """Whether the module is to be installed: always, without ``enabled-by``,
+    otherwise as the CMake cache says."""
+    if module.enabled_by is None:
+        return True
+    if cache is None:
+        if rt.dry_run:
+            # nothing is configured in a dry run; show the whole plan
+            return True
+        rt.fatal(
+            "dyn-modules-install: no CMakeCache.txt to read "
+            f"{module.enabled_by} from; configure the build first"
+        )
+        return False
+    value = cache.get(module.enabled_by)
+    if value is None:
+        rt.fatal(
+            f"dyn-modules-install: `{module.name}` is enabled by "
+            f"{module.enabled_by}, which is not in CMakeCache.txt"
+        )
+        return False
+    if _cmake_true(value):
+        return True
+    rt.message(
+        f"dyn-modules-install: skipping `{module.name}`, "
+        f"{module.enabled_by} is {value or 'empty'}",
+        level=env.Msg.STATUS,
+    )
+    return False
+
+
+def _enabled_modules(config: env.Config, rt: env.Runtime) -> list[str]:
+    """Names of the configured modules to install in this build."""
+    modules = _modules(rt)
+    cache = None
+    if any(module.enabled_by for module in modules):
+        cache = _read_cmake_cache(config.build_dir)
+    return [module.name for module in modules if _is_enabled(rt, module, cache)]
 
 
 def _bin_dir(config: env.Config) -> Path:
@@ -238,7 +338,7 @@ class DynModulesInstallStep:
         site_packages = _site_packages()
         bin_dir = _bin_dir(config)
 
-        for module in _modules(rt):
+        for module in _enabled_modules(config, rt):
             files = _locate_binaries(bin_dir, module)
             if not files and not rt.dry_run:
                 rt.fatal(

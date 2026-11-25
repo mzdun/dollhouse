@@ -21,6 +21,7 @@ set(DOLLHOUSE_SANITIZE OFF CACHE BOOL "Compile with sanitizers enabled")
 set(DOLLHOUSE_SANITIZE_THREAD OFF CACHE BOOL "Compile with ThreadSanitizer enabled (GCC and Clang)")
 set(DOLLHOUSE_W_ERROR OFF CACHE BOOL "Compile with warnings turned to errors")
 set(DOLLHOUSE_FREE_THREADED OFF CACHE BOOL "Declare the shapes module safe to run without the GIL (not thread-safe yet)")
+set(DOLLHOUSE_WITH_SHAPES ON CACHE BOOL "Build Shapes module against currently selected Python runtime")
 
 # ASan and TSan cannot share a process: each needs the address space laid
 # out its own way
@@ -46,11 +47,17 @@ set(CONAN_CMAKE_SILENT_OUTPUT ON)
 if (NOT DEFINED Python3_FIND_ABI)
   set(Python3_FIND_ABI "ANY" "ANY" "ANY" "ANY")
 endif()
-find_package(Python3 COMPONENTS Interpreter Development REQUIRED)
+# the interpreter runs flow.py and the tests; only the shapes module is
+# built against Python
+if (DOLLHOUSE_WITH_SHAPES)
+  find_package(Python3 COMPONENTS Interpreter Development REQUIRED)
+  find_package(pybind11 CONFIG REQUIRED)
+else()
+  find_package(Python3 COMPONENTS Interpreter REQUIRED)
+endif()
 find_package(fmt REQUIRED)
 find_package(mbits-args REQUIRED)
 find_package(glm REQUIRED)
-find_package(pybind11 CONFIG REQUIRED)
 find_package(assimp REQUIRED)
 find_package(RapidJSON REQUIRED)
 
