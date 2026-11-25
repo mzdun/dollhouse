@@ -9,7 +9,7 @@ source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR} FILES ${SRCS})
 
 add_executable(dollhouse ${SRCS})
 
-add_win32_icon(dollhouse "appicon.ico")
+add_win32_icon(dollhouse "dollhouse.ico")
 target_compile_options(dollhouse PRIVATE ${DOLLHOUSE_ADDITIONAL_COMPILE_FLAGS})
 target_link_options(dollhouse PUBLIC ${DOLLHOUSE_ADDITIONAL_LINK_FLAGS})
 target_include_directories(dollhouse

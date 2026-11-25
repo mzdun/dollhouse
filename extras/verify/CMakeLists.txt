@@ -18,6 +18,7 @@ source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR} FILES ${SRCS})
 
 add_executable(verify ${SRCS})
 
+add_win32_icon(verify "inspector.ico")
 target_compile_options(verify PRIVATE ${DOLLHOUSE_ADDITIONAL_COMPILE_FLAGS})
 target_link_options(verify PUBLIC ${DOLLHOUSE_ADDITIONAL_LINK_FLAGS})
 target_include_directories(verify PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)
