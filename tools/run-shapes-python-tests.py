@@ -89,15 +89,18 @@ def _parse_args() -> tuple[argparse.Namespace, list[str]]:
     return parser.parse_known_args()
 
 
-def _ctest_definition(build_dir: Path) -> dict:
-    """Reads the test definition from `ctest --show-only=json-v1`."""
+def _ctest_definition(build_dir: Path, config: str) -> dict:
+    """Reads the test definition from `ctest --show-only=json-v1`.
+
+    Multi-config generators (Visual Studio) list no tests without a
+    configuration, so it is always given; single-config ones ignore it."""
     if not (build_dir / "CTestTestfile.cmake").is_file():
         raise Error(f"{build_dir} is not configured; run `./flow config` first")
     ctest = shutil.which("ctest")
     if ctest is None:
         raise Error("ctest not found on PATH")
     output = subprocess.run(
-        [ctest, "--show-only=json-v1", "-R", f"^{TEST_NAME}$"],
+        [ctest, "--show-only=json-v1", "-C", config, "-R", f"^{TEST_NAME}$"],
         cwd=build_dir,
         capture_output=True,
         text=True,
@@ -156,7 +159,7 @@ def main() -> int:
     build_dir = ROOT / "build" / args.preset
 
     try:
-        test = _ctest_definition(build_dir)
+        test = _ctest_definition(build_dir, args.preset.capitalize())
     except Error as error:
         print(f"run-shapes-python-tests: {error}", file=sys.stderr)
         return 1
