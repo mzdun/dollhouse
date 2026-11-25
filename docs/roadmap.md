@@ -51,6 +51,7 @@ Each stage ends with something that runs. Stage 3 (Plans) does not depend on the
 
 ## Stage 1: Inspector as a viewer
 
+- [ ] Inspector app in `extras/inspector`, behind `DOLLHOUSE_WITH_INSPECTOR` (ON by default): a thin(ish) layer of panels and dock layout; the framework it uses stays in `libs/`, for Dollhouse to reuse
 - [ ] Application framework
   - [ ] Input binding engine (buttons, single-axis wheels, two-axis sticks), designed with controllers in mind
   - [ ] Mouse and keyboard
@@ -194,6 +195,11 @@ Driven by measurements, not done up front.
   - [ ] Tests with several threads building models and outputting objects, run on 3.14t in CI
   - [ ] Turn `DOLLHOUSE_FREE_THREADED` on by default, or drop the option
 - [ ] Bundle `shapes` binaries for Python 3.12, 3.13, 3.14 and possibly 3.15 into one archive, once `shapes` has users other than its author
+- [ ] Move `shapes` and `verify` to `extras/`, each behind a CMake option, ON by default (`DOLLHOUSE_WITH_SHAPES`, `DOLLHOUSE_WITH_VERIFY`)
+  - [ ] `add_subdirectory()` and `add_to_coverage()` of each behind its option
+  - [ ] `DynModulesInstall` skips a module whose option is off, and still fails when an enabled module is missing
+  - [ ] `.*/extras/.*` in `FILTER_REGEX_INCLUDE` of `linter.yml`
+  - [ ] Paths in `.flow/config.yml`, the docs and `AGENTS.md`
 - [ ] Evaluate corefinement libraries (Manifold, CGAL, mcut) to replace the quadratic BSP in solid operations
   - [ ] Speed on dense solids
   - [ ] License compatible with MIT
