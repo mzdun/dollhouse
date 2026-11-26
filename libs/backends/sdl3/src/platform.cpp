@@ -5,6 +5,7 @@
 #include <memory>
 #include <pyxel/sdl3/platform.hpp>
 #include <stdexcept>
+#include <utility>
 
 namespace pyxel::sdl3 {
 	void throw_error(std::string_view what) { throw std::runtime_error{std::format("{}: {}", what, SDL_GetError())}; }
@@ -15,7 +16,7 @@ namespace pyxel::sdl3 {
 		if (!session_) throw_error("SDL_Init");
 	}
 
-	platform::~platform() = default;
+	platform::~platform() { set_live_redraw({}); }
 
 	std::unique_ptr<sdl3::window> platform::open_window(app::window_options const& options) const {
 		return std::make_unique<sdl3::window>(options);
@@ -40,4 +41,22 @@ namespace pyxel::sdl3 {
 	}
 
 	void platform::idle() { SDL_Delay(10); }
+
+	void platform::set_live_redraw(std::function<void()> redraw) {
+		if (redraw_ && !redraw) SDL_RemoveEventWatch(watch_events, this);
+		if (!redraw_ && redraw) {
+			if (!SDL_AddEventWatch(watch_events, this)) throw_error("SDL_AddEventWatch");
+		}
+		redraw_ = std::move(redraw);
+	}
+
+	// may run on any thread, except for SDL_EVENT_WINDOW_EXPOSED, which
+	// comes from the main thread
+	bool SDLCALL platform::watch_events(void* self, SDL_Event* event) {
+		if (event->type == SDL_EVENT_WINDOW_EXPOSED && event->window.data1 != 0) {
+			auto const& redraw = static_cast<platform*>(self)->redraw_;
+			if (redraw) redraw();
+		}
+		return true;
+	}
 }  // namespace pyxel::sdl3

@@ -3,6 +3,7 @@
 
 #pragma once
 
+#include <functional>
 #include <memory>
 #include <pyxel/app/backends.hpp>
 #include <pyxel/sdl3/handles.hpp>
@@ -32,12 +33,19 @@ namespace pyxel::sdl3 {
 
 		void poll(std::vector<app::event>& events) override;
 		void idle() override;
+		// through SDL_EVENT_WINDOW_EXPOSED with data1 set, which SDL sends
+		// while the user resizes a window (Windows only, the others do not
+		// hold the event queue then)
+		void set_live_redraw(std::function<void()> redraw) override;
 
 		// one listener at a time; nullptr removes it
 		void set_listener(event_listener* listener) noexcept { listener_ = listener; }
 
 	private:
+		static bool SDLCALL watch_events(void* self, SDL_Event* event);
+
 		sdl_session session_;
 		event_listener* listener_{};
+		std::function<void()> redraw_{};
 	};
 }  // namespace pyxel::sdl3

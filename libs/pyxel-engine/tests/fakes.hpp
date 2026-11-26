@@ -5,6 +5,7 @@
 
 #include <cstdint>
 #include <deque>
+#include <functional>
 #include <pyxel/app/application.hpp>
 #include <pyxel/app/backends.hpp>
 #include <string>
@@ -29,10 +30,13 @@ namespace pyxel::app::testing {
 	};
 
 	// each poll() hands over the next batch of events; once the script runs
-	// out, it asks to quit
+	// out, it asks to quit; before each batch, it redraws `live_redraws`
+	// times, as a platform would while the user resizes the window
 	struct fake_platform : platform {
 		journal& log;
 		std::deque<std::vector<event>> script{};
+		int live_redraws{0};
+		std::function<void()> redraw{};
 		explicit fake_platform(journal& log) : log{log} {}
 
 		void poll(std::vector<event>& events) override {
@@ -41,11 +45,15 @@ namespace pyxel::app::testing {
 				events.push_back(quit_requested{});
 				return;
 			}
+			for (int index = 0; index < live_redraws; ++index) {
+				if (redraw) redraw();
+			}
 			auto batch = std::move(script.front());
 			script.pop_front();
 			events.insert(events.end(), batch.begin(), batch.end());
 		}
 		void idle() override { log.push_back("idle"); }
+		void set_live_redraw(std::function<void()> callback) override { redraw = std::move(callback); }
 	};
 
 	struct fake_renderer : renderer {
