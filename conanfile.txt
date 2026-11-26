@@ -6,6 +6,14 @@ glm/1.0.1
 pybind11/3.0.1
 assimp/5.4.3
 rapidjson/cci.20230929
+sdl/3.4.16
+imgui/1.93.0-docking
+
+[options]
+sdl/*:audio=False
+sdl/*:camera=False
+sdl/*:tray=False
+sdl/*:wayland=False
 
 [generators]
 CMakeDeps
