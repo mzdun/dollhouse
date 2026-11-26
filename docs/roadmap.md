@@ -75,6 +75,7 @@ Each stage ends with something that runs. Stage 3 (Plans) does not depend on the
   - [ ] Log view (warnings, errors)
   - [ ] Controls for the sun
 - [ ] Model loader/reloader, with a file watcher (the model and the files it depends on, such as the `.bin` of a `.gltf`)
+  - [ ] List of the files to watch, from an `Assimp::IOSystem` wrapper used by the import: the files opened, the ones looked for but missing, and the external textures of the materials (Assimp does not open those)
 - [ ] Simplest shaders, with diffusion materials
 - [ ] Back-face culling and depth test
 - [ ] Orbit camera around the model
