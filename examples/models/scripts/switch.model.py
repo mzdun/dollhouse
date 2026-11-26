@@ -139,6 +139,7 @@ def _rocker_group(parent: group, name: str, side: int):
 def light_switch_double(root: group):
     """Two-rocker light switch; the origin is in the middle of the back plate,
     the switch faces +z."""
+    root.name = "Two-rocker light switch"
     root.material = _plastic
     root.add_group(name="frame").add(_frame())
     _rocker_group(root, "left-rocker", -1)

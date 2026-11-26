@@ -91,6 +91,7 @@ def balcony_door(root: group):
     wide = deg(98)
     tilt = deg(5)
 
+    root.name = "Balcony door"
     root.material = _frame_material
     root.transform(
         I.translate(at_x(-_door_size.width / 2) + at_z(-_door_size.depth / 2))

@@ -146,6 +146,8 @@ def _door_handle(door_width: length):
 @library.model
 def door(root: group):
     cfg = door_cfg(size(mm(844), mm(2035), cm(8)), mm(38), mm(62))
+
+    root.name = "Door"
     root.material = plank
 
     casing = root.add_group(name="casing")

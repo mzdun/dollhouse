@@ -32,9 +32,7 @@ def simple_lamp(root: group):
     base_group = root.add_group(name="base")
     base_group.add(base)
 
-    socket = base_group.add_group(
-        pos=at_y(cm(30)), name="socket", material=_black_plastic
-    )
+    socket = root.add_group(pos=at_y(cm(30)), name="socket", material=_black_plastic)
     socket.add(solid.prism(cm(2), cm(2.9), sides=sides))
 
     bulb = socket.add_group(pos=at_y(cm(6)), name="bulb")
