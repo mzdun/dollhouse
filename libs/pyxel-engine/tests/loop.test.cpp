@@ -119,6 +119,48 @@ namespace pyxel::app::testing {
 		                             "render", "poll", "shutdown", "wait_idle"));
 	}
 
+	TEST(loop, live_redraw_draws_inside_poll) {
+		journal log{};
+		fake_stack backends{log};
+		backends.platform_.script = {{}};
+		backends.platform_.live_redraws = 1;
+		test_app app{log};
+
+		app.run(backends);
+		EXPECT_THAT(log, ElementsAre("describe", "setup", "poll", "update", "new_frame", "draw_ui", "end_frame",
+		                             "render", "update", "new_frame", "draw_ui", "end_frame", "render", "poll",
+		                             "event(quit)", "shutdown", "wait_idle"));
+		EXPECT_FALSE(backends.platform_.redraw);
+	}
+
+	TEST(loop, live_redraw_skipped_while_minimized) {
+		journal log{};
+		fake_stack backends{log};
+		backends.window_.minimized_ = true;
+		backends.platform_.script = {{}};
+		backends.platform_.live_redraws = 1;
+		test_app app{log};
+
+		app.run(backends);
+		EXPECT_THAT(log,
+		            ElementsAre("describe", "setup", "poll", "idle", "poll", "event(quit)", "shutdown", "wait_idle"));
+	}
+
+	TEST(loop, live_redraw_error_leaves_poll) {
+		journal log{};
+		fake_stack backends{log};
+		backends.platform_.script = {{}};
+		backends.platform_.live_redraws = 2;
+		test_app app{log};
+		app.on_update = [](test_app&) { throw std::runtime_error{"update failed"}; };
+
+		EXPECT_THROW(app.run(backends), std::runtime_error);
+		// the second live frame is not tried, and the event batch of that
+		// poll never reaches the application
+		EXPECT_THAT(log, ElementsAre("describe", "setup", "poll", "update"));
+		EXPECT_FALSE(backends.platform_.redraw);
+	}
+
 	TEST(loop, can_run_again) {
 		journal log{};
 		fake_stack backends{log};

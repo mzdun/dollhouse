@@ -24,6 +24,13 @@ namespace pyxel::sdl3::testing {
 			event.window.windowID = window;
 			ASSERT_TRUE(SDL_PushEvent(&event)) << SDL_GetError();
 		}
+
+		void push_exposed(Sint32 live_resize) {
+			SDL_Event event{};
+			event.type = SDL_EVENT_WINDOW_EXPOSED;
+			event.window.data1 = live_resize;
+			ASSERT_TRUE(SDL_PushEvent(&event)) << SDL_GetError();
+		}
 	}  // namespace
 
 	using platform_test = dummy_video;
@@ -50,6 +57,29 @@ namespace pyxel::sdl3::testing {
 
 		sdl.set_listener(nullptr);
 		sdl.idle();
+	}
+
+	TEST_F(platform_test, live_redraw_on_live_resize_expose) {
+		platform sdl{};
+		std::vector<app::event> drained{};
+		sdl.poll(drained);
+
+		int redraws{};
+		sdl.set_live_redraw([&redraws] { ++redraws; });
+
+		// event watchers see a pushed event right away, without a poll
+		push_exposed(1);
+		EXPECT_EQ(1, redraws);
+		push_exposed(0);
+		EXPECT_EQ(1, redraws);
+
+		sdl.set_live_redraw({});
+		push_exposed(1);
+		EXPECT_EQ(1, redraws);
+
+		std::vector<app::event> events{};
+		sdl.poll(events);
+		EXPECT_TRUE(events.empty());
 	}
 
 	TEST_F(platform_test, opens_window) {

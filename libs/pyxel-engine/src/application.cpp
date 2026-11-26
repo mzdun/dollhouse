@@ -92,23 +92,8 @@ namespace pyxel::app {
 		refresh_info();
 		setup();
 
-		std::vector<event> events{};
 		auto last = clock::now();
-		while (true) {
-			events.clear();
-			platform.poll(events);
-			for (auto const& ev : events) {
-				if (closes(ev, window.id())) quit();
-				on_event(ev);
-			}
-			if (quit_) break;
-
-			if (window.minimized()) {
-				platform.idle();
-				last = clock::now();
-				continue;
-			}
-
+		auto const frame = [&] {
 			auto const now = clock::now();
 			seconds const dt = now - last;
 			last = now;
@@ -121,6 +106,42 @@ namespace pyxel::app {
 				ui->end_frame();
 			}
 			renderer.render();
+		};
+
+		// frames drawn from inside poll(); an exception must not go through
+		// the platform's C code, so it waits for poll() to return
+		std::exception_ptr live_error{};
+		platform.set_live_redraw([&] {
+			if (quit_ || live_error || window.minimized()) return;
+			try {
+				frame();
+			} catch (...) {
+				live_error = std::current_exception();
+			}
+		});
+		struct forget_redraw {
+			app::platform& platform;
+			~forget_redraw() { platform.set_live_redraw({}); }
+		} const forget_live{platform};
+
+		std::vector<event> events{};
+		while (true) {
+			events.clear();
+			platform.poll(events);
+			if (live_error) std::rethrow_exception(live_error);
+			for (auto const& ev : events) {
+				if (closes(ev, window.id())) quit();
+				on_event(ev);
+			}
+			if (quit_) break;
+
+			if (window.minimized()) {
+				platform.idle();
+				last = clock::now();
+				continue;
+			}
+
+			frame();
 		}
 
 		shutdown();

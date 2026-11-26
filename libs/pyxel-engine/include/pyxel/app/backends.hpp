@@ -5,6 +5,7 @@
 
 #include <chrono>
 #include <cstdint>
+#include <functional>
 #include <pyxel/app/event.hpp>
 #include <pyxel/app/window.hpp>
 #include <string>
@@ -40,6 +41,12 @@ namespace pyxel::app {
 		virtual void poll(std::vector<event>& events) = 0;
 		// called instead of a frame, when there is nothing to draw
 		virtual void idle() = 0;
+
+		// While the OS holds on to the event queue (on Windows, the user
+		// resizing or moving a window), poll() does not return. A platform,
+		// which is told about it, calls `redraw` from inside poll(), so the
+		// window keeps drawing. An empty function removes it.
+		virtual void set_live_redraw(std::function<void()> redraw) { static_cast<void>(redraw); }
 	};
 
 	// the GPU side: draws one frame into the window it was attached to
