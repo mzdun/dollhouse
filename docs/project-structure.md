@@ -55,7 +55,7 @@ The reasons behind this split, the libraries considered and the event flow are i
 
 ## Pyxel engine
 
-- uses `pyxel` namespace
+- uses `pyxel` and `pyxel::app` namespaces
 - depends on `pyxel-io`
 - knows no window system, no GPU API and no ImGui
 - defines the application lifecycle (`setup`, `update(dt)`, `draw`, `shutdown`), with the backends picked by the application
