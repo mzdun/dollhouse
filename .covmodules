@@ -2,6 +2,8 @@
 	path = libs/pyxel-models
 [module "IO"]
 	path = libs/pyxel-io
+[module "Engine"]
+	path = libs/pyxel-engine
 [module "Shapes"]
 	path = extras/shapes
 [module "Verify"]
