@@ -3,3 +3,4 @@
 
 add_subdirectory(sdl3)
 add_subdirectory(sdl3-gpu)
+add_subdirectory(sdl3-imgui)

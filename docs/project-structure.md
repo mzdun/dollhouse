@@ -94,6 +94,14 @@ The reasons behind this split, the libraries considered and the event flow are i
 - owns the shaders, buffers, textures and pipelines, and runs the passes the engine describes: the scene, the overlay, and the UI (the draw data of `pyxel-ui`)
 - its caches are objects created by the application and passed down, not singletons
 
+## SDL3 + ImGui glue (temporary)
+
+- uses `pyxel::sdl3` namespace
+- lives in `libs/backends/sdl3-imgui`
+- depends on `backends/sdl3-gpu` and `pyxel-ui`
+- feeds ImGui from SDL's own events through `imgui_impl_sdl3`, until the engine events carry the keyboard, mouse, text and gamepads and `pyxel-ui` is fed from them
+- puts the platform, the window, the device, the renderer, the ImGui context and the ImGui pass together in the right order of destruction (`imgui_gpu_stack`), as the stack the applications pick
+
 ## Shapes (python package)
 
 - uses `shapes` namespace
