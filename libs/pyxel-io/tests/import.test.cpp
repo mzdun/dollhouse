@@ -1,6 +1,7 @@
 // Copyright (c) 2026 Marcin Zdun
 // This code is licensed under MIT license (see LICENSE for details)
 
+#include <gmock/gmock.h>
 #include <gtest/gtest.h>
 #include <cstddef>
 #include <filesystem>
@@ -8,6 +9,8 @@
 #include <fstream>
 #include <numbers>
 #include <optional>
+#include <ostream>
+#include <pyxel/base/str.hpp>
 #include <pyxel/gfx/group.hpp>
 #include <pyxel/gfx/interactions.hpp>
 #include <pyxel/gfx/light.hpp>
@@ -19,6 +22,13 @@
 #include <string>
 #include <string_view>
 #include <vector>
+
+namespace pyxel::io {
+	// for the messages of failed expectations
+	void PrintTo(source_file const& file, std::ostream* out) {
+		*out << '{' << as_sv(file.path.u8string()) << (file.exists ? "" : ", missing") << '}';
+	}
+}  // namespace pyxel::io
 
 namespace pyxel::io::testing {
 	using namespace gfx::interactions;
@@ -87,7 +97,7 @@ namespace pyxel::io::testing {
 	TEST_P(import_model_test, nodes_come_in_depth_first_order) {
 		auto const path = file_for(GetParam(), "door");
 		export_scene("door", door_sink(), gfx::materials{}, GetParam(), path);
-		auto const [model, notes] = import_model(path);
+		auto const [model, notes, sources] = import_model(path);
 
 		ASSERT_FALSE(model.nodes.empty());
 		EXPECT_EQ(model.nodes[0].parent, std::nullopt);
@@ -175,8 +185,6 @@ namespace pyxel::io::testing {
 		EXPECT_FLOAT_EQ(*panel.range, 2.5f);
 	}
 
-	INSTANTIATE_TEST_SUITE_P(formats, import_model_test, ::testing::Values("glb2", "gltf2"));
-
 	TEST(import_model, title_is_the_scene_name) {
 		auto const model = import_model(scene_file(R"("name": "Lamp", )", "0")).model;
 		EXPECT_EQ(model.title, "Lamp");
@@ -220,7 +228,107 @@ namespace pyxel::io::testing {
 		EXPECT_EQ(model.title, "nodes[a]");
 	}
 
-	TEST(import_model, missing_file_throws) {
-		EXPECT_THROW(import_model(temp_file("missing.glb")), std::runtime_error);
+	TEST_P(import_model_test, sources_are_the_model_and_its_buffers) {
+		auto const path = file_for(GetParam(), "door");
+		export_scene("door", door_sink(), gfx::materials{}, GetParam(), path);
+		auto const sources = import_model(path).sources;
+
+		ASSERT_FALSE(sources.empty());
+		EXPECT_EQ(sources[0], (source_file{.path = std::filesystem::weakly_canonical(path), .exists = true}));
+		if (GetParam() == "glb2") {
+			EXPECT_EQ(sources.size(), 1u);
+			return;
+		}
+		// the buffers of a .gltf, next to it
+		ASSERT_EQ(sources.size(), 2u);
+		EXPECT_EQ(sources[1].path.extension(), ".bin");
+		EXPECT_EQ(sources[1].path.parent_path(), sources[0].path.parent_path());
+		EXPECT_TRUE(sources[1].exists);
+	}
+
+	INSTANTIATE_TEST_SUITE_P(formats, import_model_test, ::testing::Values("glb2", "gltf2"));
+
+	TEST(import_model, sources_have_external_textures) {
+		// the texture is looked for next to the model, with the space of
+		// its URI decoded
+		auto const texture = temp_file("base color.png");
+		std::filesystem::remove(texture);
+		auto uri = as_str(texture.filename().u8string());
+		for (size_t pos = uri.find(' '); pos != std::string::npos; pos = uri.find(' ', pos))
+			uri.replace(pos, 1, "%20");
+
+		// one triangle for each of the two materials, or Assimp does not
+		// read them; the buffer is a data URI, so no .bin comes up
+		auto const path = temp_file("textured.gltf");
+		std::ofstream{path} << std::format(
+		    R"({{"asset": {{"version": "2.0"}}, "scene": 0, "scenes": [{{"nodes": [0]}}],
+		    "nodes": [{{"name": "tile", "mesh": 0}}],
+		    "meshes": [{{"primitives": [{{"attributes": {{"POSITION": 0}}, "material": 0}},
+		                                {{"attributes": {{"POSITION": 0}}, "material": 1}}]}}],
+		    "accessors": [{{"bufferView": 0, "componentType": 5126, "count": 3, "type": "VEC3",
+		                   "min": [0, 0, 0], "max": [1, 1, 0]}}],
+		    "bufferViews": [{{"buffer": 0, "byteLength": 36}}],
+		    "buffers": [{{"byteLength": 36,
+		                 "uri": "data:application/octet-stream;base64,AAAAAAAAAAAAAAAAAACAPwAAAAAAAAAAAAAAAAAAgD8AAAAA"}}],
+		    "materials": [{{"pbrMetallicRoughness": {{"baseColorTexture": {{"index": 0}}}}}},
+		                  {{"pbrMetallicRoughness": {{"baseColorTexture": {{"index": 1}}}}}}],
+		    "textures": [{{"source": 0}}, {{"source": 1}}],
+		    "images": [{{"uri": "{}"}}, {{"uri": "data:image/png;base64,AAAA"}}]}})",
+		    uri);
+
+		auto const model = std::filesystem::weakly_canonical(path);
+		auto const expected = std::filesystem::weakly_canonical(texture);
+		// the embedded image is no file to watch
+		EXPECT_EQ(import_model(path).sources,
+		          (std::vector<source_file>{{.path = model, .exists = true}, {.path = expected, .exists = false}}));
+
+		std::ofstream{texture} << "not really a PNG";
+		EXPECT_EQ(import_model(path).sources,
+		          (std::vector<source_file>{{.path = model, .exists = true}, {.path = expected, .exists = true}}));
+	}
+
+	TEST(import_model, sources_have_missing_material_library) {
+		auto const path = temp_file("triangle.obj");
+		auto const library = temp_file("missing.mtl");
+		std::filesystem::remove(library);
+		std::ofstream{path} << std::format("mtllib {}\nv 0 0 0\nv 1 0 0\nv 0 1 0\nf 1 2 3\n",
+		                                   as_str(library.filename().u8string()));
+
+		auto const sources = import_model(path).sources;
+		ASSERT_FALSE(sources.empty());
+		EXPECT_EQ(sources[0].path, std::filesystem::weakly_canonical(path));
+		EXPECT_THAT(sources, ::testing::Contains(
+		                         source_file{.path = std::filesystem::weakly_canonical(library), .exists = false}));
+	}
+
+	TEST(import_model, missing_file_throws_with_the_file_as_source) {
+		auto const path = temp_file("missing.glb");
+		std::filesystem::remove(path);
+		try {
+			import_model(path);
+			FAIL() << "import_model() did not throw";
+		} catch (import_error const& error) {
+			EXPECT_EQ(error.sources(),
+			          (std::vector<source_file>{{.path = std::filesystem::weakly_canonical(path), .exists = false}}));
+		}
+	}
+
+	TEST(import_model, missing_buffer_throws_with_the_buffer_as_source) {
+		auto const path = file_for("gltf2", "door");
+		export_scene("door", door_sink(), gfx::materials{}, "gltf2", path);
+		auto const sources = import_model(path).sources;
+		ASSERT_EQ(sources.size(), 2u);
+		std::filesystem::remove(sources[1].path);
+
+		try {
+			import_model(path);
+			FAIL() << "import_model() did not throw";
+		} catch (import_error const& error) {
+			// the buffer shows up again, and the copy of the exception
+			// shares the list
+			auto const copy = error;
+			EXPECT_EQ(copy.sources(),
+			          (std::vector<source_file>{sources[0], {.path = sources[1].path, .exists = false}}));
+		}
 	}
 }  // namespace pyxel::io::testing

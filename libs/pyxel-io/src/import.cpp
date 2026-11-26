@@ -7,7 +7,9 @@
 #include <assimp/scene.h>
 #include <assimp/Importer.hpp>
 #include <cstdint>
+#include <filesystem>
 #include <format>
+#include <memory>
 #include <numbers>
 #include <optional>
 #include <pyxel/base/str.hpp>
@@ -16,9 +18,11 @@
 #include <stdexcept>
 #include <string>
 #include <string_view>
+#include <system_error>
 #include <utility>
 #include <vector>
 #include "gltf2.hpp"
+#include "sources.hpp"
 
 namespace pyxel::io {
 	namespace {
@@ -177,23 +181,48 @@ namespace pyxel::io {
 			if (is_generated_gltf_name(child_name)) return {};
 			return std::string{child_name};
 		}
+
+		// glTF 2 names its files with URIs
+		bool is_gltf2(std::filesystem::path const& path) {
+			auto ext = as_str(path.extension().u8string());
+			for (auto& c : ext) {
+				if (c >= 'A' && c <= 'Z') c = static_cast<char>(c - 'A' + 'a');
+			}
+			return ext == ".gltf" || ext == ".glb";
+		}
 	}  // namespace
 
+	import_error::import_error(std::string const& message, std::vector<source_file> sources)
+	    : std::runtime_error{message}, sources_{std::make_shared<std::vector<source_file> const>(std::move(sources))} {}
+
 	imported_model import_model(std::filesystem::path const& path) {
+		// the model itself comes first, whatever Assimp does with it
+		sources::file_list files{};
+		{
+			std::error_code ec{};
+			files.add(path, std::filesystem::is_regular_file(path, ec));
+		}
+
 		Assimp::Importer importer{};
 		gltf2::register_importer(importer);
 		importer.SetPropertyBool(AI_CONFIG_FBX_CONVERT_TO_M, true);
+		// owned by the importer from now on
+		importer.SetIOHandler(new sources::recording_io_system{files});
 
 		// Assimp takes the path as UTF-8 (see export_scene)
 		auto const path_u8 = as_str(path.u8string());
 		auto const* scene =
 		    importer.ReadFile(path_u8, aiProcess_Triangulate | aiProcess_GenNormals | aiProcess_ValidateDataStructure);
 		if (!scene || !scene->mRootNode) {
-			throw std::runtime_error(std::format("cannot read {}: {}", path_u8, importer.GetErrorString()));
+			throw import_error(std::format("cannot read {}: {}", path_u8, importer.GetErrorString()),
+			                   std::move(files).take());
 		}
 
 		imported_model result{};
 		auto& model = result.model;
+
+		sources::add_textures(*scene, std::filesystem::absolute(path).parent_path(), is_gltf2(path), files);
+		result.sources = std::move(files).take();
 
 		std::vector<aiNode const*> sources{};
 		add_nodes(*scene->mRootNode, model, sources);

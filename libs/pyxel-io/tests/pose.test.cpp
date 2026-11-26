@@ -87,7 +87,7 @@ namespace pyxel::io::testing {
 		auto const moves = original.moves(states);
 		write_posed(source, target, original, moves);
 
-		auto const [copy, notes] = import_model(target);
+		auto const [copy, notes, sources] = import_model(target);
 		EXPECT_TRUE(notes.empty());
 		// the extra is left out, so the states do not move the pose again
 		EXPECT_TRUE(copy.objects.empty());
