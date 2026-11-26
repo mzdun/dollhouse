@@ -61,6 +61,8 @@ find_package(mbits-args REQUIRED)
 find_package(glm REQUIRED)
 find_package(assimp REQUIRED)
 find_package(RapidJSON REQUIRED)
+find_package(SDL3 REQUIRED)
+find_package(imgui REQUIRED)
 
 if (DOLLHOUSE_TESTING)
   enable_testing()
