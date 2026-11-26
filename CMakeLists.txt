@@ -23,6 +23,7 @@ set(DOLLHOUSE_W_ERROR OFF CACHE BOOL "Compile with warnings turned to errors")
 set(DOLLHOUSE_FREE_THREADED OFF CACHE BOOL "Declare the shapes module safe to run without the GIL (not thread-safe yet)")
 set(DOLLHOUSE_WITH_SHAPES ON CACHE BOOL "Build Shapes module against currently selected Python runtime")
 set(DOLLHOUSE_WITH_VERIFY ON CACHE BOOL "Build the verify tool for checking the active objects of models")
+set(DOLLHOUSE_WITH_INSPECTOR ON CACHE BOOL "Build the Inspector app for viewing and testing a single model")
 
 # ASan and TSan cannot share a process: each needs the address space laid
 # out its own way
