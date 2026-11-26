@@ -42,3 +42,4 @@ super-linter.log
 .cache/
 
 /.context.yaml
+imgui.ini

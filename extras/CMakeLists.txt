@@ -11,4 +11,8 @@ add_subdirectory(verify)
 add_to_coverage(verify)
 endif(DOLLHOUSE_WITH_VERIFY)
 
+if (DOLLHOUSE_WITH_INSPECTOR)
+add_subdirectory(inspector)
+endif(DOLLHOUSE_WITH_INSPECTOR)
+
 cov_set_parent_scope()
