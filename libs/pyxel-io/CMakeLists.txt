@@ -19,6 +19,8 @@ set(SRCS
     src/interactions_rules.cpp
     src/interactions_rules.hpp
     src/pose.cpp
+    src/sources.cpp
+    src/sources.hpp
 )
 
 source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR} FILES ${SRCS})
@@ -54,6 +56,7 @@ if(DOLLHOUSE_TESTING)
         tests/interactions.test.cpp
         tests/interactions_rules.test.cpp
         tests/pose.test.cpp
+        tests/sources.test.cpp
     )
     source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR}/tests FILES ${TEST_SRCS})
 
