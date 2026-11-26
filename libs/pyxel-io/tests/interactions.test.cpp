@@ -10,7 +10,6 @@
 #include <filesystem>
 #include <format>
 #include <fstream>
-#include <iterator>
 #include <memory>
 #include <new>
 #include <pyxel/base/str.hpp>
@@ -21,6 +20,7 @@
 #include <pyxel/gfx/solid_object.hpp>
 #include <pyxel/io/export.hpp>
 #include <pyxel/io/interactions.hpp>
+#include <sstream>
 #include <stdexcept>
 #include <string>
 #include <string_view>
@@ -54,7 +54,11 @@ namespace pyxel::io::testing {
 		// the JSON document of a `.gltf` file, or the JSON chunk of a `.glb`
 		rapidjson::Document read_document(std::filesystem::path const& path) {
 			std::ifstream file{path, std::ios::binary};
-			std::string bytes{std::istreambuf_iterator<char>{file}, std::istreambuf_iterator<char>{}};
+			// not through std::istreambuf_iterator: inlined at -O2 and up, it
+			// trips GCC's -Wnull-dereference inside <streambuf>
+			std::ostringstream buffer{};
+			buffer << file.rdbuf();
+			std::string bytes = std::move(buffer).str();
 			if (path.extension() == ".glb") {
 				std::uint32_t length{};
 				if (bytes.size() < 20) throw std::runtime_error{"the binary is cut short"};
