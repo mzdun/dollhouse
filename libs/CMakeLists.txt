@@ -6,6 +6,7 @@ include(imgui_bindings)
 add_subdirectory(pyxel-models)
 add_subdirectory(pyxel-io)
 add_subdirectory(pyxel-engine)
+add_subdirectory(pyxel-ui)
 add_subdirectory(backends)
 add_subdirectory(dollhouse)
 
@@ -15,6 +16,7 @@ add_to_coverage(
     pyxel-models
     pyxel-io
     pyxel-engine
+    pyxel-ui
 )
 
 cov_set_parent_scope()
