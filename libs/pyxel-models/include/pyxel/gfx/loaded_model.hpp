@@ -96,6 +96,10 @@ namespace pyxel::gfx {
 			bool operator==(active_object const&) const = default;
 		};
 
+		// the name to show for the model: the name of its scene, unless it
+		// is the default "Scene", or else the name of the root node, unless
+		// it is the "ROOT" Assimp gives a root of its own; empty if neither
+		std::string title{};
 		// in depth-first order, each parent before its children; nodes[0]
 		// is the root
 		std::vector<node> nodes{};

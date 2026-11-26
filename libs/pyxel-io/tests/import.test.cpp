@@ -5,6 +5,7 @@
 #include <cstddef>
 #include <filesystem>
 #include <format>
+#include <fstream>
 #include <numbers>
 #include <optional>
 #include <pyxel/gfx/group.hpp>
@@ -61,6 +62,17 @@ namespace pyxel::io::testing {
 			gfx::sink out{};
 			root.output(out, glm::dmat4{1.0});
 			return out;
+		}
+
+		// a glTF 2 file with no meshes, only the scene and its root nodes
+		std::filesystem::path scene_file(std::string_view scene,
+		                                 std::string_view nodes,
+		                                 std::string_view node_list = R"({"name": "lamp"}, {"name": "switch"})") {
+			auto path = temp_file("scene.gltf");
+			std::ofstream{path} << std::format(
+			    R"({{"asset": {{"version": "2.0"}}, "scene": 0, "scenes": [{{{}"nodes": [{}]}}], "nodes": [{}]}})",
+			    scene, nodes, node_list);
+			return path;
 		}
 
 		void expect_vec3(glm::vec3 const& actual, glm::vec3 const& expected) {
@@ -164,6 +176,49 @@ namespace pyxel::io::testing {
 	}
 
 	INSTANTIATE_TEST_SUITE_P(formats, import_model_test, ::testing::Values("glb2", "gltf2"));
+
+	TEST(import_model, title_is_the_scene_name) {
+		auto const model = import_model(scene_file(R"("name": "Lamp", )", "0")).model;
+		EXPECT_EQ(model.title, "Lamp");
+	}
+
+	TEST(import_model, title_of_untitled_scene_is_the_root_name) {
+		auto const model = import_model(scene_file(R"("name": "Scene", )", "0")).model;
+		EXPECT_EQ(model.title, "lamp");
+	}
+
+	TEST(import_model, title_of_untitled_scene_with_no_root_is_empty) {
+		// two nodes at the top, under the root Assimp makes up
+		auto const model = import_model(scene_file("", "0, 1")).model;
+		ASSERT_EQ(model.nodes.size(), 3u);
+		EXPECT_EQ(model.nodes[0].name, "ROOT");
+		EXPECT_EQ(model.title, "");
+	}
+
+	TEST(import_model, title_of_unnamed_root_is_the_name_of_its_only_child) {
+		// the root the exporter adds, with the model under it
+		auto const model = import_model(scene_file("", "0", R"({"children": [1]}, {"name": "Door"})")).model;
+		ASSERT_EQ(model.nodes.size(), 2u);
+		EXPECT_EQ(model.nodes[0].name, "nodes[0]");
+		EXPECT_EQ(model.title, "Door");
+	}
+
+	TEST(import_model, title_of_unnamed_root_with_unnamed_child_is_empty) {
+		auto const model = import_model(scene_file("", "0", R"({"children": [1]}, {})")).model;
+		EXPECT_EQ(model.title, "");
+	}
+
+	TEST(import_model, title_of_unnamed_root_with_many_children_is_empty) {
+		auto const model =
+		    import_model(scene_file("", "0", R"({"children": [1, 2]}, {"name": "lamp"}, {"name": "switch"})")).model;
+		EXPECT_EQ(model.title, "");
+	}
+
+	TEST(import_model, title_of_root_named_like_nodes_but_not_an_index_is_the_root_name) {
+		auto const model =
+		    import_model(scene_file("", "0", R"({"name": "nodes[a]", "children": [1]}, {"name": "Door"})")).model;
+		EXPECT_EQ(model.title, "nodes[a]");
+	}
 
 	TEST(import_model, missing_file_throws) {
 		EXPECT_THROW(import_model(temp_file("missing.glb")), std::runtime_error);

@@ -15,6 +15,7 @@
 #include <pyxel/io/import.hpp>
 #include <stdexcept>
 #include <string>
+#include <string_view>
 #include <utility>
 #include <vector>
 #include "gltf2.hpp"
@@ -150,6 +151,32 @@ namespace pyxel::io {
 			model.nodes[*node].lights.push_back(model.lights.size());
 			model.lights.push_back(std::move(result));
 		}
+
+		// The glTF 2 importer names an unnamed node after its place in the
+		// file, e.g. "nodes[0]"
+		bool is_generated_gltf_name(std::string_view name) noexcept {
+			static constexpr std::string_view prefix{"nodes["};
+			if (!name.starts_with(prefix) || !name.ends_with(']')) return false;
+			auto const index = name.substr(prefix.size(), name.size() - prefix.size() - 1);
+			return !index.empty() && index.find_first_not_of("0123456789") == std::string_view::npos;
+		}
+
+		// The name of the scene, unless it is the default one, then the name
+		// of the root node, unless Assimp made the root up. An unnamed root
+		// with a single child (the one the exporter adds) gives way to the
+		// name of that child.
+		std::string title_of(aiScene const& scene) {
+			std::string_view const scene_name{scene.mName.C_Str()};
+			if (!scene_name.empty() && scene_name != "Scene") return std::string{scene_name};
+			auto const& root = *scene.mRootNode;
+			std::string_view const root_name{root.mName.C_Str()};
+			if (root_name == "ROOT") return {};
+			if (!is_generated_gltf_name(root_name)) return std::string{root_name};
+			if (root.mNumChildren != 1) return {};
+			std::string_view const child_name{root.mChildren[0]->mName.C_Str()};
+			if (is_generated_gltf_name(child_name)) return {};
+			return std::string{child_name};
+		}
 	}  // namespace
 
 	imported_model import_model(std::filesystem::path const& path) {
@@ -170,6 +197,7 @@ namespace pyxel::io {
 
 		std::vector<aiNode const*> sources{};
 		add_nodes(*scene->mRootNode, model, sources);
+		model.title = title_of(*scene);
 
 		model.meshes.reserve(scene->mNumMeshes);
 		for (unsigned index = 0; index < scene->mNumMeshes; ++index)
