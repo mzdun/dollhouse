@@ -34,7 +34,7 @@ namespace pyxel::gfx::interactions {
 	// filled with the default value of the channel.
 	struct translate_axis {  // translate.x, translate.y, translate.z
 		axis on;
-		length by;
+		length by{};
 
 		bool operator==(translate_axis const&) const = default;
 	};
@@ -47,7 +47,7 @@ namespace pyxel::gfx::interactions {
 
 	struct rotate_axis {  // rotate.x, rotate.y, rotate.z
 		axis around;
-		angle by;
+		angle by{};
 
 		bool operator==(rotate_axis const&) const = default;
 	};
