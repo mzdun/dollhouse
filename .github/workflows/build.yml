@@ -98,6 +98,16 @@ jobs:
           user-directory: ${{ matrix.home }}
           cache-prefix: ${{ env.CONAN_CACHE }}
 
+      # SDL3 depends on the */system packages (libudev, opengl, xorg), which
+      # only check the distribution's packages by default; let Conan install
+      # them with apt instead
+      - name: Let Conan install system packages
+        if: ${{ matrix.ubuntu }}
+        run: |
+          conf="$(conan config home)/global.conf"
+          echo "tools.system.package_manager:mode=install" >> "$conf"
+          echo "tools.system.package_manager:sudo=True" >> "$conf"
+
       #     ########  ########   #######        ## ########  ######  ########
       #     ##     ## ##     ## ##     ##       ## ##       ##    ##    ##
       #     ##     ## ##     ## ##     ##       ## ##       ##          ##
