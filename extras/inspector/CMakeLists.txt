@@ -2,7 +2,16 @@
 # This file is licensed under MIT license (see LICENSE for details)
 
 set(SRCS
+  src/application.cpp
+  src/application.hpp
+  src/loader.cpp
+  src/loader.hpp
   src/main.cpp
+  src/moving_average.hpp
+  src/options.cpp
+  src/options.hpp
+  src/panels/log.cpp
+  src/panels/log.hpp
 )
 
 source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR} FILES ${SRCS})
