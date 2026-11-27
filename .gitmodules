@@ -2,3 +2,7 @@
 	path = tools/coveralls
 	url = https://github.com/mbits-libs/coveralls.git
 	branch = coverage-tests
+[submodule "external/args"]
+	path = external/args
+	url = https://github.com/mbits-libs/args.git
+	branch = feat/hooks

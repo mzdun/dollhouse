@@ -31,6 +31,7 @@ namespace inspector {
 		void update(pyxel::app::seconds) override;
 		void draw_ui() override;
 		void shutdown() override;
+		void report_error(std::string_view message) override;
 
 		// for the panels
 		bool verbose() const noexcept { return options_.verbose; }

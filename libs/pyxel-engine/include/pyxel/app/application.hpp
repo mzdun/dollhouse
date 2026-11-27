@@ -38,6 +38,10 @@ namespace pyxel::app {
 		virtual void draw_ui() {}
 		virtual void shutdown() {}
 
+		// an exception ended main(); prints "<name>: error: <message>" to
+		// stderr, which a WIN32 application on Windows does not have
+		virtual void report_error(std::string_view message);
+
 		// leaves the loop before the next frame
 		void quit() noexcept { quit_ = true; }
 

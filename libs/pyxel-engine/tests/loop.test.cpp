@@ -9,6 +9,7 @@
 #include <memory>
 #include <optional>
 #include <stdexcept>
+#include <string>
 #include <string_view>
 
 namespace pyxel::app::testing {
@@ -237,6 +238,23 @@ namespace pyxel::app::testing {
 		char* argv[] = {arg0, nullptr};
 		EXPECT_EQ(1, app.main(1, argv));
 		EXPECT_THAT(log, ElementsAre("init", "create_stack(test-app)"));
+	}
+
+	TEST(main, failure_reaches_report_error) {
+		struct reporting_app : test_app {
+			using test_app::test_app;
+			void report_error(std::string_view message) override {
+				log.push_back("report_error(" + std::string{message} + ")");
+			}
+		};
+
+		journal log{};
+		reporting_app app{log};
+
+		char arg0[] = "test-app";
+		char* argv[] = {arg0, nullptr};
+		EXPECT_EQ(1, app.main(1, argv));
+		EXPECT_THAT(log, ElementsAre("init", "create_stack(test-app)", "report_error(no backends)"));
 	}
 
 	TEST(main, default_driver_hints) {
