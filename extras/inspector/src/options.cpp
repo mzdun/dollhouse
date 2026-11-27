@@ -3,10 +3,11 @@
 
 #include "options.hpp"
 
-#include <cstdlib>
-#include <iostream>
+#include <args/sys.hpp>
+#include <format>
 #include <print>
 #include <pyxel/base/str.hpp>
+#include <pyxel/dialogs.hpp>
 #include <pyxel/version.hpp>
 #include <string>
 #include <string_view>
@@ -28,24 +29,24 @@ struct args::converter<std::filesystem::path> {
 namespace inspector {
 	using namespace std::literals;
 
-	namespace {
-		[[noreturn]] void print_version() {
-			std::print("inspector {}\n", pyxel::version::ui);
-			std::exit(1);
-		}
-
-		[[noreturn]] void file_error(std::filesystem::path const& path, std::string_view message) {
-			std::print(std::cerr, "{}: error: {}\n", pyxel::as_sv(path.u8string()), message);
-			std::exit(1);
-		}
-	}  // namespace
-
-	options parse_options(::args::args_view const& args) {
+	options parse_options(::args::args_view const& args, std::string_view app) {
 		options result{};
+
+		// the help and the errors below reach the user even without a
+		// console (see pyxel/dialogs.hpp)
+		pyxel::dialogs::args_hooks hooks{std::string{app}};
 
 		args::null_translator tr{};
 		args::parser parser{"One piece of furniture, every angle", args, &tr};
-		parser.custom(print_version, "version").help("show the version and exit").opt();
+		parser
+		    .custom(
+		        [app] {
+			        pyxel::dialogs::show_info(app, std::format("inspector {}", pyxel::version::ui));
+			        args::exit(0);
+		        },
+		        "version")
+		    .help("show the version and exit")
+		    .opt();
 		parser.set<std::true_type>(result.verbose, "v").help("show more information").opt();
 		parser.set<std::true_type>(result.driver.vsync, "vsync").help("turns the VSync ON").opt();
 		parser.set<std::false_type>(result.driver.vsync, "no-vsync").help("turns the VSync OFF").opt();
@@ -58,12 +59,13 @@ namespace inspector {
 		parser.parse();
 
 		if (auto& path = result.model_path) {
+			auto const name = pyxel::as_str(path->u8string());
 			if (!std::filesystem::exists(*path)) {
-				file_error(*path, "model does not exists"sv);
+				parser.error(std::format("{}: the model does not exist", name));
 			}
 
 			if (!std::filesystem::is_regular_file(*path)) {
-				file_error(*path, "model needs to be a file"sv);
+				parser.error(std::format("{}: the model needs to be a file", name));
 			}
 
 			path = std::filesystem::weakly_canonical(*path);

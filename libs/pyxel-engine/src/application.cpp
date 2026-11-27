@@ -53,6 +53,8 @@ namespace pyxel::app {
 		if (window_) window_->set_title(title);
 	}
 
+	void application::report_error(std::string_view message) { std::println(stderr, "{}: error: {}", name(), message); }
+
 	extent application::pixel_size() const noexcept { return window_ ? window_->pixel_size() : extent{}; }
 
 	int application::main(int argc, char* argv[]) {
@@ -61,7 +63,7 @@ namespace pyxel::app {
 			auto const backends = create_stack(main_window(), driver());
 			return run(*backends);
 		} catch (std::exception const& e) {
-			std::println(stderr, "{}: error: {}", name(), e.what());
+			report_error(e.what());
 		}
 		return 1;
 	}

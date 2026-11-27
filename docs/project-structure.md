@@ -84,6 +84,14 @@ The reasons behind this split, the libraries considered and the event flow are i
 - implements the window and platform interfaces: creates the window, drains the SDL event queue and translates it into engine events (keys, mouse, text, gamepad hotplug, buttons and axes), reads and applies the window state
 - knows nothing about the GPU; owns no camera, HUD or font
 
+## Dialogs backend
+
+- uses `pyxel::dialogs` namespace
+- lives in `libs/backends/dialogs`
+- depends on mbits-args
+- says what an application has to say before it has a window: the help, the version and the errors; a WIN32 application on Windows has no console, so there it shows a dialog box (the help in a monospace text box), and elsewhere it prints to stdout or stderr
+- `args_hooks` sends the help and the errors of the command line parser there, through the hooks of mbits-args
+
 ## SDL3 GPU backend
 
 - uses `pyxel::sdl3::gpu` namespace
@@ -124,7 +132,7 @@ The reasons behind this split, the libraries considered and the event flow are i
 
 ## Inspector (app)
 
-- depends on `pyxel-ui` and `backends/sdl3-gpu`
+- depends on `pyxel-ui`, `backends/sdl3-gpu` and `backends/dialogs`
 - views and tests a single model
 - a tool UI: most panels (log, sun, states, actions, inputs, outputs) are docked around the 3D view, and the dock layout is kept with the window state
 

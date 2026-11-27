@@ -7,6 +7,7 @@
 #include <format>
 #include <memory>
 #include <pyxel/base/str.hpp>
+#include <pyxel/dialogs.hpp>
 #include <pyxel/sdl3/imgui_stack.hpp>
 #include <pyxel/version.hpp>
 #include <string>
@@ -21,7 +22,7 @@ namespace inspector {
 	std::string application::title() const { return "Inspector"s; }
 
 	bool application::init(::args::args_view const& args) {
-		options_ = parse_options(args);
+		options_ = parse_options(args, title());
 
 		// TODO: check other runs for the model path
 
@@ -58,6 +59,8 @@ namespace inspector {
 		// TODO: stop the watcher first, it wakes the loader up
 		loader_.shutdown();
 	}
+
+	void application::report_error(std::string_view message) { pyxel::dialogs::report_issue(title(), message); }
 
 	void application::draw_menu() {
 		if (!ImGui::BeginMainMenuBar()) return;

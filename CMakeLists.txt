@@ -58,12 +58,18 @@ else()
   find_package(Python3 COMPONENTS Interpreter REQUIRED)
 endif()
 find_package(fmt REQUIRED)
-find_package(mbits-args REQUIRED)
 find_package(glm REQUIRED)
 find_package(assimp REQUIRED)
 find_package(RapidJSON REQUIRED)
 find_package(SDL3 REQUIRED)
 find_package(imgui REQUIRED)
+
+# mbits-args comes from external/args (branch feat/hooks) until a release
+# has the help, error and exit hooks
+add_subdirectory(external/args EXCLUDE_FROM_ALL)
+# linked into the shapes Python module, too
+set_target_properties(args PROPERTIES POSITION_INDEPENDENT_CODE ON FOLDER external)
+add_library(mbits::args ALIAS args)
 
 if (DOLLHOUSE_TESTING)
   enable_testing()
