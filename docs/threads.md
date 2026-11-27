@@ -39,7 +39,7 @@ The "load in progress" notification is an atomic flag the render thread reads ea
 ## Loader thread
 
 1. Always runs: a `pyxel::task_thread`, started with the application and sleeping until the first wake-up, checking the stop token whenever it wakes up.
-2. Runs one task, fixed when the application is created: a `std::function` the application composes from the ready-made pieces (`io::import_model()`, then the hand-over to the watcher and to the render thread). The task reads what to load from the application. The first run is the model given on the command line: `application::init` stores the path and only then wakes the loader up, so the wake-up orders the write before the read, with no other lock. After that, the loader only wakes up when woken.
+2. Runs one task, fixed when the application is created: a `std::function` the application composes from the ready-made pieces (`io::import_model()`, then the hand-over to the watcher and to the render thread). The task reads what to load from the loader object, which keeps the path under a lock of its own, so a new path can be given at any time, not only before the first wake-up. The first run is the model given on the command line: `application::init` gives the loader the path, then wakes it up. After that, the loader only wakes up when woken.
 3. Wake-ups come from the render thread (the first one, a reload from the menu) and from `pyxel::watcher`.
 4. Imports the model and keeps the model, the diagnostics and the list of resource files, each with the stats it had when it was read (see [Missed changes](#missed-changes)).
 5. Hands the result over to the render thread. A result is one of:
