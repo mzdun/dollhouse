@@ -3,21 +3,29 @@
 
 #include <imgui.h>
 #include <array>
+#include <atomic>
+#include <exception>
 #include <filesystem>
 #include <format>
 #include <iostream>
 #include <memory>
+#include <optional>
 #include <print>
 #include <pyxel/app/application.hpp>
 #include <pyxel/app/main_impl.hpp>
 #include <pyxel/base/str.hpp>
 #include <pyxel/camera.hpp>
+#include <pyxel/handoff.hpp>
 #include <pyxel/io/import.hpp>
 #include <pyxel/sdl3/imgui_stack.hpp>
+#include <pyxel/task_thread.hpp>
 #include <pyxel/version.hpp>
+#include <stop_token>
 #include <string>
 #include <string_view>
 #include <utility>
+#include <variant>
+#include <vector>
 
 ENUM_TRAITS_BEGIN(pyxel::app::gpu_api)
 ENUM_TRAITS_NAME(vulkan)
@@ -72,6 +80,37 @@ namespace inspector {
 		}
 	};
 
+	// replace the list of files to watch, or add to it after a failed import
+	enum class observe_mode { reset, append };
+
+	// what the loader hands over to the render thread (see Loader thread in
+	// docs/threads.md)
+	struct loaded {
+		pyxel::gfx::loaded_model model;
+		std::vector<pyxel::io::interactions::note> notes;
+		// the resets asked for when the import started; a number other than
+		// the one applied last starts the model over
+		unsigned resets{};
+	};
+
+	struct failed {
+		std::string message;
+	};
+
+	using load_result = std::variant<loaded, failed>;
+
+	std::string_view describe(pyxel::io::interactions::note::kind what) noexcept {
+		switch (what) {
+			case pyxel::io::interactions::note::upgraded:
+				return "upgraded"sv;
+			case pyxel::io::interactions::note::ignored:
+				return "ignored"sv;
+			case pyxel::io::interactions::note::dropped:
+				return "dropped"sv;
+		}
+		return "note"sv;
+	}
+
 	struct application : pyxel::app::application {
 		std::string_view name() const noexcept override { return "inspector"sv; }
 		std::string title() const override { return "Inspector"s; }
@@ -106,6 +145,7 @@ namespace inspector {
 
 			// TODO: check other runs for model_path_
 
+			if (model_path_) reload();
 			return true;
 		}
 
@@ -118,28 +158,17 @@ namespace inspector {
 
 		void setup() override {
 			header_ = std::format("{} {}", title(), PYXEL_VERSION_STR);
-			if (model_path_) {
-				imported_ = pyxel::io::import_model(*model_path_);
-				update_title();
-			}
 			frame_camera();
 		}
 
 		void update(pyxel::app::seconds) override {
+			if (auto result = results_.take()) apply(std::move(*result));
 			if (pixel_size() != frame_size_) frame_camera();
 		}
 
-		void refresh() {
-			// TODO: remove old import notes from log
-			if (!model_path_) {
-				return;
-			}
-
-			imported_ = pyxel::io::import_model(*model_path_);
-
-			// TODO: add new import notes to log
-			update_title();
-			frame_camera();
+		void shutdown() override {
+			// TODO: stop the watcher first, it posts to the loader
+			loader_.shutdown();
 		}
 
 		void draw_ui() override {
@@ -147,6 +176,8 @@ namespace inspector {
 
 			if (ImGui::BeginMainMenuBar()) {
 				if (ImGui::BeginMenu("File")) {
+					if (ImGui::MenuItem("Reload", nullptr, false, model_path_.has_value())) reload();
+					ImGui::Separator();
 					if (ImGui::MenuItem("Exit")) quit();
 					ImGui::EndMenu();
 				}
@@ -160,6 +191,14 @@ namespace inspector {
 			if (ImGui::Begin("Log")) {
 				ImGui::TextUnformatted(header_.c_str());
 				ImGui::Text("%.1f FPS", avg_.observe(static_cast<double>(ImGui::GetIO().Framerate)));
+				if (loading_.load(std::memory_order_relaxed)) ImGui::TextUnformatted("Loading...");
+				if (!error_.empty()) ImGui::TextColored(ImVec4{1.0f, 0.4f, 0.4f, 1.0f}, "%s", error_.c_str());
+				for (auto const& note : notes_) {
+					auto const line =
+					    std::format("[Import] {}: {}: {}", note.object.empty() ? "<unnamed>"sv : note.object,
+					                describe(note.what), note.reason);
+					ImGui::TextUnformatted(line.c_str());
+				}
 				if (verbose_) {
 					for (auto const& [source, label, value] : backend_info())
 						ImGui::Text("[%s] %s: %s", source.c_str(), label.c_str(), value.c_str());
@@ -180,18 +219,79 @@ namespace inspector {
 		}
 
 	private:
-		// immovable for now: looks at the whole model, again for every new
-		// model and every new size of the window
+		// the loader thread; reads model_path_, which init() writes before
+		// the first wake-up
+		void load(std::stop_token token) {
+			loading_.store(true, std::memory_order_relaxed);
+			auto const resets = resets_requested_.load(std::memory_order_relaxed);
+			try {
+				auto imported = pyxel::io::import_model(*model_path_);
+				// a result coming in during shutdown is dropped
+				if (!token.stop_requested()) {
+					observe(std::move(imported.sources), observe_mode::reset);
+					set_model(std::move(imported.model), std::move(imported.notes), resets);
+				}
+			} catch (pyxel::io::import_error const& error) {
+				observe(error.sources(), observe_mode::append);
+				results_.post(failed{error.what()});
+			} catch (std::exception const& error) {
+				results_.post(failed{error.what()});
+			} catch (...) {
+				results_.post(failed{"unknown error while loading the model"s});
+			}
+			loading_.store(false, std::memory_order_relaxed);
+		}
+
+		// any thread; hands the files of the model over to the watcher,
+		// once there is one
+		void observe(std::vector<pyxel::io::source_file> /*sources*/, observe_mode /*mode*/) {}
+
+		// any thread; the render thread picks the model up at the start of
+		// its next frame
+		void set_model(pyxel::gfx::loaded_model model,
+		               std::vector<pyxel::io::interactions::note> notes,
+		               unsigned resets) {
+			results_.post(loaded{std::move(model), std::move(notes), resets});
+		}
+
+		// the render thread; the next model starts over, unlike a reload
+		// from the watcher, which keeps what it can
+		void reload() {
+			resets_requested_.fetch_add(1, std::memory_order_relaxed);
+			loader_.wake();
+		}
+
+		// the render thread
+		void apply(load_result result) {
+			if (auto* next = std::get_if<loaded>(&result)) {
+				model_ = std::move(next->model);
+				notes_ = std::move(next->notes);
+				error_.clear();
+				update_title();
+				if (next->resets != resets_applied_) {
+					resets_applied_ = next->resets;
+					// TODO: reset the states of the active objects, once there are some
+					frame_camera();
+				}
+				return;
+			}
+
+			// a failed load keeps the previous model
+			error_ = std::move(std::get<failed>(result).message);
+		}
+
+		// immovable for now: looks at the whole model, again after every
+		// reset and every new size of the window
 		void frame_camera() {
 			frame_size_ = pixel_size();
 			auto const aspect = frame_size_.height > 0
 			                        ? static_cast<float>(frame_size_.width) / static_cast<float>(frame_size_.height)
 			                        : 1.0f;
-			camera_ = pyxel::camera::framing(imported_.model.bounds(), aspect);
+			camera_ = pyxel::camera::framing(model_.bounds(), aspect);
 		}
 
 		void update_title() {
-			auto document_title = imported_.model.title;
+			auto document_title = model_.title;
 
 			if (model_path_) {
 				auto const filename = pyxel::as_str(model_path_->filename().u8string());
@@ -206,13 +306,25 @@ namespace inspector {
 
 		moving_average<double, 10000> avg_{};
 		std::string header_{};
-		pyxel::io::imported_model imported_{};
+		pyxel::gfx::loaded_model model_{};
+		std::vector<pyxel::io::interactions::note> notes_{};
+		std::string error_{};
 		pyxel::camera camera_{};
 		pyxel::app::extent frame_size_{};
 		std::optional<std::filesystem::path> model_path_{};
 		pyxel::app::driver_hints driver_{};
 		bool verbose_{false};
 		bool show_demo_{false};
+
+		pyxel::handoff<load_result> results_{};
+		std::atomic<bool> loading_{false};
+		// bumped by reload(), read by the loader at the start of an import
+		std::atomic<unsigned> resets_requested_{0};
+		// the render thread only
+		unsigned resets_applied_{0};
+		// last: the thread starts after everything it reads is there, and
+		// stops before any of it is gone
+		pyxel::task_thread loader_{[this](std::stop_token token) { load(std::move(token)); }};
 	};
 }  // namespace inspector
 

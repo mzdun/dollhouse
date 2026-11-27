@@ -65,6 +65,7 @@ The reasons behind this split, the libraries considered and the event flow are i
 - defines cameras (free-flying or player-bound)
 - enables object collisions to enable the player-bound movement
 - describes what is drawn, as data with no GPU calls: the scene with its meshes, materials, lights, textures and sky boxes, and the order of the passes
+- runs the loading off the render thread: `task_thread` runs a task the application composes each time it is woken up, and `handoff` passes the newest result to the render thread (see [threads.md](threads.md))
 
 ## Pyxel UI
 
