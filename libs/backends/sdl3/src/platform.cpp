@@ -7,6 +7,24 @@
 #include <stdexcept>
 #include <utility>
 
+#if defined(__SANITIZE_THREAD__)  // GCC
+#define PYXEL_TSAN 1
+#elif defined(__has_feature)
+#if __has_feature(thread_sanitizer)  // Clang
+#define PYXEL_TSAN 1
+#endif
+#endif
+
+#if defined(PYXEL_TSAN)
+// SDL_Init and SDL_Quit go through libdbus, which takes two of its own
+// mutexes in one order on the way up and in the other on the way down. The
+// cycle is all inside the (uninstrumented) library and ThreadSanitizer
+// reports it as a lock-order-inversion in every program starting SDL.
+// The runtime reads this list next to the TSAN_OPTIONS suppressions file;
+// it lives here, so every binary linking the SDL backend gets it.
+extern "C" char const* __tsan_default_suppressions() { return "deadlock:libdbus-1.so\n"; }
+#endif
+
 namespace pyxel::sdl3 {
 	void throw_error(std::string_view what) { throw std::runtime_error{std::format("{}: {}", what, SDL_GetError())}; }
 
