@@ -10,9 +10,12 @@ set(SRCS
     include/pyxel/app/window.hpp
     include/pyxel/camera.hpp
     include/pyxel/handles.hpp
+    include/pyxel/handoff.hpp
+    include/pyxel/task_thread.hpp
 
     src/application.cpp
     src/camera.cpp
+    src/task_thread.cpp
 )
 
 source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR} FILES ${SRCS})
@@ -36,7 +39,9 @@ if(DOLLHOUSE_TESTING)
         tests/camera.test.cpp
         tests/fakes.hpp
         tests/handles.test.cpp
+        tests/handoff.test.cpp
         tests/loop.test.cpp
+        tests/task_thread.test.cpp
     )
     source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR}/tests FILES ${TEST_SRCS})
 
